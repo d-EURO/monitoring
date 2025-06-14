@@ -1,0 +1,229 @@
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+interface DatabaseConfig {
+  host?: string;
+  port?: number;
+  database?: string;
+  user?: string;
+  password?: string;
+  connectionString?: string;
+  ssl?: boolean | {
+    ca?: string;
+    key?: string;
+    cert?: string;
+    rejectUnauthorized?: boolean;
+  };
+  max?: number;
+  idleTimeoutMillis?: number;
+  connectionTimeoutMillis?: number;
+}
+
+interface BlockRow extends QueryResultRow {
+  last_processed_block: number;
+}
+
+@Injectable()
+export class DatabaseService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(DatabaseService.name);
+  private pool: Pool;
+
+  constructor(private readonly configService: ConfigService) {}
+
+  async onModuleInit() {
+    await this.connect();
+    await this.initializeSchema();
+  }
+
+  async onModuleDestroy() {
+    await this.close();
+  }
+
+  private async connect() {
+    const monitoringConfig = this.configService.get('monitoring');
+    
+    let sslConfig: any = false;
+    if (monitoringConfig.dbSsl === true) {
+      sslConfig = { rejectUnauthorized: true };
+    } else if (process.env.NODE_ENV === 'development' && monitoringConfig.dbSsl) {
+      sslConfig = { rejectUnauthorized: false };
+    }
+
+    const poolConfig: any = {
+      ssl: sslConfig,
+      max: monitoringConfig.pgMaxClients || 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    };
+
+    if (monitoringConfig.databaseUrl) {
+      poolConfig.connectionString = monitoringConfig.databaseUrl;
+    } else {
+      poolConfig.host = monitoringConfig.dbHost || 'localhost';
+      poolConfig.port = monitoringConfig.dbPort || 5432;
+      poolConfig.database = monitoringConfig.dbName || 'deuro_monitoring';
+      poolConfig.user = monitoringConfig.dbUser || 'postgres';
+      poolConfig.password = monitoringConfig.dbPassword || '';
+    }
+
+    this.pool = new Pool(poolConfig);
+
+    this.pool.on('error', (err: Error) => {
+      this.logger.error('Database pool error:', err);
+    });
+
+    await this.testConnection();
+  }
+
+  async query<T extends QueryResultRow = any>(text: string, params?: any[]): Promise<QueryResult<T>> {
+    const start = Date.now();
+    try {
+      const result = await this.pool.query<T>(text, params);
+      const duration = Date.now() - start;
+      
+      if (duration > 500) {
+        this.logger.warn(`Slow query detected (${duration}ms):`, text.substring(0, 100));
+      }
+      
+      return result;
+    } catch (error: any) {
+      const duration = Date.now() - start;
+      this.logger.error(`Query failed after ${duration}ms:`, {
+        sql: text.substring(0, 100),
+        params: params?.length ? `[${params.length} params]` : 'none',
+        errorCode: error.code,
+        errorMessage: error.message
+      });
+      throw error;
+    }
+  }
+
+  async fetch<T extends QueryResultRow>(text: string, params?: any[]): Promise<T[]> {
+    const result = await this.query<T>(text, params);
+    return result.rows;
+  }
+
+  async withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async initializeSchema(): Promise<void> {
+    try {
+      const schemaPath = process.env.DB_SCHEMA_PATH || join(__dirname, '../../database/schema.sql');
+      const schemaSql = readFileSync(schemaPath, 'utf8');
+      
+      this.logger.log('Initializing database schema...');
+      
+      const statements = schemaSql
+        .split(';')
+        .map(stmt => stmt.trim())
+        .filter(stmt => stmt.length > 0);
+      
+      await this.withTransaction(async (client) => {
+        for (const statement of statements) {
+          await client.query(statement);
+        }
+      });
+      
+      this.logger.log('Database schema initialized successfully');
+    } catch (error) {
+      this.logger.error('Failed to initialize database schema:', error);
+      throw error;
+    }
+  }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      const result = await this.query<{ current_time: Date } & QueryResultRow>('SELECT NOW() as current_time');
+      this.logger.log('Database connection successful:', result.rows[0].current_time);
+      return true;
+    } catch (error) {
+      this.logger.error('Database connection failed:', error);
+      return false;
+    }
+  }
+
+  async recordMonitoringCycle(lastBlock: number, eventsProcessed: number, durationMs: number): Promise<void> {
+    const query = `
+      INSERT INTO monitoring_metadata (last_processed_block, events_processed, processing_duration_ms)
+      VALUES ($1, $2, $3)
+    `;
+    await this.query(query, [lastBlock, eventsProcessed, durationMs]);
+  }
+
+  async getLastProcessedBlock(): Promise<number | null> {
+    const query = `
+      SELECT last_processed_block 
+      FROM monitoring_metadata 
+      ORDER BY cycle_timestamp DESC 
+      LIMIT 1
+    `;
+    const rows = await this.fetch<BlockRow>(query);
+    return rows.length > 0 ? rows[0].last_processed_block : null;
+  }
+
+  async getActivePositionAddresses(filters?: {
+    owner?: string;
+    collateral?: string;
+    original?: string;
+    limit?: number;
+  }): Promise<string[]> {
+    let query = `
+      SELECT DISTINCT position 
+      FROM minting_hub_position_opened_events
+    `;
+    const params: any[] = [];
+    const whereConditions: string[] = [];
+
+    if (filters?.owner) {
+      whereConditions.push(`owner = $${params.length + 1}`);
+      params.push(filters.owner);
+    }
+
+    if (filters?.collateral) {
+      whereConditions.push(`collateral = $${params.length + 1}`);
+      params.push(filters.collateral);
+    }
+
+    if (filters?.original) {
+      whereConditions.push(`original = $${params.length + 1}`);
+      params.push(filters.original);
+    }
+
+    if (whereConditions.length > 0) {
+      query += ` WHERE ` + whereConditions.join(' AND ');
+    }
+
+    query += ` ORDER BY position`;
+
+    if (filters?.limit) {
+      query += ` LIMIT $${params.length + 1}`;
+      params.push(filters.limit);
+    }
+
+    const rows = await this.fetch<{ position: string }>(query, params);
+    return rows.map(row => row.position);
+  }
+
+  async close(): Promise<void> {
+    if (this.pool) {
+      this.logger.log('Closing database connection pool...');
+      await this.pool.end();
+      this.logger.log('Database connection pool closed');
+    }
+  }
+}
