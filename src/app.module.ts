@@ -10,19 +10,19 @@ import { StatesModule } from './states/states.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      load: [monitoringConfig],
-      envFilePath: ['.env.monitoring', '.env'],
-    }),
-    ScheduleModule.forRoot(),
-    DatabaseModule,
-    BlockchainModule,
-    MonitoringModule,
-    EventsModule,
-    StatesModule,
-    AnalyticsModule,
-  ],
+	imports: [
+		ConfigModule.forRoot({
+			isGlobal: true,
+			load: [monitoringConfig],
+			envFilePath: ['.env.monitoring', '.env'],
+		}),
+		ScheduleModule.forRoot(),
+		DatabaseModule,
+		BlockchainModule,
+		MonitoringModule,
+		EventsModule,
+		StatesModule,
+		AnalyticsModule,
+	],
 })
 export class AppModule {}
