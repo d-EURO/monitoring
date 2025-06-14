@@ -2,19 +2,6 @@
 
 A comprehensive monitoring system for the dEURO protocol built with NestJS, featuring PostgreSQL database persistence, scheduled monitoring tasks, and REST API endpoints for frontend integration.
 
-## Features
-
-- **NestJS Architecture**: Clean, modular design with dependency injection and decorators
-- **Scheduled Monitoring**: Automated blockchain monitoring using `@nestjs/schedule`
-- **REST API Endpoints**: Full API for historical events, states, and analytics
-- **Complete Event Monitoring**: Tracks all protocol events with dedicated database tables
-- **Daily State Snapshots**: Captures daily protocol state with automatic updates
-- **Incremental Processing**: Only fetches new events since last monitoring cycle
-- **Database Persistence**: PostgreSQL with optimized schemas for fast queries
-- **Swagger Documentation**: Auto-generated API documentation
-- **Container Ready**: Simple Docker deployment, works with any hosting provider
-- **Database Flexibility**: Works with any PostgreSQL provider (AWS, GCP, Railway, etc.)
-
 ## Architecture
 
 ```
@@ -30,30 +17,6 @@ src/
 ├── blockchain/               # Contract interactions and utilities
 └── common/                   # Shared DTOs and types
 ```
-
-## API Endpoints
-
-### Events
-- `GET /events/transfers` - dEURO transfer events
-- `GET /events/minting` - Position minting events
-- `GET /events/equity` - Equity trade events
-- `GET /events/savings` - Savings-related events
-- `GET /events/challenges` - Challenge events
-
-### States
-- `GET /states/deuro/current` - Current dEURO protocol state
-- `GET /states/equity/current` - Current equity token state
-- `GET /states/positions/current` - Current open positions
-- `GET /states/daily/{stateType}` - Historical daily states
-
-### Analytics
-- `GET /analytics/summary` - Protocol summary metrics
-- `GET /analytics/volume` - Volume metrics over time
-- `GET /analytics/positions` - Position distribution analytics
-
-### Health
-- `GET /health/monitoring` - Monitoring system status
-- `GET /health/database` - Database connection status
 
 ## Quick Start
 
@@ -92,21 +55,3 @@ docker build -t deuro-monitoring .
 ```bash
 docker run -e DATABASE_URL="postgresql://..." -e RPC_URL="https://..." -p 3001:3001 deuro-monitoring
 ```
-
-### **Deploy Anywhere:**
-- **Railway**: Connect GitHub, add PostgreSQL addon
-- **Vercel**: Container deployment with external database
-- **DigitalOcean App Platform**: Container + managed database
-- **AWS ECS/Fargate**: Container + RDS PostgreSQL
-- **Google Cloud Run**: Container + Cloud SQL
-- **Any Kubernetes cluster**: Standard deployment patterns
-
-## Scripts
-
-- `npm run build` - Build the application
-- `npm run start` - Start production server
-- `npm run start:dev` - Start development server with watch mode
-- `npm run start:debug` - Start with debugging enabled
-- `npm run lint` - Run ESLint
-- `npm run test` - Run tests
-- `npm run format` - Format code with Prettier
