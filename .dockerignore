@@ -46,8 +46,8 @@ Dockerfile
 docker-compose.yml
 .dockerignore
 
-# Azure deployment files
-azure/
+# Azure deployment files (removed)
+# azure/
 
 # Test files
 test/

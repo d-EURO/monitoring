@@ -12,8 +12,8 @@ A comprehensive monitoring system for the dEURO protocol built with NestJS, feat
 - **Incremental Processing**: Only fetches new events since last monitoring cycle
 - **Database Persistence**: PostgreSQL with optimized schemas for fast queries
 - **Swagger Documentation**: Auto-generated API documentation
-- **Docker Ready**: Self-contained containerization for cloud deployment
-- **Azure Integration**: Complete Azure deployment with Container Apps and PostgreSQL
+- **Container Ready**: Simple Docker deployment, works with any hosting provider
+- **Database Flexibility**: Works with any PostgreSQL provider (AWS, GCP, Railway, etc.)
 
 ## Architecture
 
@@ -65,21 +65,41 @@ src/
 2. **Configure environment:**
    ```bash
    cp .env.monitoring.example .env.monitoring
-   # Edit .env.monitoring with your configuration
+   # Edit .env.monitoring with your database and RPC configuration
    ```
 
-3. **Build the application:**
+3. **Set up PostgreSQL database:**
+   - Use any PostgreSQL provider (AWS RDS, Google Cloud SQL, Railway, etc.)
+   - Run the schema: `psql $DATABASE_URL < database/schema.sql`
+
+4. **Build and start:**
    ```bash
    npm run build
-   ```
-
-4. **Start development server:**
-   ```bash
    npm run start:dev
    ```
 
 5. **Access API documentation:**
    Open `http://localhost:3001` for Swagger UI
+
+## Container Deployment
+
+### **Docker Build:**
+```bash
+docker build -t deuro-monitoring .
+```
+
+### **Docker Run:**
+```bash
+docker run -e DATABASE_URL="postgresql://..." -e RPC_URL="https://..." -p 3001:3001 deuro-monitoring
+```
+
+### **Deploy Anywhere:**
+- **Railway**: Connect GitHub, add PostgreSQL addon
+- **Vercel**: Container deployment with external database
+- **DigitalOcean App Platform**: Container + managed database
+- **AWS ECS/Fargate**: Container + RDS PostgreSQL
+- **Google Cloud Run**: Container + Cloud SQL
+- **Any Kubernetes cluster**: Standard deployment patterns
 
 ## Scripts
 
