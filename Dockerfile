@@ -9,4 +9,4 @@ COPY --chown=node . .
 RUN npm install --frozen-lockfile
 RUN npm run build
 
-CMD ["npm", "start"]
+CMD ["npm", "run", "start:prod"]

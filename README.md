@@ -19,7 +19,7 @@ A comprehensive monitoring system for the dEURO protocol built with NestJS, feat
 
 ```
 src/
-├── main.ts                    # NestJS bootstrap
+├── monitoring.main.ts         # NestJS bootstrap
 ├── app.module.ts             # Root application module
 ├── config/                   # Configuration management
 ├── monitoring/               # Scheduled blockchain monitoring

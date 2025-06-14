@@ -1,6 +1,6 @@
 import { registerAs } from '@nestjs/config';
-import { IsString, IsNumber, IsOptional, IsUrl, Min, Max } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { IsString, IsNumber, IsOptional, IsUrl, Min, Max, validateSync } from 'class-validator';
+import { Transform, plainToClass } from 'class-transformer';
 
 export class MonitoringConfig {
 	@IsUrl()
@@ -62,7 +62,43 @@ export class MonitoringConfig {
 	pgMaxClients?: number = 10;
 }
 
+function validateConfiguration(config: MonitoringConfig): void {
+	const validatedConfig = plainToClass(MonitoringConfig, config);
+	const errors = validateSync(validatedConfig, { skipMissingProperties: false });
+
+	if (errors.length > 0) {
+		const errorMessages = errors
+			.map((error) => {
+				const constraints = Object.values(error.constraints || {});
+				return `${error.property}: ${constraints.join(', ')}`;
+			})
+			.join('\n');
+
+		throw new Error(`Configuration validation failed:\n${errorMessages}`);
+	}
+}
+
+function validateRequiredEnvironmentVariables(): void {
+	const required = ['RPC_URL', 'DEPLOYMENT_BLOCK'];
+	const missing = required.filter((key) => !process.env[key]);
+
+	if (missing.length > 0) {
+		throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+	}
+
+	// Validate database configuration - either DATABASE_URL or individual DB settings
+	const hasDatabaseUrl = !!process.env.DATABASE_URL;
+	const hasIndividualDbConfig = !!(process.env.DB_HOST && process.env.DB_NAME);
+
+	if (!hasDatabaseUrl && !hasIndividualDbConfig) {
+		throw new Error('Database configuration required: Either DATABASE_URL or DB_HOST+DB_NAME must be provided');
+	}
+}
+
 export default registerAs('monitoring', () => {
+	// Validate required environment variables first
+	validateRequiredEnvironmentVariables();
+
 	const config = new MonitoringConfig();
 
 	config.rpcUrl = process.env.RPC_URL;
@@ -78,6 +114,9 @@ export default registerAs('monitoring', () => {
 	config.dbPassword = process.env.DB_PASSWORD;
 	config.dbSsl = process.env.DB_SSL === 'true';
 	config.pgMaxClients = process.env.PG_MAX_CLIENTS ? parseInt(process.env.PG_MAX_CLIENTS) : 10;
+
+	// Validate the configuration object
+	validateConfiguration(config);
 
 	return config;
 });
