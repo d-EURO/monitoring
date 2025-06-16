@@ -61,21 +61,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 	}
 
 	async query<T extends QueryResultRow = any>(text: string, params?: any[]): Promise<QueryResult<T>> {
-		const start = Date.now();
 		try {
-			const result = await this.pool.query<T>(text, params);
-			const duration = Date.now() - start;
-
-			if (duration > 500) {
-				this.logger.warn(`Slow query detected (${duration}ms):`, text.substring(0, 100));
-			}
-
-			return result;
+			return await this.pool.query<T>(text, params);
 		} catch (error: any) {
-			const duration = Date.now() - start;
-			this.logger.error(`Query failed after ${duration}ms:`, {
+			this.logger.error('Database query failed:', {
 				sql: text.substring(0, 100),
-				params: params?.length ? `[${params.length} params]` : 'none',
 				errorCode: error.code,
 				errorMessage: error.message,
 			});
@@ -125,17 +115,6 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 		} catch (error) {
 			this.logger.error('Failed to initialize database schema:', error);
 			throw error;
-		}
-	}
-
-	async testConnection(): Promise<boolean> {
-		try {
-			const result = await this.query<{ current_time: Date } & QueryResultRow>('SELECT NOW() as current_time');
-			this.logger.log('Database connection successful:', result.rows[0].current_time);
-			return true;
-		} catch (error) {
-			this.logger.error('Database connection failed:', error);
-			return false;
 		}
 	}
 
@@ -206,6 +185,17 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 			this.logger.log('Closing database connection pool...');
 			await this.pool.end();
 			this.logger.log('Database connection pool closed');
+		}
+	}
+
+	async testConnection(): Promise<boolean> {
+		try {
+			const result = await this.query<{ current_time: Date } & QueryResultRow>('SELECT NOW() as current_time');
+			this.logger.debug('Database connection successful:', result.rows[0].current_time);
+			return true;
+		} catch (error) {
+			this.logger.error('Database connection failed:', error);
+			return false;
 		}
 	}
 }

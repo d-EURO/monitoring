@@ -6,12 +6,23 @@ import { BlockchainService } from '../blockchain/blockchain.service';
 import { EventsService } from '../events/events.service';
 import { StatesService } from '../states/states.service';
 
+interface MonitoringCycleResult {
+	duration: number;
+	eventsProcessed: number;
+	blocksProcessed: number;
+	timestamp: Date;
+	success: boolean;
+	errorMessage?: string;
+}
+
 @Injectable()
 export class MonitoringService implements OnModuleInit {
 	private readonly logger = new Logger(MonitoringService.name);
 	private isMonitoring = false;
 	private monitoringTimeoutCount = 0;
 	private readonly INDEXING_TIMEOUT_COUNT = 3;
+	private recentCycles: MonitoringCycleResult[] = [];
+	private readonly maxRecentCycles = 20;
 
 	constructor(
 		private readonly configService: ConfigService,
@@ -57,20 +68,6 @@ export class MonitoringService implements OnModuleInit {
 		}
 	}
 
-	@Cron('0 */6 * * *') // Every 6 hours
-	async aggregateMetrics() {
-		this.logger.log('Running metrics aggregation...');
-
-		try {
-			// Could add logic here for calculating daily/weekly summaries
-			// For now, this is a placeholder for future analytics
-
-			this.logger.log('Metrics aggregation completed');
-		} catch (error) {
-			this.logger.error('Metrics aggregation failed:', error);
-		}
-	}
-
 	@Cron(CronExpression.EVERY_WEEK) // Weekly health check
 	async weeklyHealthCheck() {
 		this.logger.log('Running weekly health check...');
@@ -109,33 +106,63 @@ export class MonitoringService implements OnModuleInit {
 		this.isMonitoring = true;
 		this.monitoringTimeoutCount = 0;
 
+		const startTime = Date.now();
+		let eventsProcessed = 0;
+		let blocksProcessed = 0;
+		let success = false;
+		let errorMessage: string | undefined;
+
 		try {
-			const startTime = Date.now();
 			const provider = this.blockchainService.getProvider();
 			const currentBlock = await provider.getBlockNumber();
 			const lastProcessedBlock = await this.databaseService.getLastProcessedBlock();
 			const fromBlock = lastProcessedBlock ? lastProcessedBlock + 1 : this.blockchainService.getDeploymentBlock();
 
 			if (fromBlock <= currentBlock) {
+				blocksProcessed = currentBlock - fromBlock + 1;
 				const timestamp = new Date().toISOString();
 				this.logger.log(`[${timestamp}] Fetching system state from block ${fromBlock} to ${currentBlock}`);
 
-				// Fetch and process events
+				// Fetch and process events with error handling
 				const eventsData = await this.eventsService.getSystemEvents(fromBlock, currentBlock);
+				eventsProcessed = this.countEventsProcessed(eventsData);
 
-				// Fetch and process states
+				// Fetch and process states with error handling
 				await this.statesService.getSystemState(eventsData.mintingHubPositionOpenedEvents);
 
+				success = true;
 				const duration = Date.now() - startTime;
-				this.logger.log(`Monitoring cycle completed in ${duration}ms`);
+				this.logger.log(
+					`Monitoring cycle completed successfully in ${duration}ms - processed ${eventsProcessed} events across ${blocksProcessed} blocks`
+				);
 			} else {
 				const timestamp = new Date().toISOString();
 				this.logger.log(`[${timestamp}] No new blocks to process (${fromBlock}/${currentBlock})`);
+				success = true;
 			}
 		} catch (error) {
+			success = false;
+			errorMessage = error instanceof Error ? error.message : String(error);
 			this.logger.error('Error during monitoring cycle:', error);
 		} finally {
 			this.isMonitoring = false;
+
+			const duration = Date.now() - startTime;
+
+			// Store cycle result
+			const cycleResult: MonitoringCycleResult = {
+				duration,
+				eventsProcessed,
+				blocksProcessed,
+				timestamp: new Date(),
+				success,
+				errorMessage,
+			};
+
+			this.recentCycles.unshift(cycleResult);
+			if (this.recentCycles.length > this.maxRecentCycles) {
+				this.recentCycles.pop();
+			}
 		}
 	}
 
@@ -150,5 +177,19 @@ export class MonitoringService implements OnModuleInit {
 			blockLag: currentBlock - (lastProcessedBlock || 0),
 			timeoutCount: this.monitoringTimeoutCount,
 		};
+	}
+
+	getRecentCycles(): MonitoringCycleResult[] {
+		return [...this.recentCycles];
+	}
+
+	private countEventsProcessed(eventsData: any): number {
+		let total = 0;
+		for (const [key, value] of Object.entries(eventsData)) {
+			if (key !== 'lastEventFetch' && key !== 'blockRange' && Array.isArray(value)) {
+				total += value.length;
+			}
+		}
+		return total;
 	}
 }
