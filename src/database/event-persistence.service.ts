@@ -92,6 +92,11 @@ export class EventPersistenceService {
 				if (eventsData.rollerRollEvents.length > 0) {
 					await this.persistRollerRollEvents(client, eventsData.rollerRollEvents);
 				}
+
+				// Persist position denied events
+				if (eventsData.positionDeniedEvents.length > 0) {
+					await this.persistPositionDeniedEvents(client, eventsData.positionDeniedEvents);
+				}
 			});
 
 			this.logger.log(`Successfully persisted ${this.getTotalEventCount(eventsData)} events`);
@@ -471,6 +476,28 @@ export class EventPersistenceService {
 		const query = pgFormat(
 			`
       INSERT INTO roller_roll_events (tx_hash, timestamp, log_index, source, coll_withdraw, repay, target, coll_deposit, mint)
+      VALUES %L
+      ON CONFLICT (tx_hash, log_index) DO NOTHING
+    `,
+			values
+		);
+
+		await client.query(query);
+	}
+
+	private async persistPositionDeniedEvents(client: any, events: any[]): Promise<void> {
+		const values = events.map((event) => [
+			event.txHash,
+			new Date(event.timestamp * 1000),
+			event.logIndex,
+			event.position,
+			event.sender,
+			event.message,
+		]);
+
+		const query = pgFormat(
+			`
+      INSERT INTO position_denied_events (tx_hash, timestamp, log_index, position, sender, message)
       VALUES %L
       ON CONFLICT (tx_hash, log_index) DO NOTHING
     `,

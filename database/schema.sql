@@ -259,6 +259,19 @@ CREATE TABLE IF NOT EXISTS roller_roll_events (
     UNIQUE(tx_hash, log_index)
 );
 
+-- Position Denied Events
+CREATE TABLE IF NOT EXISTS position_denied_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tx_hash VARCHAR(66) NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    log_index INTEGER NOT NULL,
+    position VARCHAR(42) NOT NULL,
+    sender VARCHAR(42) NOT NULL,
+    message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(tx_hash, log_index)
+);
+
 -- =============================================================================
 -- STATE TABLES
 -- =============================================================================
@@ -428,6 +441,10 @@ CREATE INDEX IF NOT EXISTS idx_savings_withdrawn_events_account ON savings_withd
 CREATE INDEX IF NOT EXISTS idx_minting_hub_position_opened_events_timestamp ON minting_hub_position_opened_events (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_minting_hub_position_opened_events_owner ON minting_hub_position_opened_events (owner);
 CREATE INDEX IF NOT EXISTS idx_minting_hub_position_opened_events_position ON minting_hub_position_opened_events (position);
+
+CREATE INDEX IF NOT EXISTS idx_position_denied_events_timestamp ON position_denied_events (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_position_denied_events_position ON position_denied_events (position);
+CREATE INDEX IF NOT EXISTS idx_position_denied_events_sender ON position_denied_events (sender);
 
 -- State table indexes
 CREATE INDEX IF NOT EXISTS idx_deuro_states_block_number ON deuro_states (block_number DESC);

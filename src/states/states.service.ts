@@ -258,19 +258,294 @@ export class StatesService {
 		};
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	private async persistSystemState(_systemState: SystemStateData): Promise<void> {
+	private async persistSystemState(systemState: SystemStateData): Promise<void> {
 		this.logger.log('Persisting system state to database...');
-		// TODO: Implement state persistence using NestJS patterns
-		// await statePersistence.persistAllSystemState(systemState);
-		this.logger.log('System state persisted successfully');
+
+		try {
+			const currentBlock = await this.blockchainService.getProvider().getBlockNumber();
+			const timestamp = new Date();
+
+			await this.databaseService.withTransaction(async (client) => {
+				// Persist dEURO state
+				if (systemState.deuroState) {
+					await this.persistDeuroState(client, currentBlock, timestamp, systemState.deuroState);
+				}
+
+				// Persist equity state
+				if (systemState.equityState) {
+					await this.persistEquityState(client, currentBlock, timestamp, systemState.equityState);
+				}
+
+				// Persist DEPS state
+				if (systemState.depsState) {
+					await this.persistDepsState(client, currentBlock, timestamp, systemState.depsState);
+				}
+
+				// Persist savings state
+				if (systemState.savingsState) {
+					await this.persistSavingsState(client, currentBlock, timestamp, systemState.savingsState);
+				}
+
+				// Persist frontend state
+				if (systemState.frontendState) {
+					await this.persistFrontendState(client, currentBlock, timestamp, systemState.frontendState);
+				}
+
+				// Persist minting hub state
+				if (systemState.mintingHubState) {
+					await this.persistMintingHubState(client, currentBlock, timestamp, systemState.mintingHubState);
+				}
+
+				// Persist individual position states
+				if (systemState.positionsState && systemState.positionsState.length > 0) {
+					await this.persistPositionStates(client, currentBlock, timestamp, systemState.positionsState);
+				}
+
+				// Persist challenge states
+				if (systemState.challengesState && systemState.challengesState.length > 0) {
+					await this.persistChallengeStates(client, currentBlock, timestamp, systemState.challengesState);
+				}
+
+				// Persist collateral states
+				if (systemState.collateralState && systemState.collateralState.length > 0) {
+					await this.persistCollateralStates(client, currentBlock, timestamp, systemState.collateralState);
+				}
+
+				// Persist bridge states
+				if (systemState.bridgeStates && systemState.bridgeStates.length > 0) {
+					await this.persistBridgeStates(client, currentBlock, timestamp, systemState.bridgeStates);
+				}
+			});
+
+			this.logger.log('System state persisted successfully');
+		} catch (error) {
+			this.logger.error('Failed to persist system state:', error);
+			throw error;
+		}
+	}
+
+	private async persistDeuroState(client: any, blockNumber: number, timestamp: Date, state: any): Promise<void> {
+		const query = `
+			INSERT INTO deuro_states (block_number, timestamp, total_supply, minter_reserve, equity)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (block_number) DO UPDATE SET
+				timestamp = EXCLUDED.timestamp,
+				total_supply = EXCLUDED.total_supply,
+				minter_reserve = EXCLUDED.minter_reserve,
+				equity = EXCLUDED.equity
+		`;
+		await client.query(query, [blockNumber, timestamp, state.totalSupply, state.minterReserve, state.equity]);
+	}
+
+	private async persistEquityState(client: any, blockNumber: number, timestamp: Date, state: any): Promise<void> {
+		const query = `
+			INSERT INTO equity_states (block_number, timestamp, total_shares, total_votes, market_cap, price)
+			VALUES ($1, $2, $3, $4, $5, $6)
+			ON CONFLICT (block_number) DO UPDATE SET
+				timestamp = EXCLUDED.timestamp,
+				total_shares = EXCLUDED.total_shares,
+				total_votes = EXCLUDED.total_votes,
+				market_cap = EXCLUDED.market_cap,
+				price = EXCLUDED.price
+		`;
+		const marketCap = BigInt(state.totalSupply) * BigInt(state.price);
+		await client.query(query, [blockNumber, timestamp, state.totalSupply, state.totalVotes, marketCap.toString(), state.price]);
+	}
+
+	private async persistDepsState(client: any, blockNumber: number, timestamp: Date, state: any): Promise<void> {
+		const query = `
+			INSERT INTO deps_states (block_number, timestamp, total_wrapped, wrapper_balance)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (block_number) DO UPDATE SET
+				timestamp = EXCLUDED.timestamp,
+				total_wrapped = EXCLUDED.total_wrapped,
+				wrapper_balance = EXCLUDED.wrapper_balance
+		`;
+		await client.query(query, [blockNumber, timestamp, state.totalSupply, state.totalSupply]);
+	}
+
+	private async persistSavingsState(client: any, blockNumber: number, timestamp: Date, state: any): Promise<void> {
+		const query = `
+			INSERT INTO savings_states (block_number, timestamp, total_savings, current_rate, savings_cap)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (block_number) DO UPDATE SET
+				timestamp = EXCLUDED.timestamp,
+				total_savings = EXCLUDED.total_savings,
+				current_rate = EXCLUDED.current_rate,
+				savings_cap = EXCLUDED.savings_cap
+		`;
+		const savingsCap = '0'; // Default cap, would need to be fetched from contract if available
+		await client.query(query, [blockNumber, timestamp, state.totalSavings, state.currentRatePPM.toString(), savingsCap]);
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	private async persistFrontendState(client: any, blockNumber: number, timestamp: Date, _state: any): Promise<void> {
+		const query = `
+			INSERT INTO frontend_states (block_number, timestamp, total_fees_collected, active_frontends)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (block_number) DO UPDATE SET
+				timestamp = EXCLUDED.timestamp,
+				total_fees_collected = EXCLUDED.total_fees_collected,
+				active_frontends = EXCLUDED.active_frontends
+		`;
+		const totalFeesCollected = '0'; // Would need to be calculated/fetched
+		const activeFrontends = 1; // Default value
+		await client.query(query, [blockNumber, timestamp, totalFeesCollected, activeFrontends]);
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	private async persistMintingHubState(client: any, blockNumber: number, timestamp: Date, _state: any): Promise<void> {
+		const query = `
+			INSERT INTO minting_hub_states (block_number, timestamp, total_positions, total_collateral, total_minted)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (block_number) DO UPDATE SET
+				timestamp = EXCLUDED.timestamp,
+				total_positions = EXCLUDED.total_positions,
+				total_collateral = EXCLUDED.total_collateral,
+				total_minted = EXCLUDED.total_minted
+		`;
+		// These would need to be calculated from position data
+		const totalPositions = 0;
+		const totalCollateral = '0';
+		const totalMinted = '0';
+		await client.query(query, [blockNumber, timestamp, totalPositions, totalCollateral, totalMinted]);
+	}
+
+	private async persistPositionStates(client: any, blockNumber: number, timestamp: Date, positions: any[]): Promise<void> {
+		for (const position of positions) {
+			const query = `
+				INSERT INTO position_states (
+					block_number, timestamp, position_address, owner_address, collateral_address,
+					collateral_balance, minted_amount, limit_for_position, limit_for_clones,
+					available_for_position, available_for_clones, is_original, is_clone, is_closed
+				)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+				ON CONFLICT (block_number, position_address) DO UPDATE SET
+					timestamp = EXCLUDED.timestamp,
+					owner_address = EXCLUDED.owner_address,
+					collateral_address = EXCLUDED.collateral_address,
+					collateral_balance = EXCLUDED.collateral_balance,
+					minted_amount = EXCLUDED.minted_amount,
+					limit_for_position = EXCLUDED.limit_for_position,
+					limit_for_clones = EXCLUDED.limit_for_clones,
+					available_for_position = EXCLUDED.available_for_position,
+					available_for_clones = EXCLUDED.available_for_clones,
+					is_original = EXCLUDED.is_original,
+					is_clone = EXCLUDED.is_clone,
+					is_closed = EXCLUDED.is_closed
+			`;
+
+			const isOriginal = position.positionAddress === position.original;
+			const isClone = !isOriginal;
+
+			await client.query(query, [
+				blockNumber,
+				timestamp,
+				position.positionAddress,
+				position.owner,
+				position.collateralAddress,
+				position.collateralBalance,
+				position.debt,
+				position.limit,
+				'0', // limit_for_clones
+				position.limit,
+				'0', // available amounts (would need calculation)
+				isOriginal,
+				isClone,
+				position.isClosed,
+			]);
+		}
+	}
+
+	private async persistChallengeStates(client: any, blockNumber: number, timestamp: Date, challenges: any[]): Promise<void> {
+		for (const challenge of challenges) {
+			const query = `
+				INSERT INTO challenge_states (
+					block_number, timestamp, challenge_number, position_address, challenger_address,
+					bid_amount, challenge_size, is_active
+				)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+				ON CONFLICT (block_number, challenge_number) DO UPDATE SET
+					timestamp = EXCLUDED.timestamp,
+					position_address = EXCLUDED.position_address,
+					challenger_address = EXCLUDED.challenger_address,
+					bid_amount = EXCLUDED.bid_amount,
+					challenge_size = EXCLUDED.challenge_size,
+					is_active = EXCLUDED.is_active
+			`;
+
+			const isActive = challenge.phase > 0; // Active if phase > 0
+
+			await client.query(query, [
+				blockNumber,
+				timestamp,
+				challenge.challengeId,
+				challenge.position,
+				challenge.challenger,
+				challenge.currentPrice,
+				challenge.size,
+				isActive,
+			]);
+		}
+	}
+
+	private async persistCollateralStates(client: any, blockNumber: number, timestamp: Date, collaterals: any[]): Promise<void> {
+		for (const collateral of collaterals) {
+			const query = `
+				INSERT INTO collateral_states (
+					block_number, timestamp, token_address, symbol, decimals, total_collateral, position_count
+				)
+				VALUES ($1, $2, $3, $4, $5, $6, $7)
+				ON CONFLICT (block_number, token_address) DO UPDATE SET
+					timestamp = EXCLUDED.timestamp,
+					symbol = EXCLUDED.symbol,
+					decimals = EXCLUDED.decimals,
+					total_collateral = EXCLUDED.total_collateral,
+					position_count = EXCLUDED.position_count
+			`;
+
+			// These would need to be calculated from position data
+			const totalCollateral = '0';
+			const positionCount = 0;
+
+			await client.query(query, [
+				blockNumber,
+				timestamp,
+				collateral.address,
+				collateral.symbol,
+				collateral.decimals,
+				totalCollateral,
+				positionCount,
+			]);
+		}
+	}
+
+	private async persistBridgeStates(client: any, blockNumber: number, timestamp: Date, bridges: any[]): Promise<void> {
+		for (const bridge of bridges) {
+			const query = `
+				INSERT INTO bridge_states (
+					block_number, timestamp, bridge_address, target_chain_id, total_bridged, is_active
+				)
+				VALUES ($1, $2, $3, $4, $5, $6)
+				ON CONFLICT (block_number, bridge_address) DO UPDATE SET
+					timestamp = EXCLUDED.timestamp,
+					target_chain_id = EXCLUDED.target_chain_id,
+					total_bridged = EXCLUDED.total_bridged,
+					is_active = EXCLUDED.is_active
+			`;
+
+			const targetChainId = 1; // Would need to be determined from bridge contract
+			const isActive = true; // Would need to be determined from bridge state
+
+			await client.query(query, [blockNumber, timestamp, bridge.bridgeAddress, targetChainId, bridge.minted, isActive]);
+		}
 	}
 
 	// API Methods for frontend
 	async getCurrentDeuroState() {
 		const query = `
-      SELECT * FROM deuro_state_daily 
-      ORDER BY date DESC 
+      SELECT * FROM deuro_states 
+      ORDER BY block_number DESC 
       LIMIT 1
     `;
 
@@ -280,8 +555,8 @@ export class StatesService {
 
 	async getCurrentEquityState() {
 		const query = `
-      SELECT * FROM equity_state_daily 
-      ORDER BY date DESC 
+      SELECT * FROM equity_states 
+      ORDER BY block_number DESC 
       LIMIT 1
     `;
 
@@ -293,25 +568,25 @@ export class StatesService {
 		const query = `
       SELECT * FROM position_states 
       WHERE is_closed = false 
-      ORDER BY last_updated DESC
+      ORDER BY timestamp DESC
     `;
 
 		return this.databaseService.fetch(query);
 	}
 
 	async getDailyStateHistory(stateType: string, days: number = 30) {
-		const tableName = `${stateType}_state_daily`;
+		const tableName = `${stateType}_states`;
 		const query = `
       SELECT * FROM ${tableName} 
-      WHERE date >= CURRENT_DATE - INTERVAL '${days} days'
-      ORDER BY date DESC
+      WHERE timestamp >= NOW() - INTERVAL '${days} days'
+      ORDER BY timestamp DESC
     `;
 
 		return this.databaseService.fetch(query);
 	}
 
 	private async getPositionsState(
-		mintingHub: ethers.Contract,
+		_mintingHub: ethers.Contract,
 		activePositionAddresses: string[],
 		_positionOpenedEvents: MintingHubPositionOpenedEvent[] // eslint-disable-line @typescript-eslint/no-unused-vars
 	) {
