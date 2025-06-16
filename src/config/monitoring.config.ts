@@ -62,39 +62,6 @@ export class MonitoringConfig {
 	pgMaxClients?: number = 10;
 }
 
-function validateConfiguration(config: MonitoringConfig): void {
-	const validatedConfig = plainToClass(MonitoringConfig, config);
-	const errors = validateSync(validatedConfig, { skipMissingProperties: false });
-
-	if (errors.length > 0) {
-		const errorMessages = errors
-			.map((error) => {
-				const constraints = Object.values(error.constraints || {});
-				return `${error.property}: ${constraints.join(', ')}`;
-			})
-			.join('\n');
-
-		throw new Error(`Configuration validation failed:\n${errorMessages}`);
-	}
-}
-
-function validateRequiredEnvironmentVariables(): void {
-	const required = ['RPC_URL', 'DEPLOYMENT_BLOCK'];
-	const missing = required.filter((key) => !process.env[key]);
-
-	if (missing.length > 0) {
-		throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-	}
-
-	// Validate database configuration - either DATABASE_URL or individual DB settings
-	const hasDatabaseUrl = !!process.env.DATABASE_URL;
-	const hasIndividualDbConfig = !!(process.env.DB_HOST && process.env.DB_NAME);
-
-	if (!hasDatabaseUrl && !hasIndividualDbConfig) {
-		throw new Error('Database configuration required: Either DATABASE_URL or DB_HOST+DB_NAME must be provided');
-	}
-}
-
 export default registerAs('monitoring', () => {
 	// Validate required environment variables first
 	validateRequiredEnvironmentVariables();
@@ -120,3 +87,36 @@ export default registerAs('monitoring', () => {
 
 	return config;
 });
+
+function validateRequiredEnvironmentVariables(): void {
+	const required = ['RPC_URL', 'DEPLOYMENT_BLOCK'];
+	const missing = required.filter((key) => !process.env[key]);
+
+	if (missing.length > 0) {
+		throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+	}
+
+	// Validate database configuration - either DATABASE_URL or individual DB settings
+	const hasDatabaseUrl = !!process.env.DATABASE_URL;
+	const hasIndividualDbConfig = !!(process.env.DB_HOST && process.env.DB_NAME);
+
+	if (!hasDatabaseUrl && !hasIndividualDbConfig) {
+		throw new Error('Database configuration required: Either DATABASE_URL or DB_HOST+DB_NAME must be provided');
+	}
+}
+
+function validateConfiguration(config: MonitoringConfig): void {
+	const validatedConfig = plainToClass(MonitoringConfig, config);
+	const errors = validateSync(validatedConfig, { skipMissingProperties: false });
+
+	if (errors.length > 0) {
+		const errorMessages = errors
+			.map((error) => {
+				const constraints = Object.values(error.constraints || {});
+				return `${error.property}: ${constraints.join(', ')}`;
+			})
+			.join('\n');
+
+		throw new Error(`Configuration validation failed:\n${errorMessages}`);
+	}
+}

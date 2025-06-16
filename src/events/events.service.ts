@@ -77,62 +77,112 @@ export class EventsService {
 			mintingHubPositionOpenedEvents,
 			rollerRollEvents,
 		] = await Promise.all([
-			fetchEvents<DeuroTransferEvent>(contracts.deuroContract, contracts.deuroContract.filters.Transfer(), fromBlock, toBlock),
-			fetchEvents<DeuroLossEvent>(contracts.deuroContract, contracts.deuroContract.filters.Loss(), fromBlock, toBlock),
-			fetchEvents<DeuroProfitEvent>(contracts.deuroContract, contracts.deuroContract.filters.Profit(), fromBlock, toBlock),
+			fetchEvents<DeuroTransferEvent>(
+				contracts.deuroContract,
+				contracts.deuroContract.filters.Transfer(),
+				fromBlock,
+				toBlock,
+				this.logger
+			),
+			fetchEvents<DeuroLossEvent>(contracts.deuroContract, contracts.deuroContract.filters.Loss(), fromBlock, toBlock, this.logger),
+			fetchEvents<DeuroProfitEvent>(
+				contracts.deuroContract,
+				contracts.deuroContract.filters.Profit(),
+				fromBlock,
+				toBlock,
+				this.logger
+			),
 			fetchEvents<DeuroMinterAppliedEvent>(
 				contracts.deuroContract,
 				contracts.deuroContract.filters.MinterApplied(),
 				fromBlock,
-				toBlock
+				toBlock,
+				this.logger
 			),
 			fetchEvents<DeuroMinterDeniedEvent>(
 				contracts.deuroContract,
 				contracts.deuroContract.filters.MinterDenied(),
 				fromBlock,
-				toBlock
+				toBlock,
+				this.logger
 			),
 			fetchEvents<DeuroProfitDistributedEvent>(
 				contracts.deuroContract,
 				contracts.deuroContract.filters.ProfitDistributed(),
 				fromBlock,
-				toBlock
+				toBlock,
+				this.logger
 			),
-			fetchEvents<EquityTradeEvent>(contracts.equityContract, contracts.equityContract.filters.Trade(), fromBlock, toBlock),
-			fetchEvents<EquityDelegationEvent>(contracts.equityContract, contracts.equityContract.filters.Delegation(), fromBlock, toBlock),
-			fetchEvents<DepsTransferEvent>(contracts.depsContract, contracts.depsContract.filters.Transfer(), fromBlock, toBlock),
-			fetchEvents<SavingsSavedEvent>(contracts.savingsContract, contracts.savingsContract.filters.Saved(), fromBlock, toBlock),
+			fetchEvents<EquityTradeEvent>(
+				contracts.equityContract,
+				contracts.equityContract.filters.Trade(),
+				fromBlock,
+				toBlock,
+				this.logger
+			),
+			fetchEvents<EquityDelegationEvent>(
+				contracts.equityContract,
+				contracts.equityContract.filters.Delegation(),
+				fromBlock,
+				toBlock,
+				this.logger
+			),
+			fetchEvents<DepsTransferEvent>(
+				contracts.depsContract,
+				contracts.depsContract.filters.Transfer(),
+				fromBlock,
+				toBlock,
+				this.logger
+			),
+			fetchEvents<SavingsSavedEvent>(
+				contracts.savingsContract,
+				contracts.savingsContract.filters.Saved(),
+				fromBlock,
+				toBlock,
+				this.logger
+			),
 			fetchEvents<SavingsInterestCollectedEvent>(
 				contracts.savingsContract,
 				contracts.savingsContract.filters.InterestCollected(),
 				fromBlock,
-				toBlock
+				toBlock,
+				this.logger
 			),
 			fetchEvents<SavingsWithdrawnEvent>(
 				contracts.savingsContract,
 				contracts.savingsContract.filters.Withdrawn(),
 				fromBlock,
-				toBlock
+				toBlock,
+				this.logger
 			),
 			fetchEvents<SavingsRateProposedEvent>(
 				contracts.savingsContract,
 				contracts.savingsContract.filters.RateProposed(),
 				fromBlock,
-				toBlock
+				toBlock,
+				this.logger
 			),
 			fetchEvents<SavingsRateChangedEvent>(
 				contracts.savingsContract,
 				contracts.savingsContract.filters.RateChanged(),
 				fromBlock,
-				toBlock
+				toBlock,
+				this.logger
 			),
 			fetchEvents<MintingHubPositionOpenedEvent>(
 				contracts.mintingHubContract,
 				contracts.mintingHubContract.filters.PositionOpened(),
 				fromBlock,
-				toBlock
+				toBlock,
+				this.logger
 			),
-			fetchEvents<RollerRollEvent>(contracts.rollerContract, contracts.rollerContract.filters.Roll(), fromBlock, toBlock),
+			fetchEvents<RollerRollEvent>(
+				contracts.rollerContract,
+				contracts.rollerContract.filters.Roll(),
+				fromBlock,
+				toBlock,
+				this.logger
+			),
 		]);
 
 		this.logger.log('Fetching PositionDenied from position contracts');
@@ -140,7 +190,13 @@ export class EventsService {
 		const positionDeniedEvents: PositionDeniedEvent[] = await Promise.all(
 			activePositionAddresses.map(async (p) => {
 				const positionContract = new ethers.Contract(p, PositionV2ABI, provider);
-				return fetchEvents<PositionDeniedEvent>(positionContract, positionContract.filters.PositionDenied(), fromBlock, toBlock);
+				return fetchEvents<PositionDeniedEvent>(
+					positionContract,
+					positionContract.filters.PositionDenied(),
+					fromBlock,
+					toBlock,
+					this.logger
+				);
 			})
 		).then((events) => events.flat());
 
