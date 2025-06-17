@@ -258,38 +258,4 @@ export class EventsService {
 		await this.databaseService.recordMonitoringCycle(currentBlock, totalEvents, duration);
 		this.logger.log(`Processed ${totalEvents} new events in ${duration}ms`);
 	}
-
-	// API Methods for frontend
-	async getEventsByType(eventType: string, fromBlock?: number, toBlock?: number, limit: number = 100) {
-		// This will be implemented to query historical events from database
-		const query = `
-      SELECT * FROM ${eventType}_events 
-      WHERE ($1::integer IS NULL OR timestamp >= to_timestamp($1))
-      AND ($2::integer IS NULL OR timestamp <= to_timestamp($2))
-      ORDER BY timestamp DESC 
-      LIMIT $3
-    `;
-
-		return this.databaseService.fetch(query, [fromBlock, toBlock, limit]);
-	}
-
-	async getTransferEvents(fromDate?: string, toDate?: string, limit: number = 100) {
-		let query = 'SELECT * FROM deuro_transfer_events WHERE 1=1';
-		const params: any[] = [];
-
-		if (fromDate) {
-			params.push(fromDate);
-			query += ` AND timestamp >= $${params.length}`;
-		}
-
-		if (toDate) {
-			params.push(toDate);
-			query += ` AND timestamp <= $${params.length}`;
-		}
-
-		params.push(limit);
-		query += ` ORDER BY timestamp DESC LIMIT $${params.length}`;
-
-		return this.databaseService.fetch(query, params);
-	}
 }

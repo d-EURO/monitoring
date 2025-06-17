@@ -1,86 +1,67 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiResponse, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { EventsService } from './events.service';
+import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOkResponse, ApiOperation } from '@nestjs/swagger';
+import { MetricsService } from '../monitoring/metrics.service';
+import {
+	DeuroTransferMetrics,
+	DeuroMinterMetrics,
+	DeuroProfitLossMetrics,
+	DepsFlowMetrics,
+	SavingsOverviewMetrics,
+	EquityTradingMetrics,
+	MintingPositionMetrics,
+} from '../monitoring/metrics.dto';
 
-@ApiTags('Events')
-@Controller('events')
+@ApiTags('Monitoring')
+@Controller('monitoring')
 export class EventsController {
-	constructor(private readonly eventsService: EventsService) {}
+	constructor(private readonly metricsService: MetricsService) {}
 
-	@Get('transfers')
-	@ApiOperation({ summary: 'Get dEURO transfer events' })
-	@ApiQuery({ name: 'from', required: false, description: 'Start date (ISO string)' })
-	@ApiQuery({ name: 'to', required: false, description: 'End date (ISO string)' })
-	@ApiQuery({ name: 'limit', required: false, description: 'Maximum number of results', type: Number })
-	@ApiResponse({
-		status: 200,
-		description: 'List of dEURO transfer events',
-	})
-	async getTransferEvents(@Query('from') fromDate?: string, @Query('to') toDate?: string, @Query('limit') limit: number = 100) {
-		return this.eventsService.getTransferEvents(fromDate, toDate, limit);
+	@Get('deuro/transfers')
+	@ApiOperation({ summary: 'Get dEURO transfer monitoring metrics' })
+	@ApiOkResponse({ type: DeuroTransferMetrics })
+	async getDeuroTransferMetrics(): Promise<DeuroTransferMetrics> {
+		return this.metricsService.getDeuroTransferMetrics();
 	}
 
-	@Get('minting')
-	@ApiOperation({ summary: 'Get minting-related events' })
-	@ApiQuery({ name: 'from', required: false, description: 'Start date (ISO string)' })
-	@ApiQuery({ name: 'to', required: false, description: 'End date (ISO string)' })
-	@ApiQuery({ name: 'limit', required: false, description: 'Maximum number of results', type: Number })
-	@ApiResponse({
-		status: 200,
-		description: 'List of minting events including position opened events',
-	})
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async getMintingEvents(@Query('from') fromDate?: string, @Query('to') toDate?: string, @Query('limit') _limit: number = 100) {
-		// Implementation will query minting_hub_position_opened_events table
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		return { message: 'Minting events endpoint - to be implemented' };
+	@Get('deuro/minters')
+	@ApiOperation({ summary: 'Get dEURO minter monitoring metrics' })
+	@ApiOkResponse({ type: DeuroMinterMetrics })
+	async getDeuroMinterMetrics(): Promise<DeuroMinterMetrics> {
+		return this.metricsService.getDeuroMinterMetrics();
 	}
 
-	@Get('equity')
-	@ApiOperation({ summary: 'Get equity trade events' })
-	@ApiQuery({ name: 'from', required: false, description: 'Start date (ISO string)' })
-	@ApiQuery({ name: 'to', required: false, description: 'End date (ISO string)' })
-	@ApiQuery({ name: 'limit', required: false, description: 'Maximum number of results', type: Number })
-	@ApiResponse({
-		status: 200,
-		description: 'List of equity trade events',
-	})
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async getEquityEvents(@Query('from') fromDate?: string, @Query('to') toDate?: string, @Query('limit') _limit: number = 100) {
-		// Implementation will query equity_trade_events table
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		return { message: 'Equity events endpoint - to be implemented' };
+	@Get('deuro/profit-loss')
+	@ApiOperation({ summary: 'Get dEURO profit/loss monitoring metrics' })
+	@ApiOkResponse({ type: DeuroProfitLossMetrics })
+	async getDeuroProfitLossMetrics(): Promise<DeuroProfitLossMetrics> {
+		return this.metricsService.getDeuroProfitLossMetrics();
 	}
 
-	@Get('savings')
-	@ApiOperation({ summary: 'Get savings-related events' })
-	@ApiQuery({ name: 'from', required: false, description: 'Start date (ISO string)' })
-	@ApiQuery({ name: 'to', required: false, description: 'End date (ISO string)' })
-	@ApiQuery({ name: 'limit', required: false, description: 'Maximum number of results', type: Number })
-	@ApiResponse({
-		status: 200,
-		description: 'List of savings events (saved, withdrawn, interest collected)',
-	})
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async getSavingsEvents(@Query('from') fromDate?: string, @Query('to') toDate?: string, @Query('limit') _limit: number = 100) {
-		// Implementation will query savings-related tables
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		return { message: 'Savings events endpoint - to be implemented' };
+	@Get('deps/flows')
+	@ApiOperation({ summary: 'Get DEPS wrap/unwrap flow metrics' })
+	@ApiOkResponse({ type: DepsFlowMetrics })
+	async getDepsFlowMetrics(): Promise<DepsFlowMetrics> {
+		return this.metricsService.getDepsFlowMetrics();
 	}
 
-	@Get('challenges')
-	@ApiOperation({ summary: 'Get challenge-related events' })
-	@ApiQuery({ name: 'from', required: false, description: 'Start date (ISO string)' })
-	@ApiQuery({ name: 'to', required: false, description: 'End date (ISO string)' })
-	@ApiQuery({ name: 'limit', required: false, description: 'Maximum number of results', type: Number })
-	@ApiResponse({
-		status: 200,
-		description: 'List of challenge events',
-	})
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async getChallengeEvents(@Query('from') fromDate?: string, @Query('to') toDate?: string, @Query('limit') _limit: number = 100) {
-		// Implementation will query challenge-related tables
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		return { message: 'Challenge events endpoint - to be implemented' };
+	@Get('savings/overview')
+	@ApiOperation({ summary: 'Get savings monitoring overview' })
+	@ApiOkResponse({ type: SavingsOverviewMetrics })
+	async getSavingsOverviewMetrics(): Promise<SavingsOverviewMetrics> {
+		return this.metricsService.getSavingsOverviewMetrics();
+	}
+
+	@Get('equity/trading')
+	@ApiOperation({ summary: 'Get equity trading monitoring metrics' })
+	@ApiOkResponse({ type: EquityTradingMetrics })
+	async getEquityTradingMetrics(): Promise<EquityTradingMetrics> {
+		return this.metricsService.getEquityTradingMetrics();
+	}
+
+	@Get('minting/positions')
+	@ApiOperation({ summary: 'Get minting position monitoring metrics' })
+	@ApiOkResponse({ type: MintingPositionMetrics })
+	async getMintingPositionMetrics(): Promise<MintingPositionMetrics> {
+		return this.metricsService.getMintingPositionMetrics();
 	}
 }
