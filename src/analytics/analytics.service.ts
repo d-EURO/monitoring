@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { ProtocolSummaryDto, VolumeMetricDto, PositionMetricDto } from './analytics.dto';
 
 @Injectable()
 export class AnalyticsService {
@@ -7,7 +8,7 @@ export class AnalyticsService {
 
 	constructor(private readonly databaseService: DatabaseService) {}
 
-	async getProtocolSummary() {
+	async getProtocolSummary(): Promise<ProtocolSummaryDto> {
 		// Example aggregated metrics
 		const queries = await Promise.all([
 			this.getTotalTransactions(),
@@ -53,7 +54,7 @@ export class AnalyticsService {
 		return result[0]?.total_savings || '0';
 	}
 
-	async getVolumeMetrics(days: number = 30) {
+	async getVolumeMetrics(days: number = 30): Promise<VolumeMetricDto[]> {
 		const query = `
       SELECT 
         DATE(timestamp) as date,
@@ -65,10 +66,10 @@ export class AnalyticsService {
       ORDER BY date DESC
     `;
 
-		return this.databaseService.fetch(query);
+		return this.databaseService.fetch(query) as Promise<VolumeMetricDto[]>;
 	}
 
-	async getPositionMetrics() {
+	async getPositionMetrics(): Promise<PositionMetricDto[]> {
 		const query = `
       SELECT 
         collateral_address,
@@ -80,6 +81,6 @@ export class AnalyticsService {
       ORDER BY position_count DESC
     `;
 
-		return this.databaseService.fetch(query);
+		return this.databaseService.fetch(query) as Promise<PositionMetricDto[]>;
 	}
 }

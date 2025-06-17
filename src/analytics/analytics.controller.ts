@@ -1,6 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiResponse, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOkResponse, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
+import { ProtocolSummaryDto, VolumeMetricDto, PositionMetricDto } from './analytics.dto';
 
 @ApiTags('Analytics')
 @Controller('analytics')
@@ -9,32 +10,23 @@ export class AnalyticsController {
 
 	@Get('summary')
 	@ApiOperation({ summary: 'Get protocol summary analytics' })
-	@ApiResponse({
-		status: 200,
-		description: 'High-level protocol metrics including transactions, volume, positions',
-	})
-	async getProtocolSummary() {
+	@ApiOkResponse({ type: ProtocolSummaryDto })
+	async getProtocolSummary(): Promise<ProtocolSummaryDto> {
 		return this.analyticsService.getProtocolSummary();
 	}
 
 	@Get('volume')
 	@ApiOperation({ summary: 'Get volume metrics over time' })
 	@ApiQuery({ name: 'days', required: false, description: 'Number of days to analyze (default: 30)', type: Number })
-	@ApiResponse({
-		status: 200,
-		description: 'Daily volume and transaction count metrics',
-	})
-	async getVolumeMetrics(@Query('days') days: number = 30) {
+	@ApiOkResponse({ type: [VolumeMetricDto] })
+	async getVolumeMetrics(@Query('days') days: number = 30): Promise<VolumeMetricDto[]> {
 		return this.analyticsService.getVolumeMetrics(days);
 	}
 
 	@Get('positions')
 	@ApiOperation({ summary: 'Get position distribution analytics' })
-	@ApiResponse({
-		status: 200,
-		description: 'Position count and collateral distribution by type',
-	})
-	async getPositionMetrics() {
+	@ApiOkResponse({ type: [PositionMetricDto] })
+	async getPositionMetrics(): Promise<PositionMetricDto[]> {
 		return this.analyticsService.getPositionMetrics();
 	}
 }
