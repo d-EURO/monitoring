@@ -9,13 +9,11 @@ interface CacheEntry<T> {
 export class CacheService {
 	private readonly logger = new Logger(CacheService.name);
 	private readonly cache = new Map<string, CacheEntry<any>>();
-	private readonly TTL_MS = 5 * 60 * 1000; // 5 minutes
+	private readonly TTL_MS = 5 * 60 * 1000; // 5min
 
 	get<T>(key: string): T | null {
 		const entry = this.cache.get(key);
-		if (!entry) {
-			return null;
-		}
+		if (!entry) return null;
 
 		if (Date.now() > entry.expiresAt) {
 			this.cache.delete(key);

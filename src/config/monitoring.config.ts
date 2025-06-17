@@ -20,9 +20,8 @@ export class MonitoringConfig {
 	@IsNumber()
 	@Min(10000)
 	@IsOptional()
-	monitorIntervalMs?: number = 300000; // 5 minutes default
+	monitorIntervalMs?: number = 300000; // 5min
 
-	// Database configuration
 	@IsOptional()
 	@IsString()
 	databaseUrl?: string;
@@ -63,7 +62,6 @@ export class MonitoringConfig {
 }
 
 export default registerAs('monitoring', () => {
-	// Validate required environment variables first
 	validateRequiredEnvironmentVariables();
 
 	const config = new MonitoringConfig();
@@ -82,7 +80,6 @@ export default registerAs('monitoring', () => {
 	config.dbSsl = process.env.DB_SSL === 'true';
 	config.pgMaxClients = process.env.PG_MAX_CLIENTS ? parseInt(process.env.PG_MAX_CLIENTS) : 10;
 
-	// Validate the configuration object
 	validateConfiguration(config);
 
 	return config;
@@ -96,7 +93,6 @@ function validateRequiredEnvironmentVariables(): void {
 		throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
 	}
 
-	// Validate database configuration - either DATABASE_URL or individual DB settings
 	const hasDatabaseUrl = !!process.env.DATABASE_URL;
 	const hasIndividualDbConfig = !!(process.env.DB_HOST && process.env.DB_NAME);
 

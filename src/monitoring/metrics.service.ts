@@ -23,9 +23,7 @@ export class MetricsService {
 	async getDeuroTransferMetrics(): Promise<DeuroTransferMetrics> {
 		const cacheKey = 'deuro:transfers';
 		const cached = this.cacheService.get<DeuroTransferMetrics>(cacheKey);
-		if (cached) {
-			return cached;
-		}
+		if (cached) return cached;
 
 		const volumeQuery = `
       SELECT 
@@ -39,14 +37,16 @@ export class MetricsService {
     `;
 
 		const addressQuery = `
+      WITH address_activity AS (
+        SELECT from_address as address, timestamp FROM deuro_transfer_events
+        UNION
+        SELECT to_address as address, timestamp FROM deuro_transfer_events
+      )
       SELECT
-        COUNT(DISTINCT CASE WHEN timestamp >= NOW() - INTERVAL '24 hours' THEN from_address END) + 
-        COUNT(DISTINCT CASE WHEN timestamp >= NOW() - INTERVAL '24 hours' THEN to_address END) as addresses_24h,
-        COUNT(DISTINCT CASE WHEN timestamp >= NOW() - INTERVAL '7 days' THEN from_address END) + 
-        COUNT(DISTINCT CASE WHEN timestamp >= NOW() - INTERVAL '7 days' THEN to_address END) as addresses_7d,
-        COUNT(DISTINCT CASE WHEN timestamp >= NOW() - INTERVAL '30 days' THEN from_address END) + 
-        COUNT(DISTINCT CASE WHEN timestamp >= NOW() - INTERVAL '30 days' THEN to_address END) as addresses_30d
-      FROM deuro_transfer_events
+        COUNT(DISTINCT CASE WHEN timestamp >= NOW() - INTERVAL '24 hours' THEN address END) as addresses_24h,
+        COUNT(DISTINCT CASE WHEN timestamp >= NOW() - INTERVAL '7 days' THEN address END) as addresses_7d,
+        COUNT(DISTINCT CASE WHEN timestamp >= NOW() - INTERVAL '30 days' THEN address END) as addresses_30d
+      FROM address_activity
     `;
 
 		const [volumeResults, addressResults] = await Promise.all([
@@ -87,9 +87,7 @@ export class MetricsService {
 	async getDeuroMinterMetrics(): Promise<DeuroMinterMetrics> {
 		const cacheKey = 'deuro:minters';
 		const cached = this.cacheService.get<DeuroMinterMetrics>(cacheKey);
-		if (cached) {
-			return cached;
-		}
+		if (cached) return cached;
 
 		const applicationsQuery = `
       SELECT 
@@ -141,9 +139,7 @@ export class MetricsService {
 	async getDeuroProfitLossMetrics(): Promise<DeuroProfitLossMetrics> {
 		const cacheKey = 'deuro:profit-loss';
 		const cached = this.cacheService.get<DeuroProfitLossMetrics>(cacheKey);
-		if (cached) {
-			return cached;
-		}
+		if (cached) return cached;
 
 		const profitQuery = `
       SELECT 
@@ -200,9 +196,7 @@ export class MetricsService {
 	async getDepsFlowMetrics(): Promise<DepsFlowMetrics> {
 		const cacheKey = 'deps:flows';
 		const cached = this.cacheService.get<DepsFlowMetrics>(cacheKey);
-		if (cached) {
-			return cached;
-		}
+		if (cached) return cached;
 
 		const wrapQuery = `
       SELECT 
@@ -251,9 +245,7 @@ export class MetricsService {
 	async getSavingsOverviewMetrics(): Promise<SavingsOverviewMetrics> {
 		const cacheKey = 'savings:overview';
 		const cached = this.cacheService.get<SavingsOverviewMetrics>(cacheKey);
-		if (cached) {
-			return cached;
-		}
+		if (cached) return cached;
 
 		const savedQuery = `
       SELECT 
@@ -311,9 +303,7 @@ export class MetricsService {
 	async getEquityTradingMetrics(): Promise<EquityTradingMetrics> {
 		const cacheKey = 'equity:trading';
 		const cached = this.cacheService.get<EquityTradingMetrics>(cacheKey);
-		if (cached) {
-			return cached;
-		}
+		if (cached) return cached;
 
 		const volumeQuery = `
       SELECT 
@@ -368,9 +358,7 @@ export class MetricsService {
 	async getMintingPositionMetrics(): Promise<MintingPositionMetrics> {
 		const cacheKey = 'minting:positions';
 		const cached = this.cacheService.get<MintingPositionMetrics>(cacheKey);
-		if (cached) {
-			return cached;
-		}
+		if (cached) return cached;
 
 		const positionQuery = `
       SELECT 

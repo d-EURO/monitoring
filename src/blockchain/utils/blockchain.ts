@@ -6,7 +6,6 @@ export interface BlockRange {
 	toBlock: number;
 }
 
-// Event Queue Singleton for managing event queries
 class EventQueryQueue {
 	private static instance: EventQueryQueue;
 	private queue: Array<() => Promise<any>> = [];
@@ -35,7 +34,6 @@ class EventQueryQueue {
 				}
 			});
 
-			// Process queue if not already running
 			this.processQueue();
 		});
 	}
@@ -68,7 +66,7 @@ async function executeWithRetry<T>(
 	logger: Logger,
 	maxRetries: number = 5,
 	retryDelay: number = 2000,
-	timeoutMs: number = 30000 // 30 second timeout for RPC calls
+	timeoutMs: number = 30000 // 30s for RPC calls
 ): Promise<T> {
 	let lastError: any;
 

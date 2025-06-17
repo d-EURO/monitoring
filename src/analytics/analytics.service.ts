@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { ProtocolSummaryDto, VolumeMetricDto, PositionMetricDto } from './analytics.dto';
+import { ProtocolSummaryDto, PeriodAverageDto } from './analytics.dto';
 
 @Injectable()
 export class AnalyticsService {
@@ -9,19 +9,20 @@ export class AnalyticsService {
 	constructor(private readonly databaseService: DatabaseService) {}
 
 	async getProtocolSummary(): Promise<ProtocolSummaryDto> {
-		// Example aggregated metrics
-		const queries = await Promise.all([
+		const [totalTransactions, totalVolume, activePositions, totalSavings, averageVolume] = await Promise.all([
 			this.getTotalTransactions(),
 			this.getTotalVolume(),
 			this.getActivePositions(),
 			this.getTotalSavings(),
+			this.getAverageVolumes(),
 		]);
 
 		return {
-			totalTransactions: queries[0],
-			totalVolume: queries[1],
-			activePositions: queries[2],
-			totalSavings: queries[3],
+			totalTransactions,
+			totalVolume,
+			activePositions,
+			totalSavings,
+			averageVolume,
 			lastUpdated: new Date().toISOString(),
 		};
 	}
@@ -54,33 +55,19 @@ export class AnalyticsService {
 		return result[0]?.total_savings || '0';
 	}
 
-	async getVolumeMetrics(days: number = 30): Promise<VolumeMetricDto[]> {
-		const query = `
+	private async getAverageVolumes(): Promise<PeriodAverageDto> {
+		const result = await this.databaseService.fetch(`
       SELECT 
-        DATE(timestamp) as date,
-        COUNT(*) as transaction_count,
-        SUM(value) as daily_volume
-      FROM deuro_transfer_events 
-      WHERE timestamp >= NOW() - INTERVAL '${days} days'
-      GROUP BY DATE(timestamp)
-      ORDER BY date DESC
-    `;
+        SUM(CASE WHEN timestamp >= NOW() - INTERVAL '1 day' THEN value ELSE 0 END) as volume_1d,
+        SUM(CASE WHEN timestamp >= NOW() - INTERVAL '7 days' THEN value ELSE 0 END) / 7 as avg_volume_7d,
+        SUM(CASE WHEN timestamp >= NOW() - INTERVAL '30 days' THEN value ELSE 0 END) / 30 as avg_volume_30d
+      FROM deuro_transfer_events
+    `);
 
-		return this.databaseService.fetch(query) as Promise<VolumeMetricDto[]>;
-	}
-
-	async getPositionMetrics(): Promise<PositionMetricDto[]> {
-		const query = `
-      SELECT 
-        collateral_address,
-        COUNT(*) as position_count,
-        SUM(collateral_balance::numeric) as total_collateral
-      FROM position_states 
-      WHERE is_closed = false
-      GROUP BY collateral_address
-      ORDER BY position_count DESC
-    `;
-
-		return this.databaseService.fetch(query) as Promise<PositionMetricDto[]>;
+		return {
+			day: result[0]?.volume_1d || '0',
+			week: result[0]?.avg_volume_7d || '0',
+			month: result[0]?.avg_volume_30d || '0',
+		};
 	}
 }

@@ -6,7 +6,10 @@ import { EquityStateDto } from '../common/dto/equity.dto';
 import { DepsStateDto } from '../common/dto/depsWrapper.dto';
 import { SavingsStateDto } from '../common/dto/savingsGateway.dto';
 import { FrontendStateDto } from '../common/dto/frontendGateway.dto';
-import { PositionStateDto, MintingHubStateDto, ChallengeStateDto, CollateralStateDto } from '../common/dto/mintingHub.dto';
+import { PositionStateDto } from '../common/dto/position.dto';
+import { MintingHubStateDto } from '../common/dto/mintingHub.dto';
+import { ChallengeStateDto } from '../common/dto/challenge.dto';
+import { CollateralStateDto } from '../common/dto/collateral.dto';
 import { BridgeStateDto } from '../common/dto/stablecoinBridge.dto';
 import { StateHistoryDto } from '../common/dto/system.dto';
 

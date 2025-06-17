@@ -5,6 +5,9 @@ export * from './depsWrapper.dto';
 export * from './savingsGateway.dto';
 export * from './frontendGateway.dto';
 export * from './mintingHub.dto';
+export * from './position.dto';
+export * from './collateral.dto';
+export * from './challenge.dto';
 export * from './stablecoinBridge.dto';
 export * from './contracts.dto';
 
