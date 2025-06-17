@@ -155,3 +155,39 @@ export class MintingPositionMetrics {
 	@ApiProperty({ description: 'Position count by collateral type' })
 	collateralTypes: Record<string, number>;
 }
+
+class ServiceStatus {
+	@ApiProperty({ description: 'Database connection status' })
+	database: boolean;
+
+	@ApiProperty({ description: 'Blockchain RPC connection status' })
+	blockchain: boolean;
+
+	@ApiProperty({ description: 'Monitoring service status' })
+	monitoring: boolean;
+}
+
+class ServiceDetails {
+	@ApiProperty({ description: 'Database connection details' })
+	database: string;
+
+	@ApiProperty({ description: 'Blockchain connection details' })
+	blockchain: string;
+
+	@ApiProperty({ description: 'Monitoring service details' })
+	monitoring: string;
+}
+
+export class HealthStatusDto {
+	@ApiProperty({ description: 'Overall system health status', enum: ['healthy', 'unhealthy'] })
+	status: string;
+
+	@ApiProperty({ description: 'Health check timestamp' })
+	timestamp: Date;
+
+	@ApiProperty({ description: 'Individual service health status', type: ServiceStatus })
+	services: ServiceStatus;
+
+	@ApiProperty({ description: 'Detailed service status information', type: ServiceDetails })
+	details: ServiceDetails;
+}

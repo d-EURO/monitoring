@@ -82,9 +82,9 @@ export class StatesService {
 			reserveBalance,
 			minterReserve,
 			equity,
+			equityAddress,
 			minApplicationPeriod,
 			minApplicationFee,
-			equityAddress,
 		] = await Promise.all([
 			contract.name(),
 			contract.symbol(),
@@ -93,9 +93,9 @@ export class StatesService {
 			contract.reserveBalance(),
 			contract.minterReserve(),
 			contract.equity(),
+			contract.equityAddress(),
 			contract.minApplicationPeriod(),
 			contract.minApplicationFee(),
-			contract.equity(),
 		]);
 
 		return {
@@ -106,9 +106,9 @@ export class StatesService {
 			reserveBalance: reserveBalance.toString(),
 			minterReserve: minterReserve.toString(),
 			equity: equity.toString(),
-			minApplicationPeriod: Number(minApplicationPeriod),
-			minApplicationFee: minApplicationFee.toString(),
 			equityAddress,
+			minApplicationPeriod: minApplicationPeriod.toString(),
+			minApplicationFee: minApplicationFee.toString(),
 		};
 	}
 
@@ -543,35 +543,56 @@ export class StatesService {
 
 	// API Methods for frontend
 	async getCurrentDeuroState() {
-		const query = `
-      SELECT * FROM deuro_states 
-      ORDER BY block_number DESC 
-      LIMIT 1
-    `;
+		const contracts = this.blockchainService.getContracts();
+		const provider = this.blockchainService.getProvider();
+		const currentBlock = await provider.getBlockNumber();
 
-		const result = await this.databaseService.fetch(query);
-		return result[0] || null;
+		const contractState = await this.getDecentralizedEuroState(contracts.deuroContract);
+
+		return {
+			...contractState,
+			address: await contracts.deuroContract.getAddress(),
+			block_number: currentBlock,
+			timestamp: new Date(),
+		};
 	}
 
 	async getCurrentEquityState() {
-		const query = `
-      SELECT * FROM equity_states 
-      ORDER BY block_number DESC 
-      LIMIT 1
-    `;
+		const contracts = this.blockchainService.getContracts();
+		const provider = this.blockchainService.getProvider();
+		const currentBlock = await provider.getBlockNumber();
 
-		const result = await this.databaseService.fetch(query);
-		return result[0] || null;
+		const contractState = await this.getEquityState(contracts.equityContract);
+
+		return {
+			...contractState,
+			address: await contracts.equityContract.getAddress(),
+			minHoldingDuration: contractState.minHoldingDuration.toString(),
+			block_number: currentBlock,
+			timestamp: new Date(),
+		};
 	}
 
 	async getCurrentPositionsState() {
-		const query = `
-      SELECT * FROM position_states 
-      WHERE is_closed = false 
-      ORDER BY timestamp DESC
-    `;
+		const contracts = this.blockchainService.getContracts();
+		const provider = this.blockchainService.getProvider();
+		const currentBlock = await provider.getBlockNumber();
 
-		return this.databaseService.fetch(query);
+		const activePositionAddresses: string[] = await this.databaseService.getActivePositionAddresses();
+		const positionEvents: any[] = []; // Would need to get from events if needed
+
+		const positions = await this.getPositionsState(contracts.mintingHubContract, activePositionAddresses, positionEvents);
+
+		return positions.map((position) => ({
+			...position,
+			address: position.positionAddress,
+			expiredPurchasePrice: '0', // Would need to calculate or fetch
+			riskPremiumPPM: 0, // Would need to fetch from position contract
+			reserveContribution: 0, // Would need to fetch from position contract
+			fixedAnnualRatePPM: 0, // Would need to fetch from position contract
+			block_number: currentBlock,
+			timestamp: new Date(),
+		}));
 	}
 
 	async getDailyStateHistory(stateType: string, days: number = 30) {
@@ -583,6 +604,139 @@ export class StatesService {
     `;
 
 		return this.databaseService.fetch(query);
+	}
+
+	async getCurrentDepsState() {
+		const contracts = this.blockchainService.getContracts();
+		const provider = this.blockchainService.getProvider();
+		const currentBlock = await provider.getBlockNumber();
+
+		const contractState = await this.getDepsWrapperState(contracts.depsContract);
+
+		return {
+			...contractState,
+			address: await contracts.depsContract.getAddress(),
+			block_number: currentBlock,
+			timestamp: new Date(),
+		};
+	}
+
+	async getCurrentSavingsState() {
+		const contracts = this.blockchainService.getContracts();
+		const provider = this.blockchainService.getProvider();
+		const currentBlock = await provider.getBlockNumber();
+
+		const contractState = await this.getSavingsGatewayState(contracts.savingsContract, contracts.deuroContract);
+
+		return {
+			...contractState,
+			address: await contracts.savingsContract.getAddress(),
+			currentRatePPM: contractState.currentRatePPM.toString(),
+			nextRatePPM: contractState.nextRatePPM.toString(),
+			nextChange: contractState.nextChange.toString(),
+			currentTicks: contractState.currentTicks.toString(),
+			block_number: currentBlock,
+			timestamp: new Date(),
+		};
+	}
+
+	async getCurrentFrontendState() {
+		const contracts = this.blockchainService.getContracts();
+		const provider = this.blockchainService.getProvider();
+		const currentBlock = await provider.getBlockNumber();
+
+		const contractState = await this.getFrontendGatewayState(contracts.frontendGatewayContract);
+
+		return {
+			...contractState,
+			address: await contracts.frontendGatewayContract.getAddress(),
+			changeTimeLock: contractState.changeTimeLock.toString(),
+			block_number: currentBlock,
+			timestamp: new Date(),
+		};
+	}
+
+	async getCurrentMintingHubState() {
+		const contracts = this.blockchainService.getContracts();
+		const provider = this.blockchainService.getProvider();
+		const currentBlock = await provider.getBlockNumber();
+
+		const contractState = await this.getMintingHubState(contracts.mintingHubContract);
+
+		return {
+			...contractState,
+			openingFee: contractState.openingFee,
+			challengerReward: contractState.challengerReward,
+			rate: contractState.rate,
+			block_number: currentBlock,
+			timestamp: new Date(),
+		};
+	}
+
+	async getActiveChallenges() {
+		const contracts = this.blockchainService.getContracts();
+		const provider = this.blockchainService.getProvider();
+		const currentBlock = await provider.getBlockNumber();
+
+		const challenges = await this.getChallengesState(contracts.mintingHubContract);
+
+		return challenges
+			.filter((challenge) => challenge.phase > 0) // Only active challenges
+			.map((challenge) => ({
+				...challenge,
+				id: challenge.challengeId,
+				block_number: currentBlock,
+				timestamp: new Date(),
+			}));
+	}
+
+	async getCurrentCollateralStates() {
+		const provider = this.blockchainService.getProvider();
+		const currentBlock = await provider.getBlockNumber();
+
+		// Get position events to identify collateral types - for now use empty array
+		const positionEvents: any[] = [];
+
+		const collaterals = await this.getCollateralState(positionEvents, provider);
+
+		return collaterals.map((collateral) => ({
+			...collateral,
+			block_number: currentBlock,
+			timestamp: new Date(),
+		}));
+	}
+
+	async getCurrentBridgeStates() {
+		const provider = this.blockchainService.getProvider();
+		const blockchainId = this.blockchainService.getBlockchainId();
+		const currentBlock = await provider.getBlockNumber();
+
+		const bridgeStates = await this.getStablecoinBridgesStates(provider, blockchainId);
+
+		return bridgeStates.map((bridge) => ({
+			...bridge,
+			address: bridge.bridgeAddress,
+			limit: bridge.limit,
+			minted: bridge.minted,
+			horizon: bridge.horizon.toString(),
+			bridgeType: this.getBridgeTypeFromSymbol(bridge.eurSymbol),
+			block_number: currentBlock,
+			timestamp: new Date(),
+		}));
+	}
+
+	private getBridgeTypeFromSymbol(symbol: string): any {
+		const symbolToBridge: { [key: string]: any } = {
+			EURT: 'bridgeEURT',
+			EURS: 'bridgeEURS',
+			VEUR: 'bridgeVEUR',
+			EURC: 'bridgeEURC',
+			EURR: 'bridgeEURR',
+			EUROP: 'bridgeEUROP',
+			EURI: 'bridgeEURI',
+			EURE: 'bridgeEURE',
+		};
+		return symbolToBridge[symbol] || 'bridgeEURT';
 	}
 
 	private async getPositionsState(

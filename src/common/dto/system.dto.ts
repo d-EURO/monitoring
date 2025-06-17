@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import {
 	ChallengeState,
 	CollateralState,
@@ -69,4 +70,18 @@ export interface SystemStateData {
 	challengesState: ChallengeState[];
 	collateralState: CollateralState[];
 	bridgeStates: StablecoinBridgeState[];
+}
+
+export class StateHistoryDto {
+	@ApiProperty({ description: 'Unique state record ID' })
+	id: string;
+
+	@ApiProperty({ description: 'Block number for this state snapshot' })
+	block_number: number;
+
+	@ApiProperty({ description: 'Timestamp of the state snapshot' })
+	timestamp: Date;
+
+	@ApiProperty({ description: 'Record creation timestamp' })
+	created_at: Date;
 }

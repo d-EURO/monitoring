@@ -1,12 +1,15 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiTags, ApiResponse, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Logger } from '@nestjs/common';
+import { ApiTags, ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 import { MonitoringService } from './monitoring.service';
 import { DatabaseService } from '../database/database.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
+import { HealthStatusDto } from './metrics.dto';
 
 @ApiTags('Health')
 @Controller('health')
 export class MonitoringController {
+	private readonly logger = new Logger(MonitoringController.name);
+
 	constructor(
 		private readonly monitoringService: MonitoringService,
 		private readonly databaseService: DatabaseService,
@@ -15,11 +18,8 @@ export class MonitoringController {
 
 	@Get()
 	@ApiOperation({ summary: 'Get system health status' })
-	@ApiResponse({
-		status: 200,
-		description: 'System health including database, blockchain, and monitoring status',
-	})
-	async getHealth() {
+	@ApiOkResponse({ type: HealthStatusDto })
+	async getHealth(): Promise<HealthStatusDto> {
 		const checks = await Promise.allSettled([this.checkDatabase(), this.checkBlockchain(), this.checkMonitoring()]);
 
 		const [dbCheck, rpcCheck, monitoringCheck] = checks;
@@ -50,6 +50,7 @@ export class MonitoringController {
 		try {
 			return await this.databaseService.testConnection();
 		} catch (error) {
+			this.logger.error('Database health check failed', error);
 			return false;
 		}
 	}
@@ -59,6 +60,7 @@ export class MonitoringController {
 			await this.blockchainService.getProvider().getBlockNumber();
 			return true;
 		} catch (error) {
+			this.logger.error('Blockchain health check failed', error);
 			return false;
 		}
 	}
@@ -66,9 +68,9 @@ export class MonitoringController {
 	private async checkMonitoring(): Promise<boolean> {
 		try {
 			const status = await this.monitoringService.getMonitoringStatus();
-			// Consider monitoring healthy if not in a failed state
 			return status.timeoutCount < 3;
 		} catch (error) {
+			this.logger.error('Monitoring health check failed', error);
 			return false;
 		}
 	}

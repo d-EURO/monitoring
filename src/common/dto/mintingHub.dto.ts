@@ -1,3 +1,5 @@
+import { ApiProperty } from '@nestjs/swagger';
+
 export interface PositionState {
 	address: string;
 	owner: string;
@@ -54,4 +56,174 @@ export interface MintingHubState {
 	deuro: string;
 	positionRoller: string;
 	rate: string;
+}
+
+export class MintingHubStateDto {
+	@ApiProperty({ description: 'Opening fee for new positions' })
+	openingFee: string;
+
+	@ApiProperty({ description: 'Challenger reward percentage' })
+	challengerReward: string;
+
+	@ApiProperty({ description: 'Expired price factor' })
+	expiredPriceFactor: number;
+
+	@ApiProperty({ description: 'Position factory contract address' })
+	positionFactory: string;
+
+	@ApiProperty({ description: 'dEURO contract address' })
+	deuro: string;
+
+	@ApiProperty({ description: 'Position roller contract address' })
+	positionRoller: string;
+
+	@ApiProperty({ description: 'Interest rate' })
+	rate: number;
+
+	@ApiProperty({ description: 'Block number for this state snapshot' })
+	block_number: number;
+
+	@ApiProperty({ description: 'Timestamp of the state snapshot' })
+	timestamp: Date;
+}
+
+export class ChallengeStateDto {
+	@ApiProperty({ description: 'Challenge ID' })
+	id: number;
+
+	@ApiProperty({ description: 'Address of challenger' })
+	challenger: string;
+
+	@ApiProperty({ description: 'Address of position being challenged' })
+	position: string;
+
+	@ApiProperty({ description: 'Challenge start time' })
+	start: number;
+
+	@ApiProperty({ description: 'Size of the challenge' })
+	size: string;
+
+	@ApiProperty({ description: 'Collateral token address' })
+	collateralAddress: string;
+
+	@ApiProperty({ description: 'Liquidation price' })
+	liqPrice: string;
+
+	@ApiProperty({ description: 'Challenge phase' })
+	phase: number;
+
+	@ApiProperty({ description: 'Current price' })
+	currentPrice: string;
+
+	@ApiProperty({ description: 'Position owner address' })
+	positionOwner: string;
+
+	@ApiProperty({ description: 'Block number for this state snapshot' })
+	block_number: number;
+
+	@ApiProperty({ description: 'Timestamp of the state snapshot' })
+	timestamp: Date;
+}
+
+export class CollateralStateDto {
+	@ApiProperty({ description: 'Collateral token contract address' })
+	address: string;
+
+	@ApiProperty({ description: 'Token name' })
+	name: string;
+
+	@ApiProperty({ description: 'Token symbol (e.g., ETH, WBTC)' })
+	symbol: string;
+
+	@ApiProperty({ description: 'Token decimal places' })
+	decimals: number;
+
+	@ApiProperty({ description: 'Block number for this state snapshot' })
+	block_number: number;
+
+	@ApiProperty({ description: 'Timestamp of the state snapshot' })
+	timestamp: Date;
+}
+
+export class PositionStateDto {
+	@ApiProperty({ description: 'Position contract address' })
+	address: string;
+
+	@ApiProperty({ description: 'Position owner address' })
+	owner: string;
+
+	@ApiProperty({ description: 'Original position address' })
+	original: string;
+
+	@ApiProperty({ description: 'Collateral token address' })
+	collateralAddress: string;
+
+	@ApiProperty({ description: 'Collateral balance' })
+	collateralBalance: string;
+
+	@ApiProperty({ description: 'Position price' })
+	price: string;
+
+	@ApiProperty({ description: 'Virtual price' })
+	virtualPrice: string;
+
+	@ApiProperty({ description: 'Expired purchase price' })
+	expiredPurchasePrice: string;
+
+	@ApiProperty({ description: 'Collateral requirement' })
+	collateralRequirement: string;
+
+	@ApiProperty({ description: 'Position debt' })
+	debt: string;
+
+	@ApiProperty({ description: 'Interest accrued' })
+	interest: string;
+
+	@ApiProperty({ description: 'Minimum collateral required' })
+	minimumCollateral: string;
+
+	@ApiProperty({ description: 'Position limit' })
+	limit: string;
+
+	@ApiProperty({ description: 'Principal amount' })
+	principal: string;
+
+	@ApiProperty({ description: 'Risk premium in PPM' })
+	riskPremiumPPM: number;
+
+	@ApiProperty({ description: 'Reserve contribution' })
+	reserveContribution: number;
+
+	@ApiProperty({ description: 'Fixed annual rate in PPM' })
+	fixedAnnualRatePPM: number;
+
+	@ApiProperty({ description: 'Last accrual timestamp' })
+	lastAccrual: string;
+
+	@ApiProperty({ description: 'Position start timestamp' })
+	start: string;
+
+	@ApiProperty({ description: 'Cooldown period' })
+	cooldown: string;
+
+	@ApiProperty({ description: 'Position expiration' })
+	expiration: string;
+
+	@ApiProperty({ description: 'Amount being challenged' })
+	challengedAmount: string;
+
+	@ApiProperty({ description: 'Challenge period duration' })
+	challengePeriod: string;
+
+	@ApiProperty({ description: 'Whether position is closed' })
+	isClosed: boolean;
+
+	@ApiProperty({ description: 'Position creation time' })
+	created?: number;
+
+	@ApiProperty({ description: 'Block number for this state snapshot' })
+	block_number: number;
+
+	@ApiProperty({ description: 'Timestamp of the state snapshot' })
+	timestamp: Date;
 }
