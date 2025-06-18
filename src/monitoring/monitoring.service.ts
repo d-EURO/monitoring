@@ -34,7 +34,6 @@ export class MonitoringService implements OnModuleInit {
 
 	async onModuleInit() {
 		this.logger.log('Monitoring service initialized');
-		// Run initial monitoring cycle after a short delay
 		setTimeout(() => this.runMonitoringCycle(), 5000);
 	}
 

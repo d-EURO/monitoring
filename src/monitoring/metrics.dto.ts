@@ -1,5 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export enum HealthStatus {
+	HEALTHY = 'healthy',
+	UNHEALTHY = 'unhealthy',
+}
+
+export enum ServiceDetailStatus {
+	CONNECTED = 'connected',
+	RUNNING = 'running',
+	DISCONNECTED = 'disconnected',
+	ERROR = 'error',
+	TIMEOUT = 'timeout',
+	UNAVAILABLE = 'unavailable',
+}
+
 class VolumeMetrics {
 	@ApiProperty({ description: '24-hour volume' })
 	day: string;
@@ -67,14 +81,8 @@ export class DeuroMinterMetrics {
 	@ApiProperty({ description: 'Minter denial statistics' })
 	denials: TotalAndMonthCounts;
 
-	@ApiProperty({ description: 'Application success rate' })
-	successRate: string;
-
 	@ApiProperty({ description: 'Total application fees' })
 	totalFees: string;
-
-	@ApiProperty({ description: 'Average application fee' })
-	averageFee: string;
 }
 
 export class DeuroProfitLossMetrics {
@@ -100,12 +108,6 @@ export class DepsFlowMetrics {
 
 	@ApiProperty({ description: 'DEPS unwrapping statistics' })
 	unwraps: VolumeAndCount;
-
-	@ApiProperty({ description: 'Net flow (wraps - unwraps)' })
-	netFlow: string;
-
-	@ApiProperty({ description: 'Wrap to unwrap ratio' })
-	wrapRatio: string;
 }
 
 export class SavingsOverviewMetrics {
@@ -114,9 +116,6 @@ export class SavingsOverviewMetrics {
 
 	@ApiProperty({ description: 'Savings withdrawal statistics' })
 	withdrawn: TotalAndMonthStats;
-
-	@ApiProperty({ description: 'Net savings (saved - withdrawn)' })
-	netSavings: string;
 
 	@ApiProperty({ description: 'Total interest paid to savers' })
 	interestPaid: string;
@@ -168,19 +167,19 @@ class ServiceStatus {
 }
 
 class ServiceDetails {
-	@ApiProperty({ description: 'Database connection details' })
-	database: string;
+	@ApiProperty({ description: 'Database connection details', enum: ServiceDetailStatus })
+	database: ServiceDetailStatus;
 
-	@ApiProperty({ description: 'Blockchain connection details' })
-	blockchain: string;
+	@ApiProperty({ description: 'Blockchain connection details', enum: ServiceDetailStatus })
+	blockchain: ServiceDetailStatus;
 
-	@ApiProperty({ description: 'Monitoring service details' })
-	monitoring: string;
+	@ApiProperty({ description: 'Monitoring service details', enum: ServiceDetailStatus })
+	monitoring: ServiceDetailStatus;
 }
 
 export class HealthStatusDto {
-	@ApiProperty({ description: 'Overall system health status', enum: ['healthy', 'unhealthy'] })
-	status: string;
+	@ApiProperty({ description: 'Overall system health status', enum: HealthStatus })
+	status: HealthStatus;
 
 	@ApiProperty({ description: 'Health check timestamp' })
 	timestamp: Date;

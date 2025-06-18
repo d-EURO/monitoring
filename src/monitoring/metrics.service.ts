@@ -94,7 +94,6 @@ export class MetricsService {
         COUNT(*) as total_applications,
         COUNT(CASE WHEN timestamp >= NOW() - INTERVAL '30 days' THEN 1 END) as applications_30d,
         COALESCE(SUM(application_fee::numeric), 0) as total_fees,
-        COALESCE(AVG(application_fee::numeric), 0) as avg_fee
       FROM deuro_minter_applied_events
     `;
 
@@ -112,24 +111,16 @@ export class MetricsService {
 
 		const appData = applicationResults[0];
 		const denialData = denialResults[0];
-
-		const totalApplications = parseInt(appData.total_applications);
-		const totalDenials = parseInt(denialData.total_denials);
-		const successRate =
-			totalApplications + totalDenials > 0 ? ((totalApplications / (totalApplications + totalDenials)) * 100).toFixed(1) : '0.0';
-
 		const metrics: DeuroMinterMetrics = {
 			applications: {
-				total: totalApplications,
+				total: parseInt(appData.total_applications),
 				month: parseInt(appData.applications_30d),
 			},
 			denials: {
-				total: totalDenials,
+				total: parseInt(denialData.total_denials),
 				month: parseInt(denialData.denials_30d),
 			},
-			successRate: `${successRate}%`,
 			totalFees: appData.total_fees.toString(),
-			averageFee: appData.avg_fee.toString(),
 		};
 
 		this.cacheService.set(cacheKey, metrics);
@@ -219,12 +210,6 @@ export class MetricsService {
 
 		const wrapData = wrapResults[0];
 		const unwrapData = unwrapResults[0];
-
-		const wrapVolume = parseFloat(wrapData.wrap_volume);
-		const unwrapVolume = parseFloat(unwrapData.unwrap_volume);
-		const netFlow = wrapVolume - unwrapVolume;
-		const wrapRatio = unwrapVolume > 0 ? (wrapVolume / unwrapVolume).toFixed(2) : '0.00';
-
 		const metrics: DepsFlowMetrics = {
 			wraps: {
 				volume: wrapData.wrap_volume.toString(),
@@ -234,8 +219,6 @@ export class MetricsService {
 				volume: unwrapData.unwrap_volume.toString(),
 				count: parseInt(unwrapData.unwrap_count),
 			},
-			netFlow: netFlow.toString(),
-			wrapRatio,
 		};
 
 		this.cacheService.set(cacheKey, metrics);
@@ -277,11 +260,6 @@ export class MetricsService {
 		const savedData = savedResults[0];
 		const withdrawnData = withdrawnResults[0];
 		const interestData = interestResults[0];
-
-		const totalSaved = parseFloat(savedData.total_saved);
-		const totalWithdrawn = parseFloat(withdrawnData.total_withdrawn);
-		const netSavings = totalSaved - totalWithdrawn;
-
 		const metrics: SavingsOverviewMetrics = {
 			saved: {
 				total: savedData.total_saved.toString(),
@@ -291,7 +269,6 @@ export class MetricsService {
 				total: withdrawnData.total_withdrawn.toString(),
 				month: withdrawnData.withdrawn_30d.toString(),
 			},
-			netSavings: netSavings.toString(),
 			interestPaid: interestData.total_interest.toString(),
 			activeSavers: parseInt(interestData.active_savers),
 		};

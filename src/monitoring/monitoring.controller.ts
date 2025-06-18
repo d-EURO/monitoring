@@ -3,7 +3,7 @@ import { ApiTags, ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 import { MonitoringService } from './monitoring.service';
 import { DatabaseService } from '../database/database.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
-import { HealthStatusDto } from './metrics.dto';
+import { HealthStatus, HealthStatusDto, ServiceDetailStatus } from './metrics.dto';
 
 @ApiTags('Health')
 @Controller('health')
@@ -27,11 +27,10 @@ export class MonitoringController {
 		const dbHealthy = dbCheck.status === 'fulfilled' && dbCheck.value;
 		const rpcHealthy = rpcCheck.status === 'fulfilled' && rpcCheck.value;
 		const monitoringHealthy = monitoringCheck.status === 'fulfilled' && monitoringCheck.value;
-
 		const overallHealthy = dbHealthy && rpcHealthy && monitoringHealthy;
 
 		return {
-			status: overallHealthy ? 'healthy' : 'unhealthy',
+			status: overallHealthy ? HealthStatus.HEALTHY : HealthStatus.UNHEALTHY,
 			timestamp: new Date(),
 			services: {
 				database: dbHealthy,
@@ -39,9 +38,9 @@ export class MonitoringController {
 				monitoring: monitoringHealthy,
 			},
 			details: {
-				database: dbCheck.status === 'rejected' ? dbCheck.reason?.message : 'connected',
-				blockchain: rpcCheck.status === 'rejected' ? rpcCheck.reason?.message : 'connected',
-				monitoring: monitoringCheck.status === 'rejected' ? monitoringCheck.reason?.message : 'running',
+				database: dbCheck.status === 'rejected' ? dbCheck.reason?.message : ServiceDetailStatus.CONNECTED,
+				blockchain: rpcCheck.status === 'rejected' ? rpcCheck.reason?.message : ServiceDetailStatus.CONNECTED,
+				monitoring: monitoringCheck.status === 'rejected' ? monitoringCheck.reason?.message : ServiceDetailStatus.RUNNING,
 			},
 		};
 	}
