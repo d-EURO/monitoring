@@ -1,19 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Cron, CronExpression, Interval } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { DatabaseService } from '../database/database.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { EventsService } from '../events/events.service';
 import { StatesService } from '../states/states.service';
-
-interface MonitoringCycleResult {
-	duration: number;
-	eventsProcessed: number;
-	blocksProcessed: number;
-	timestamp: Date;
-	success: boolean;
-	errorMessage?: string;
-}
+import { SystemEventsData } from 'src/common/dto';
 
 @Injectable()
 export class MonitoringService implements OnModuleInit {
@@ -21,11 +12,8 @@ export class MonitoringService implements OnModuleInit {
 	private isMonitoring = false;
 	private monitoringTimeoutCount = 0;
 	private readonly INDEXING_TIMEOUT_COUNT = 3;
-	private recentCycles: MonitoringCycleResult[] = [];
-	private readonly maxRecentCycles = 20;
 
 	constructor(
-		private readonly configService: ConfigService,
 		private readonly databaseService: DatabaseService,
 		private readonly blockchainService: BlockchainService,
 		private readonly eventsService: EventsService,
@@ -37,17 +25,12 @@ export class MonitoringService implements OnModuleInit {
 		setTimeout(() => this.runMonitoringCycle(), 5000);
 	}
 
-	@Interval(300000) // 5 minutes - will be configurable
+	@Cron(CronExpression.EVERY_5_MINUTES)
 	async scheduledMonitoring() {
-		const monitoringConfig = this.configService.get('monitoring');
-		const _intervalMs = monitoringConfig.monitorIntervalMs || 300000; // eslint-disable-line @typescript-eslint/no-unused-vars
-
-		// Dynamic interval adjustment (this is a simplified approach)
-		// In a real implementation, you might want to use a more sophisticated scheduler
 		await this.runMonitoringCycle();
 	}
 
-	@Cron('0 0 * * *') // Daily at midnight
+	@Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
 	async dailyMaintenance() {
 		this.logger.log('Running daily maintenance tasks...');
 
@@ -67,30 +50,6 @@ export class MonitoringService implements OnModuleInit {
 		}
 	}
 
-	@Cron(CronExpression.EVERY_WEEK) // Weekly health check
-	async weeklyHealthCheck() {
-		this.logger.log('Running weekly health check...');
-
-		try {
-			// Check database connection health
-			const dbHealthy = await this.databaseService.testConnection();
-
-			// Check if monitoring is running properly
-			const lastProcessedBlock = await this.databaseService.getLastProcessedBlock();
-			const currentBlock = await this.blockchainService.getProvider().getBlockNumber();
-
-			const blockLag = currentBlock - (lastProcessedBlock || 0);
-
-			if (blockLag > 1000) {
-				this.logger.warn(`High block lag detected: ${blockLag} blocks behind`);
-			}
-
-			this.logger.log(`Weekly health check completed - DB: ${dbHealthy}, Block lag: ${blockLag}`);
-		} catch (error) {
-			this.logger.error('Weekly health check failed:', error);
-		}
-	}
-
 	async runMonitoringCycle(): Promise<void> {
 		if (this.isMonitoring) {
 			this.monitoringTimeoutCount++;
@@ -106,7 +65,6 @@ export class MonitoringService implements OnModuleInit {
 		this.monitoringTimeoutCount = 0;
 
 		const startTime = Date.now();
-		let eventsProcessed = 0;
 		let blocksProcessed = 0;
 		let success = false;
 		let errorMessage: string | undefined;
@@ -122,18 +80,12 @@ export class MonitoringService implements OnModuleInit {
 				const timestamp = new Date().toISOString();
 				this.logger.log(`[${timestamp}] Fetching system state from block ${fromBlock} to ${currentBlock}`);
 
-				// Fetch and process events with error handling
 				const eventsData = await this.eventsService.getSystemEvents(fromBlock, currentBlock);
-				eventsProcessed = this.countEventsProcessed(eventsData);
-
-				// Fetch and process states with error handling
 				await this.statesService.getSystemState(eventsData.mintingHubPositionOpenedEvents);
 
 				success = true;
 				const duration = Date.now() - startTime;
-				this.logger.log(
-					`Monitoring cycle completed successfully in ${duration}ms - processed ${eventsProcessed} events across ${blocksProcessed} blocks`
-				);
+				await this.recordMonitoringCycle(fromBlock, currentBlock, eventsData, duration);
 			} else {
 				const timestamp = new Date().toISOString();
 				this.logger.log(`[${timestamp}] No new blocks to process (${fromBlock}/${currentBlock})`);
@@ -145,23 +97,6 @@ export class MonitoringService implements OnModuleInit {
 			this.logger.error('Error during monitoring cycle:', error);
 		} finally {
 			this.isMonitoring = false;
-
-			const duration = Date.now() - startTime;
-
-			// Store cycle result
-			const cycleResult: MonitoringCycleResult = {
-				duration,
-				eventsProcessed,
-				blocksProcessed,
-				timestamp: new Date(),
-				success,
-				errorMessage,
-			};
-
-			this.recentCycles.unshift(cycleResult);
-			if (this.recentCycles.length > this.maxRecentCycles) {
-				this.recentCycles.pop();
-			}
 		}
 	}
 
@@ -178,17 +113,15 @@ export class MonitoringService implements OnModuleInit {
 		};
 	}
 
-	getRecentCycles(): MonitoringCycleResult[] {
-		return [...this.recentCycles];
-	}
+	private async recordMonitoringCycle(fromBlock: number, toBlock: number, eventsData: SystemEventsData, duration: number): Promise<void> {
+		const totalEvents = Object.entries(eventsData).reduce((sum, [key, value]) => {
+			if (key === 'lastEventFetch' || key === 'blockRange') return sum;
+			return sum + (Array.isArray(value) ? value.length : 0);
+		}, 0);
 
-	private countEventsProcessed(eventsData: any): number {
-		let total = 0;
-		for (const [key, value] of Object.entries(eventsData)) {
-			if (key !== 'lastEventFetch' && key !== 'blockRange' && Array.isArray(value)) {
-				total += value.length;
-			}
-		}
-		return total;
+		await this.databaseService.recordMonitoringCycle(toBlock, totalEvents, duration);
+		this.logger.log(
+			`Monitoring cycle completed successfully in ${duration}ms - processed ${totalEvents} events across ${toBlock - fromBlock + 1} blocks`
+		);
 	}
 }

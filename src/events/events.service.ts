@@ -40,14 +40,10 @@ export class EventsService {
 	) {}
 
 	async getSystemEvents(fromBlock: number, toBlock: number): Promise<SystemEventsData> {
-		const startTime = Date.now();
 		const contracts = this.blockchainService.getContracts();
 		const provider = this.blockchainService.getProvider();
-
 		const eventsData = await this.getEventsInRange(contracts, provider, fromBlock, toBlock);
 		await this.persistEvents(eventsData);
-		const duration = Date.now() - startTime;
-		await this.recordMonitoringCycle(toBlock, eventsData, duration);
 		return eventsData;
 	}
 
@@ -247,15 +243,5 @@ export class EventsService {
 		this.logger.log('Persisting events to database...');
 		await this.eventPersistenceService.persistAllEvents(eventsData);
 		this.logger.log('Events persisted successfully');
-	}
-
-	private async recordMonitoringCycle(currentBlock: number, eventsData: SystemEventsData, duration: number): Promise<void> {
-		const totalEvents = Object.entries(eventsData).reduce((sum, [key, value]) => {
-			if (key === 'lastEventFetch' || key === 'blockRange') return sum;
-			return sum + (Array.isArray(value) ? value.length : 0);
-		}, 0);
-
-		await this.databaseService.recordMonitoringCycle(currentBlock, totalEvents, duration);
-		this.logger.log(`Processed ${totalEvents} new events in ${duration}ms`);
 	}
 }
