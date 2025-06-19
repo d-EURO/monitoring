@@ -149,7 +149,7 @@ export class EventPersistenceService {
 			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.newRate.toString()],
 		},
 		mintingHubPositionOpenedEvents: {
-			table: 'minting_hub_position_opened_events',
+			table: 'mintinghub_position_opened_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'owner', 'position', 'original', 'collateral'],
 			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.owner, e.position, e.original, e.collateral],
 		},

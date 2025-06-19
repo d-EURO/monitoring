@@ -57,3 +57,6 @@ coverage/
 
 # Monitoring outputs
 monitoring_output.json
+
+# Development
+contracts/

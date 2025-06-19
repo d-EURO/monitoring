@@ -342,14 +342,14 @@ export class MetricsService {
         COUNT(*) as total_positions,
         COUNT(CASE WHEN timestamp >= NOW() - INTERVAL '30 days' THEN 1 END) as positions_30d,
         COUNT(DISTINCT owner) as unique_owners
-      FROM minting_hub_position_opened_events
+      FROM mintinghub_position_opened_events
     `;
 
 		const collateralQuery = `
       SELECT 
         collateral, 
         COUNT(*) as count
-      FROM minting_hub_position_opened_events
+      FROM mintinghub_position_opened_events
       GROUP BY collateral
     `;
 

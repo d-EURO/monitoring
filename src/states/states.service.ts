@@ -300,52 +300,42 @@ export class StatesService {
 			const timestamp = new Date();
 
 			await this.databaseService.withTransaction(async (client) => {
-				// Persist dEURO state
 				if (systemState.deuroState) {
 					await this.persistDeuroState(client, currentBlock, timestamp, systemState.deuroState);
 				}
 
-				// Persist equity state
 				if (systemState.equityState) {
 					await this.persistEquityState(client, currentBlock, timestamp, systemState.equityState);
 				}
 
-				// Persist DEPS state
 				if (systemState.depsState) {
 					await this.persistDepsState(client, currentBlock, timestamp, systemState.depsState);
 				}
 
-				// Persist savings state
 				if (systemState.savingsState) {
 					await this.persistSavingsState(client, currentBlock, timestamp, systemState.savingsState);
 				}
 
-				// Persist frontend state
 				if (systemState.frontendState) {
 					await this.persistFrontendState(client, currentBlock, timestamp, systemState.frontendState);
 				}
 
-				// Persist minting hub state
 				if (systemState.mintingHubState) {
 					await this.persistMintingHubState(client, currentBlock, timestamp, systemState.mintingHubState);
 				}
 
-				// Persist individual position states
 				if (systemState.positionsState && systemState.positionsState.length > 0) {
 					await this.persistPositionStates(client, currentBlock, timestamp, systemState.positionsState);
 				}
 
-				// Persist challenge states
 				if (systemState.challengesState && systemState.challengesState.length > 0) {
 					await this.persistChallengeStates(client, currentBlock, timestamp, systemState.challengesState);
 				}
 
-				// Persist collateral states
 				if (systemState.collateralState && systemState.collateralState.length > 0) {
 					await this.persistCollateralStates(client, currentBlock, timestamp, systemState.collateralState);
 				}
 
-				// Persist bridge states
 				if (systemState.bridgeStates && systemState.bridgeStates.length > 0) {
 					await this.persistBridgeStates(client, currentBlock, timestamp, systemState.bridgeStates);
 				}
@@ -360,7 +350,7 @@ export class StatesService {
 
 	private async persistDeuroState(client: any, blockNumber: number, timestamp: Date, state: any): Promise<void> {
 		const query = `
-			INSERT INTO deuro_states (block_number, timestamp, total_supply, minter_reserve, equity)
+			INSERT INTO deuro_state (block_number, timestamp, total_supply, minter_reserve, equity)
 			VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (block_number) DO UPDATE SET
 				timestamp = EXCLUDED.timestamp,
@@ -373,7 +363,7 @@ export class StatesService {
 
 	private async persistEquityState(client: any, blockNumber: number, timestamp: Date, state: any): Promise<void> {
 		const query = `
-			INSERT INTO equity_states (block_number, timestamp, total_shares, total_votes, market_cap, price)
+			INSERT INTO equity_state (block_number, timestamp, total_shares, total_votes, market_cap, price)
 			VALUES ($1, $2, $3, $4, $5, $6)
 			ON CONFLICT (block_number) DO UPDATE SET
 				timestamp = EXCLUDED.timestamp,
@@ -388,7 +378,7 @@ export class StatesService {
 
 	private async persistDepsState(client: any, blockNumber: number, timestamp: Date, state: any): Promise<void> {
 		const query = `
-			INSERT INTO deps_states (block_number, timestamp, total_wrapped, wrapper_balance)
+			INSERT INTO deps_state (block_number, timestamp, total_wrapped, wrapper_balance)
 			VALUES ($1, $2, $3, $4)
 			ON CONFLICT (block_number) DO UPDATE SET
 				timestamp = EXCLUDED.timestamp,
@@ -400,7 +390,7 @@ export class StatesService {
 
 	private async persistSavingsState(client: any, blockNumber: number, timestamp: Date, state: any): Promise<void> {
 		const query = `
-			INSERT INTO savings_states (block_number, timestamp, total_savings, current_rate, savings_cap)
+			INSERT INTO savings_state (block_number, timestamp, total_savings, current_rate, savings_cap)
 			VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (block_number) DO UPDATE SET
 				timestamp = EXCLUDED.timestamp,
@@ -415,7 +405,7 @@ export class StatesService {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	private async persistFrontendState(client: any, blockNumber: number, timestamp: Date, _state: any): Promise<void> {
 		const query = `
-			INSERT INTO frontend_states (block_number, timestamp, total_fees_collected, active_frontends)
+			INSERT INTO frontend_state (block_number, timestamp, total_fees_collected, active_frontends)
 			VALUES ($1, $2, $3, $4)
 			ON CONFLICT (block_number) DO UPDATE SET
 				timestamp = EXCLUDED.timestamp,
@@ -430,7 +420,7 @@ export class StatesService {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	private async persistMintingHubState(client: any, blockNumber: number, timestamp: Date, _state: any): Promise<void> {
 		const query = `
-			INSERT INTO minting_hub_states (block_number, timestamp, total_positions, total_collateral, total_minted)
+			INSERT INTO mintinghub_state (block_number, timestamp, total_positions, total_collateral, total_minted)
 			VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (block_number) DO UPDATE SET
 				timestamp = EXCLUDED.timestamp,
@@ -837,7 +827,7 @@ export class StatesService {
 	private async getPositionsState(
 		_mintingHub: ethers.Contract,
 		activePositionAddresses: string[],
-		_positionOpenedEvents: MintingHubPositionOpenedEvent[] // eslint-disable-line @typescript-eslint/no-unused-vars
+		_positionOpenedEvents: MintingHubPositionOpenedEvent[]
 	): Promise<PositionState[]> {
 		const provider = this.blockchainService.getProvider();
 		const positions = [];

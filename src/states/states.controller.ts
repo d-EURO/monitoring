@@ -73,8 +73,8 @@ export class StatesController {
 	@ApiOperation({ summary: 'Get daily state history for a specific component' })
 	@ApiParam({
 		name: 'stateType',
-		description: 'Type of state (deuro, equity, deps, savings, frontend, minting_hub, position, challenge, collateral, bridge)',
-		enum: ['deuro', 'equity', 'deps', 'savings', 'frontend', 'minting_hub', 'position', 'challenge', 'collateral', 'bridge'],
+		description: 'Type of state (deuro, equity, deps, savings, frontend, mintinghub, position, challenge, collateral, bridge)',
+		enum: ['deuro', 'equity', 'deps', 'savings', 'frontend', 'mintinghub', 'position', 'challenge', 'collateral', 'bridge'],
 	})
 	@ApiQuery({ name: 'days', required: false, description: 'Number of days to fetch (default: 30)', type: Number })
 	@ApiOkResponse({ type: StateHistoryDto, isArray: true })

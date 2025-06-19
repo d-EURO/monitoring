@@ -145,7 +145,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 	}): Promise<string[]> {
 		let query = `
       SELECT DISTINCT position 
-      FROM minting_hub_position_opened_events
+      FROM mintinghub_position_opened_events
     `;
 		const params: any[] = [];
 		const whereConditions: string[] = [];
