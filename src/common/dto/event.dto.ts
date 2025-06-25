@@ -52,22 +52,6 @@ export interface EquityDelegationEvent extends BaseEvent {
 	to: string;
 }
 
-export interface DepsWrapEvent extends BaseEvent {
-	from: string;
-	to: string;
-	value: bigint;
-	user: string;
-	amount: bigint;
-}
-
-export interface DepsUnwrapEvent extends BaseEvent {
-	from: string;
-	to: string;
-	value: bigint;
-	user: string;
-	amount: bigint;
-}
-
 export interface SavingsSavedEvent extends BaseEvent {
 	account: string;
 	amount: bigint;
@@ -113,4 +97,44 @@ export interface PositionDeniedEvent extends BaseEvent {
 	position: string;
 	sender: string;
 	message: string;
+}
+
+export interface MintingHubChallengeStartedEvent extends BaseEvent {
+	challenger: string;
+	position: string;
+	size: bigint;
+	number: bigint;
+}
+
+export interface MintingHubChallengeAvertedEvent extends BaseEvent {
+	position: string;
+	number: bigint;
+	size: bigint;
+}
+
+export interface MintingHubChallengeSucceededEvent extends BaseEvent {
+	position: string;
+	number: bigint;
+	bid: bigint;
+	acquiredCollateral: bigint;
+	challengeSize: bigint;
+}
+
+export interface MintingHubPostponedReturnEvent extends BaseEvent {
+	collateral: string;
+	beneficiary: string;
+	amount: bigint;
+}
+
+export interface MintingHubForcedSaleEvent extends BaseEvent {
+	pos: string;
+	amount: bigint;
+	priceE36MinusDecimals: bigint;
+}
+
+export interface PositionMintingUpdateEvent extends BaseEvent {
+	position: string;
+	collateral: bigint;
+	price: bigint;
+	principal: bigint;
 }

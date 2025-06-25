@@ -10,16 +10,20 @@ import {
 	DeuroProfitDistributedEvent,
 	EquityTradeEvent,
 	EquityDelegationEvent,
-	DepsWrapEvent,
-	DepsUnwrapEvent,
 	SavingsSavedEvent,
 	SavingsInterestCollectedEvent,
 	SavingsWithdrawnEvent,
 	SavingsRateProposedEvent,
 	SavingsRateChangedEvent,
 	MintingHubPositionOpenedEvent,
+	MintingHubChallengeStartedEvent,
+	MintingHubChallengeAvertedEvent,
+	MintingHubChallengeSucceededEvent,
+	MintingHubPostponedReturnEvent,
+	MintingHubForcedSaleEvent,
 	RollerRollEvent,
 	PositionDeniedEvent,
+	PositionMintingUpdateEvent,
 	SystemEventsData,
 	ContractSet,
 } from '../common/dto';
@@ -71,6 +75,11 @@ export class EventsService {
 			savingsRateProposedEvents,
 			savingsRateChangedEvents,
 			mintingHubPositionOpenedEvents,
+			mintingHubChallengeStartedEvents,
+			mintingHubChallengeAvertedEvents,
+			mintingHubChallengeSucceededEvents,
+			mintingHubPostponedReturnEvents,
+			mintingHubForcedSaleEvents,
 			rollerRollEvents,
 		] = await Promise.all([
 			fetchEvents<DeuroTransferEvent>(
@@ -172,6 +181,41 @@ export class EventsService {
 				toBlock,
 				this.logger
 			),
+			fetchEvents<MintingHubChallengeStartedEvent>(
+				contracts.mintingHubContract,
+				contracts.mintingHubContract.filters.ChallengeStarted(),
+				fromBlock,
+				toBlock,
+				this.logger
+			),
+			fetchEvents<MintingHubChallengeAvertedEvent>(
+				contracts.mintingHubContract,
+				contracts.mintingHubContract.filters.ChallengeAverted(),
+				fromBlock,
+				toBlock,
+				this.logger
+			),
+			fetchEvents<MintingHubChallengeSucceededEvent>(
+				contracts.mintingHubContract,
+				contracts.mintingHubContract.filters.ChallengeSucceeded(),
+				fromBlock,
+				toBlock,
+				this.logger
+			),
+			fetchEvents<MintingHubPostponedReturnEvent>(
+				contracts.mintingHubContract,
+				contracts.mintingHubContract.filters.PostponedReturn(),
+				fromBlock,
+				toBlock,
+				this.logger
+			),
+			fetchEvents<MintingHubForcedSaleEvent>(
+				contracts.mintingHubContract,
+				contracts.mintingHubContract.filters.ForcedSale(),
+				fromBlock,
+				toBlock,
+				this.logger
+			),
 			fetchEvents<RollerRollEvent>(
 				contracts.rollerContract,
 				contracts.rollerContract.filters.Roll(),
@@ -181,36 +225,34 @@ export class EventsService {
 			),
 		]);
 
-		this.logger.log('Fetching PositionDenied from position contracts');
+		this.logger.log('Fetching events from position contracts');
 		const activePositionAddresses: string[] = await this.databaseService.getActivePositionAddresses();
-		const positionDeniedEvents: PositionDeniedEvent[] = await Promise.all(
-			activePositionAddresses.map(async (p) => {
-				const positionContract = new ethers.Contract(p, PositionV2ABI, provider);
-				return fetchEvents<PositionDeniedEvent>(
-					positionContract,
-					positionContract.filters.PositionDenied(),
-					fromBlock,
-					toBlock,
-					this.logger
-				);
-			})
-		).then((events) => events.flat());
-
-		const depsWrapEvents: DepsWrapEvent[] = depsTransferEvents
-			.filter((event) => event.from === ethers.ZeroAddress)
-			.map((event) => ({
-				...event,
-				user: event.to,
-				amount: event.value,
-			}));
-
-		const depsUnwrapEvents: DepsUnwrapEvent[] = depsTransferEvents
-			.filter((event) => event.to === ethers.ZeroAddress)
-			.map((event) => ({
-				...event,
-				user: event.from,
-				amount: event.value,
-			}));
+		const [positionDeniedEvents, positionMintingUpdateEvents] = await Promise.all([
+			Promise.all(
+				activePositionAddresses.map(async (p) => {
+					const positionContract = new ethers.Contract(p, PositionV2ABI, provider);
+					return fetchEvents<PositionDeniedEvent>(
+						positionContract,
+						positionContract.filters.PositionDenied(),
+						fromBlock,
+						toBlock,
+						this.logger
+					);
+				})
+			).then((events) => events.flat()),
+			Promise.all(
+				activePositionAddresses.map(async (p) => {
+					const positionContract = new ethers.Contract(p, PositionV2ABI, provider);
+					return fetchEvents<PositionMintingUpdateEvent>(
+						positionContract,
+						positionContract.filters.MintingUpdate(),
+						fromBlock,
+						toBlock,
+						this.logger
+					);
+				})
+			).then((events) => events.flat()),
+		]);
 
 		return {
 			deuroTransferEvents,
@@ -221,8 +263,6 @@ export class EventsService {
 			deuroProfitDistributedEvents,
 			equityTradeEvents,
 			equityDelegationEvents,
-			depsWrapEvents,
-			depsUnwrapEvents,
 			depsTransferEvents,
 			savingsSavedEvents,
 			savingsInterestCollectedEvents,
@@ -230,8 +270,14 @@ export class EventsService {
 			savingsRateProposedEvents,
 			savingsRateChangedEvents,
 			mintingHubPositionOpenedEvents,
+			mintingHubChallengeStartedEvents,
+			mintingHubChallengeAvertedEvents,
+			mintingHubChallengeSucceededEvents,
+			mintingHubPostponedReturnEvents,
+			mintingHubForcedSaleEvents,
 			rollerRollEvents,
 			positionDeniedEvents,
+			positionMintingUpdateEvents,
 
 			// Meta data
 			lastEventFetch: Date.now(),

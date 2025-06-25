@@ -25,6 +25,8 @@ export interface PositionState {
 	challengedAmount: bigint;
 	challengePeriod: bigint;
 	isClosed: boolean;
+	availableForMinting: bigint;
+	availableForClones: bigint;
 	created?: number;
 }
 

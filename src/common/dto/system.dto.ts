@@ -21,16 +21,20 @@ import {
 	DeuroProfitDistributedEvent,
 	EquityTradeEvent,
 	EquityDelegationEvent,
-	DepsWrapEvent,
-	DepsUnwrapEvent,
 	SavingsSavedEvent,
 	SavingsInterestCollectedEvent,
 	SavingsWithdrawnEvent,
 	SavingsRateProposedEvent,
 	SavingsRateChangedEvent,
 	MintingHubPositionOpenedEvent,
+	MintingHubChallengeStartedEvent,
+	MintingHubChallengeAvertedEvent,
+	MintingHubChallengeSucceededEvent,
+	MintingHubPostponedReturnEvent,
+	MintingHubForcedSaleEvent,
 	RollerRollEvent,
 	PositionDeniedEvent,
+	PositionMintingUpdateEvent,
 } from './event.dto';
 
 export interface SystemEventsData {
@@ -42,8 +46,6 @@ export interface SystemEventsData {
 	deuroProfitDistributedEvents: DeuroProfitDistributedEvent[];
 	equityTradeEvents: EquityTradeEvent[];
 	equityDelegationEvents: EquityDelegationEvent[];
-	depsWrapEvents: DepsWrapEvent[];
-	depsUnwrapEvents: DepsUnwrapEvent[];
 	depsTransferEvents: DepsTransferEvent[];
 	savingsSavedEvents: SavingsSavedEvent[];
 	savingsInterestCollectedEvents: SavingsInterestCollectedEvent[];
@@ -51,8 +53,14 @@ export interface SystemEventsData {
 	savingsRateProposedEvents: SavingsRateProposedEvent[];
 	savingsRateChangedEvents: SavingsRateChangedEvent[];
 	mintingHubPositionOpenedEvents: MintingHubPositionOpenedEvent[];
+	mintingHubChallengeStartedEvents: MintingHubChallengeStartedEvent[];
+	mintingHubChallengeAvertedEvents: MintingHubChallengeAvertedEvent[];
+	mintingHubChallengeSucceededEvents: MintingHubChallengeSucceededEvent[];
+	mintingHubPostponedReturnEvents: MintingHubPostponedReturnEvent[];
+	mintingHubForcedSaleEvents: MintingHubForcedSaleEvent[];
 	rollerRollEvents: RollerRollEvent[];
 	positionDeniedEvents: PositionDeniedEvent[];
+	positionMintingUpdateEvents: PositionMintingUpdateEvent[];
 
 	// Meta data
 	lastEventFetch: number;
@@ -73,15 +81,9 @@ export interface SystemStateData {
 }
 
 export class StateHistoryDto {
-	@ApiProperty({ description: 'Unique state record ID' })
-	id: string;
-
 	@ApiProperty({ description: 'Block number for this state snapshot' })
 	block_number: number;
 
 	@ApiProperty({ description: 'Timestamp of the state snapshot' })
 	timestamp: Date;
-
-	@ApiProperty({ description: 'Record creation timestamp' })
-	created_at: Date;
 }

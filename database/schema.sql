@@ -305,6 +305,7 @@ CREATE TABLE IF NOT EXISTS mintinghub_state (
     PRIMARY KEY (block_number)
 );
 
+-- TODO: Table column names must closely match the contract state variable names!!
 CREATE TABLE IF NOT EXISTS position_states (
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,

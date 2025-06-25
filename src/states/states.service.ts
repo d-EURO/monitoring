@@ -23,7 +23,7 @@ import {
 	ChallengeStateDto,
 	CollateralStateDto,
 	BridgeStateDto,
-	Bridge
+	Bridge,
 } from '../common/dto';
 import { DatabaseService } from '../database/database.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
@@ -60,7 +60,7 @@ export class StatesService {
 			this.getSavingsGatewayState(contracts.savingsContract, contracts.deuroContract),
 			this.getFrontendGatewayState(contracts.frontendGatewayContract),
 			this.getMintingHubState(contracts.mintingHubContract),
-			this.getPositionsState(contracts.mintingHubContract, activePositionAddresses, positionEvents),
+			this.getPositionsState(contracts.mintingHubContract, activePositionAddresses),
 			this.getChallengesState(contracts.mintingHubContract),
 			this.getCollateralState(positionEvents, provider),
 			this.getStablecoinBridgesStates(provider, blockchainId),
@@ -321,7 +321,13 @@ export class StatesService {
 				}
 
 				if (systemState.mintingHubState) {
-					await this.persistMintingHubState(client, currentBlock, timestamp, systemState.mintingHubState);
+					await this.persistMintingHubState(
+						client,
+						currentBlock,
+						timestamp,
+						systemState.mintingHubState,
+						systemState.positionsState
+					);
 				}
 
 				if (systemState.positionsState && systemState.positionsState.length > 0) {
@@ -333,7 +339,13 @@ export class StatesService {
 				}
 
 				if (systemState.collateralState && systemState.collateralState.length > 0) {
-					await this.persistCollateralStates(client, currentBlock, timestamp, systemState.collateralState);
+					await this.persistCollateralStates(
+						client,
+						currentBlock,
+						timestamp,
+						systemState.collateralState,
+						systemState.positionsState
+					);
 				}
 
 				if (systemState.bridgeStates && systemState.bridgeStates.length > 0) {
@@ -350,15 +362,20 @@ export class StatesService {
 
 	private async persistDeuroState(client: any, blockNumber: number, timestamp: Date, state: any): Promise<void> {
 		const query = `
-			INSERT INTO deuro_state (block_number, timestamp, total_supply, minter_reserve, equity)
-			VALUES ($1, $2, $3, $4, $5)
+			INSERT INTO deuro_state (block_number, timestamp, total_supply, minter_reserve, reserve_balance, equity)
+			VALUES ($1, $2, $3, $4, $5, $6)
 			ON CONFLICT (block_number) DO UPDATE SET
 				timestamp = EXCLUDED.timestamp,
 				total_supply = EXCLUDED.total_supply,
 				minter_reserve = EXCLUDED.minter_reserve,
+				reserve_balance = EXCLUDED.reserve_balance,
 				equity = EXCLUDED.equity
 		`;
-		await client.query(query, [blockNumber, timestamp, state.totalSupply, state.minterReserve, state.equity]);
+		// Calculate reserve_balance from equity + minter_reserve
+		// From DecentralizedEURO contract: equity = balanceOf(reserve) - minterReserve
+		// Therefore: balanceOf(reserve) = equity + minterReserve
+		const reserveBalance = (BigInt(state.equity) + BigInt(state.minterReserve)).toString();
+		await client.query(query, [blockNumber, timestamp, state.totalSupply, state.minterReserve, reserveBalance, state.equity]);
 	}
 
 	private async persistEquityState(client: any, blockNumber: number, timestamp: Date, state: any): Promise<void> {
@@ -402,23 +419,38 @@ export class StatesService {
 		await client.query(query, [blockNumber, timestamp, state.totalSavings, state.currentRatePPM.toString(), savingsCap]);
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	private async persistFrontendState(client: any, blockNumber: number, timestamp: Date, _state: any): Promise<void> {
+	private async persistFrontendState(client: any, blockNumber: number, timestamp: Date, state: any): Promise<void> {
 		const query = `
-			INSERT INTO frontend_state (block_number, timestamp, total_fees_collected, active_frontends)
-			VALUES ($1, $2, $3, $4)
+			INSERT INTO frontend_state (block_number, timestamp, total_fees_collected, active_frontends, fee_rate, savings_fee_rate, minting_fee_rate)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
 			ON CONFLICT (block_number) DO UPDATE SET
 				timestamp = EXCLUDED.timestamp,
 				total_fees_collected = EXCLUDED.total_fees_collected,
-				active_frontends = EXCLUDED.active_frontends
+				active_frontends = EXCLUDED.active_frontends,
+				fee_rate = EXCLUDED.fee_rate,
+				savings_fee_rate = EXCLUDED.savings_fee_rate,
+				minting_fee_rate = EXCLUDED.minting_fee_rate
 		`;
 		const totalFeesCollected = '0'; // Would need to be calculated/fetched
 		const activeFrontends = 1; // Default value
-		await client.query(query, [blockNumber, timestamp, totalFeesCollected, activeFrontends]);
+		await client.query(query, [
+			blockNumber,
+			timestamp,
+			totalFeesCollected,
+			activeFrontends,
+			state.feeRate,
+			state.savingsFeeRate,
+			state.mintingFeeRate,
+		]);
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	private async persistMintingHubState(client: any, blockNumber: number, timestamp: Date, _state: any): Promise<void> {
+	private async persistMintingHubState(
+		client: any,
+		blockNumber: number,
+		timestamp: Date,
+		state: any,
+		positions: PositionState[] = []
+	): Promise<void> {
 		const query = `
 			INSERT INTO mintinghub_state (block_number, timestamp, total_positions, total_collateral, total_minted)
 			VALUES ($1, $2, $3, $4, $5)
@@ -428,22 +460,30 @@ export class StatesService {
 				total_collateral = EXCLUDED.total_collateral,
 				total_minted = EXCLUDED.total_minted
 		`;
-		// These would need to be calculated from position data
-		const totalPositions = 0;
-		const totalCollateral = '0';
-		const totalMinted = '0';
-		await client.query(query, [blockNumber, timestamp, totalPositions, totalCollateral, totalMinted]);
+		// Calculate totals from position data
+		const activePositions = positions.filter((p) => !p.isClosed);
+		const totalPositions = activePositions.length;
+		let totalCollateral = BigInt(0);
+		let totalMinted = BigInt(0);
+
+		for (const position of activePositions) {
+			totalCollateral += BigInt(position.collateralBalance || 0);
+			totalMinted += BigInt(position.debt || 0);
+		}
+
+		await client.query(query, [blockNumber, timestamp, totalPositions, totalCollateral.toString(), totalMinted.toString()]);
 	}
 
-	private async persistPositionStates(client: any, blockNumber: number, timestamp: Date, positions: any[]): Promise<void> {
+	private async persistPositionStates(client: any, blockNumber: number, timestamp: Date, positions: PositionState[]): Promise<void> {
 		for (const position of positions) {
 			const query = `
 				INSERT INTO position_states (
 					block_number, timestamp, position_address, owner_address, collateral_address,
 					collateral_balance, minted_amount, limit_for_position, limit_for_clones,
-					available_for_position, available_for_clones, is_original, is_clone, is_closed
+					available_for_position, available_for_clones, is_original, is_clone, is_closed,
+					price, challenged_amount, expiration
 				)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 				ON CONFLICT (block_number, position_address) DO UPDATE SET
 					timestamp = EXCLUDED.timestamp,
 					owner_address = EXCLUDED.owner_address,
@@ -456,7 +496,10 @@ export class StatesService {
 					available_for_clones = EXCLUDED.available_for_clones,
 					is_original = EXCLUDED.is_original,
 					is_clone = EXCLUDED.is_clone,
-					is_closed = EXCLUDED.is_closed
+					is_closed = EXCLUDED.is_closed,
+					price = EXCLUDED.price,
+					challenged_amount = EXCLUDED.challenged_amount,
+					expiration = EXCLUDED.expiration
 			`;
 
 			const isOriginal = position.address === position.original;
@@ -471,12 +514,18 @@ export class StatesService {
 				position.collateralBalance,
 				position.debt,
 				position.limit,
-				'0', // limit_for_clones
+				// The position shares the same limit across all clones
 				position.limit,
-				'0', // available amounts (would need calculation)
+				// Available for this position to mint (uses actual contract value)
+				position.availableForMinting.toString(),
+				// Available for clones to mint from the original (only meaningful for original positions)
+				isOriginal ? position.availableForClones.toString() : '0',
 				isOriginal,
 				isClone,
 				position.isClosed,
+				position.price || '0',
+				position.challengedAmount || '0',
+				position.expiration || 0,
 			]);
 		}
 	}
@@ -486,16 +535,17 @@ export class StatesService {
 			const query = `
 				INSERT INTO challenge_states (
 					block_number, timestamp, challenge_number, position_address, challenger_address,
-					bid_amount, challenge_size, is_active
+					bid_amount, challenge_size, is_active, start_timestamp
 				)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 				ON CONFLICT (block_number, challenge_number) DO UPDATE SET
 					timestamp = EXCLUDED.timestamp,
 					position_address = EXCLUDED.position_address,
 					challenger_address = EXCLUDED.challenger_address,
 					bid_amount = EXCLUDED.bid_amount,
 					challenge_size = EXCLUDED.challenge_size,
-					is_active = EXCLUDED.is_active
+					is_active = EXCLUDED.is_active,
+					start_timestamp = EXCLUDED.start_timestamp
 			`;
 
 			const isActive = challenge.phase > 0; // Active if phase > 0
@@ -509,11 +559,18 @@ export class StatesService {
 				challenge.currentPrice,
 				challenge.size,
 				isActive,
+				challenge.startTimestamp || 0,
 			]);
 		}
 	}
 
-	private async persistCollateralStates(client: any, blockNumber: number, timestamp: Date, collaterals: any[]): Promise<void> {
+	private async persistCollateralStates(
+		client: any,
+		blockNumber: number,
+		timestamp: Date,
+		collaterals: any[],
+		positions: PositionState[] = []
+	): Promise<void> {
 		for (const collateral of collaterals) {
 			const query = `
 				INSERT INTO collateral_states (
@@ -528,9 +585,16 @@ export class StatesService {
 					position_count = EXCLUDED.position_count
 			`;
 
-			// These would need to be calculated from position data
-			const totalCollateral = '0';
-			const positionCount = 0;
+			// Calculate totals from position data for this specific collateral
+			const collateralPositions = positions.filter(
+				(p) => p.collateralAddress.toLowerCase() === collateral.address.toLowerCase() && !p.isClosed
+			);
+			const positionCount = collateralPositions.length;
+			let totalCollateral = BigInt(0);
+
+			for (const position of collateralPositions) {
+				totalCollateral += BigInt(position.collateralBalance || 0);
+			}
 
 			await client.query(query, [
 				blockNumber,
@@ -538,7 +602,7 @@ export class StatesService {
 				collateral.address,
 				collateral.symbol,
 				collateral.decimals,
-				totalCollateral,
+				totalCollateral.toString(),
 				positionCount,
 			]);
 		}
@@ -548,20 +612,34 @@ export class StatesService {
 		for (const bridge of bridges) {
 			const query = `
 				INSERT INTO bridge_states (
-					block_number, timestamp, bridge_address, target_chain_id, total_bridged, is_active
+					block_number, timestamp, bridge_address, target_chain_id, total_bridged, is_active,
+					source_token, horizon, limit
 				)
-				VALUES ($1, $2, $3, $4, $5, $6)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 				ON CONFLICT (block_number, bridge_address) DO UPDATE SET
 					timestamp = EXCLUDED.timestamp,
 					target_chain_id = EXCLUDED.target_chain_id,
 					total_bridged = EXCLUDED.total_bridged,
-					is_active = EXCLUDED.is_active
+					is_active = EXCLUDED.is_active,
+					source_token = EXCLUDED.source_token,
+					horizon = EXCLUDED.horizon,
+					limit = EXCLUDED.limit
 			`;
 
 			const targetChainId = 1; // Would need to be determined from bridge contract
 			const isActive = true; // Would need to be determined from bridge state
 
-			await client.query(query, [blockNumber, timestamp, bridge.address, targetChainId, bridge.minted, isActive]);
+			await client.query(query, [
+				blockNumber,
+				timestamp,
+				bridge.address,
+				targetChainId,
+				bridge.minted,
+				isActive,
+				bridge.sourceToken || '',
+				bridge.horizon || 0,
+				bridge.limit || '0',
+			]);
 		}
 	}
 
@@ -619,9 +697,7 @@ export class StatesService {
 		const currentBlock = await provider.getBlockNumber();
 
 		const activePositionAddresses: string[] = await this.databaseService.getActivePositionAddresses();
-		const positionEvents: any[] = []; // Would need to get from events if needed
-
-		const positions = await this.getPositionsState(contracts.mintingHubContract, activePositionAddresses, positionEvents);
+		const positions = await this.getPositionsState(contracts.mintingHubContract, activePositionAddresses);
 
 		return positions.map((position) => ({
 			address: position.address,
@@ -824,11 +900,7 @@ export class StatesService {
 		return symbolToBridge[symbol] || Bridge.EURT;
 	}
 
-	private async getPositionsState(
-		_mintingHub: ethers.Contract,
-		activePositionAddresses: string[],
-		_positionOpenedEvents: MintingHubPositionOpenedEvent[]
-	): Promise<PositionState[]> {
+	private async getPositionsState(_mintingHub: ethers.Contract, activePositionAddresses: string[]): Promise<PositionState[]> {
 		const provider = this.blockchainService.getProvider();
 		const positions = [];
 
@@ -856,6 +928,10 @@ export class StatesService {
 					challengedAmount,
 					challengePeriod,
 					isClosed,
+					availableForMinting,
+					availableForClones,
+					riskPremiumPPM,
+					reserveContribution,
 				] = await Promise.all([
 					positionContract.owner(),
 					positionContract.original(),
@@ -876,6 +952,10 @@ export class StatesService {
 					positionContract.challengedAmount(),
 					positionContract.challengePeriod(),
 					positionContract.isClosed(),
+					positionContract.availableForMinting(),
+					positionContract.availableForClones(),
+					positionContract.riskPremiumPPM(),
+					positionContract.reserveContribution(),
 				]);
 
 				positions.push({
@@ -899,10 +979,12 @@ export class StatesService {
 					challengedAmount,
 					challengePeriod,
 					isClosed,
-					expiredPurchasePrice: BigInt(0), // Would need to calculate or fetch
-					riskPremiumPPM: 0, // Would need to fetch from position contract
-					reserveContribution: 0, // Would need to fetch from position contract
-					fixedAnnualRatePPM: 0, // Would need to fetch from position contract
+					availableForMinting,
+					availableForClones,
+					expiredPurchasePrice: BigInt(0), // This is calculated in the hub during liquidation
+					riskPremiumPPM: Number(riskPremiumPPM),
+					reserveContribution: Number(reserveContribution),
+					fixedAnnualRatePPM: Number(riskPremiumPPM) + Number(reserveContribution), // Total interest rate
 				});
 			} catch (error) {
 				this.logger.error(`Failed to fetch position state for ${positionAddress}:`, error);
@@ -955,7 +1037,10 @@ export class StatesService {
 		return challenges;
 	}
 
-	private async getCollateralState(positionOpenedEvents: MintingHubPositionOpenedEvent[], provider: ethers.Provider): Promise<CollateralState[]> {
+	private async getCollateralState(
+		positionOpenedEvents: MintingHubPositionOpenedEvent[],
+		provider: ethers.Provider
+	): Promise<CollateralState[]> {
 		const uniqueCollaterals = [...new Set(positionOpenedEvents.map((event) => event.collateral))];
 		const collaterals = [];
 
