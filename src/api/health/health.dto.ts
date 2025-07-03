@@ -74,17 +74,6 @@ export class DeuroTransferMetrics {
 	averageSize: VolumeMetrics;
 }
 
-export class DeuroMinterMetrics {
-	@ApiProperty({ description: 'Minter application statistics' })
-	applications: TotalAndMonthCounts;
-
-	@ApiProperty({ description: 'Minter denial statistics' })
-	denials: TotalAndMonthCounts;
-
-	@ApiProperty({ description: 'Total application fees' })
-	totalFees: string;
-}
-
 export class DeuroProfitLossMetrics {
 	@ApiProperty({ description: 'Profit statistics' })
 	profits: TotalAndMonthStats;

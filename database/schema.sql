@@ -299,44 +299,63 @@ CREATE TABLE IF NOT EXISTS frontend_state (
 CREATE TABLE IF NOT EXISTS mintinghub_state (
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    total_positions INTEGER NOT NULL,
-    total_collateral NUMERIC(78, 0) NOT NULL,
-    total_minted NUMERIC(78, 0) NOT NULL,
+    opening_fee NUMERIC(78, 0) NOT NULL,
+    challenger_reward NUMERIC(78, 0) NOT NULL,
+    expired_price_factor INTEGER NOT NULL,
     PRIMARY KEY (block_number)
 );
 
--- TODO: Table column names must closely match the contract state variable names!!
 CREATE TABLE IF NOT EXISTS position_states (
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     position_address VARCHAR(42) NOT NULL,
+    status VARCHAR(20) NOT NULL, -- PROPOSED, ACTIVE, UNDERCOLLATERALIZED, CHALLENGED, COOLDOWN, CLOSED, EXPIRING, EXPIRED
     owner_address VARCHAR(42) NOT NULL,
+    original_address VARCHAR(42) NOT NULL,
     collateral_address VARCHAR(42) NOT NULL,
     collateral_balance NUMERIC(78, 0) NOT NULL,
-    minted_amount NUMERIC(78, 0) NOT NULL,
-    limit_for_position NUMERIC(78, 0) NOT NULL,
-    limit_for_clones NUMERIC(78, 0) NOT NULL,
-    available_for_position NUMERIC(78, 0) NOT NULL,
-    available_for_clones NUMERIC(78, 0) NOT NULL,
     price NUMERIC(78, 0) NOT NULL,
+    virtual_price NUMERIC(78, 0) NOT NULL,
+    expired_purchase_price NUMERIC(78, 0) NOT NULL,
+    collateral_requirement NUMERIC(78, 0) NOT NULL,
+    debt NUMERIC(78, 0) NOT NULL,
+    interest NUMERIC(78, 0) NOT NULL,
+    minimum_collateral NUMERIC(78, 0) NOT NULL,
+    minimum_challenge_amount NUMERIC(78, 0) NOT NULL,
+    limit_amount NUMERIC(78, 0) NOT NULL,
+    principal NUMERIC(78, 0) NOT NULL,
+    risk_premium_ppm INTEGER NOT NULL,
+    reserve_contribution INTEGER NOT NULL,
+    fixed_annual_rate_ppm INTEGER NOT NULL,
+    last_accrual NUMERIC(78, 0) NOT NULL,
+    start_timestamp NUMERIC(78, 0) NOT NULL,
+    cooldown_period NUMERIC(78, 0) NOT NULL,
+    expiration_timestamp NUMERIC(78, 0) NOT NULL,
     challenged_amount NUMERIC(78, 0) NOT NULL,
-    expiration TIMESTAMP WITH TIME ZONE NOT NULL,
-    is_original BOOLEAN NOT NULL,
-    is_clone BOOLEAN NOT NULL,
+    challenge_period NUMERIC(78, 0) NOT NULL,
     is_closed BOOLEAN NOT NULL,
+    available_for_minting NUMERIC(78, 0) NOT NULL,
+    available_for_clones NUMERIC(78, 0) NOT NULL,
+    created INTEGER,
     PRIMARY KEY (block_number, position_address)
 );
 
 CREATE TABLE IF NOT EXISTS challenge_states (
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    challenge_number BIGINT NOT NULL,
-    position_address VARCHAR(42) NOT NULL,
+    challenge_id INTEGER NOT NULL,
     challenger_address VARCHAR(42) NOT NULL,
-    start_timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    challenge_size NUMERIC(78, 0) NOT NULL,
-    is_active BOOLEAN NOT NULL,
-    PRIMARY KEY (block_number, challenge_number)
+    position_address VARCHAR(42) NOT NULL,
+    position_owner_address VARCHAR(42) NOT NULL,
+    start_timestamp INTEGER NOT NULL,
+    initial_size NUMERIC(78, 0) NOT NULL,
+    size NUMERIC(78, 0) NOT NULL,
+    collateral_address VARCHAR(42) NOT NULL,
+    liq_price NUMERIC(78, 0) NOT NULL,
+    phase INTEGER NOT NULL,
+    status VARCHAR(20) NOT NULL, -- OPENED, PARTIALLY_AVERTED, AVERTED, AUCTION, PARTIALLY_SUCCEEDED, SUCCEEDED
+    current_price NUMERIC(78, 0) NOT NULL,
+    PRIMARY KEY (block_number, challenge_id)
 );
 
 CREATE TABLE IF NOT EXISTS collateral_states (
@@ -426,8 +445,12 @@ CREATE INDEX IF NOT EXISTS idx_position_states_block_number ON position_states (
 CREATE INDEX IF NOT EXISTS idx_position_states_position_address ON position_states (position_address);
 CREATE INDEX IF NOT EXISTS idx_position_states_owner ON position_states (owner_address);
 CREATE INDEX IF NOT EXISTS idx_position_states_is_closed ON position_states (is_closed);
+CREATE INDEX IF NOT EXISTS idx_position_states_status ON position_states (status);
+CREATE INDEX IF NOT EXISTS idx_position_states_original ON position_states (original_address);
 
 CREATE INDEX IF NOT EXISTS idx_challenge_states_block_number ON challenge_states (block_number DESC);
 CREATE INDEX IF NOT EXISTS idx_challenge_states_position ON challenge_states (position_address);
-CREATE INDEX IF NOT EXISTS idx_challenge_states_is_active ON challenge_states (is_active);
+CREATE INDEX IF NOT EXISTS idx_challenge_states_challenger ON challenge_states (challenger_address);
+CREATE INDEX IF NOT EXISTS idx_challenge_states_status ON challenge_states (status);
+CREATE INDEX IF NOT EXISTS idx_challenge_states_phase ON challenge_states (phase);
 

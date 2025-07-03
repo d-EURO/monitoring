@@ -56,7 +56,6 @@ export class BlockchainService {
 	}
 
 	getDeploymentBlock(): number {
-		const monitoringConfig = this.configService.get('monitoring');
-		return monitoringConfig.deploymentBlock;
+		return this.configService.get('monitoring').deploymentBlock;
 	}
 }

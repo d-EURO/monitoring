@@ -26,12 +26,12 @@ import {
 	PositionMintingUpdateEvent,
 	SystemEventsData,
 	ContractSet,
-} from '../common/dto';
+} from '../../common/dto';
 import { PositionV2ABI } from '@deuro/eurocoin';
-import { fetchEvents } from '../blockchain/utils/utils';
-import { DatabaseService } from '../database/database.service';
-import { EventPersistenceService } from '../database/event-persistence.service';
-import { BlockchainService } from '../blockchain/blockchain.service';
+import { fetchEvents } from '../../blockchain/utils/utils';
+import { DatabaseService } from '../../database/database.service';
+import { EventPersistenceService } from '../../database/event-persistence.service';
+import { BlockchainService } from '../../blockchain/blockchain.service';
 
 @Injectable()
 export class EventsService {

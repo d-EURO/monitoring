@@ -8,25 +8,15 @@ import {
 	FrontendGatewayState,
 	MintingHubState,
 	PositionState,
-	ChallengeState,
+	ChallengeStatus,
 	CollateralState,
 	StablecoinBridgeState,
 	MintingHubPositionOpenedEvent,
 	SystemStateData,
-	DeuroStateDto,
-	EquityStateDto,
-	DepsStateDto,
-	SavingsStateDto,
-	FrontendStateDto,
-	MintingHubStateDto,
-	PositionStateDto,
-	ChallengeStateDto,
-	CollateralStateDto,
-	BridgeStateDto,
 	Bridge,
-} from '../common/dto';
-import { DatabaseService } from '../database/database.service';
-import { BlockchainService } from '../blockchain/blockchain.service';
+} from '../../common/dto';
+import { DatabaseService } from '../../database/database.service';
+import { BlockchainService } from '../../blockchain/blockchain.service';
 import { PositionV2ABI } from '@deuro/eurocoin';
 
 @Injectable()
@@ -214,9 +204,6 @@ export class StatesService {
 			currentRatePPM,
 			nextRatePPM,
 			nextChange,
-			gatewayAddress,
-			equityAddress,
-			deuroAddress,
 			totalSavings,
 			currentTicks,
 		};
@@ -282,13 +269,9 @@ export class StatesService {
 		]);
 
 		return {
-			openingFee: Number(openingFee),
-			challengerReward: Number(challengerReward),
+			openingFee: openingFee.toString(),
+			challengerReward: challengerReward.toString(),
 			expiredPriceFactor: Number(expiredPriceFactor),
-			positionFactory,
-			deuro,
-			positionRoller,
-			rate: rate.toString(),
 		};
 	}
 
@@ -643,249 +626,6 @@ export class StatesService {
 		}
 	}
 
-	// API Methods for frontend
-	async getCurrentDeuroState(): Promise<DeuroStateDto> {
-		const contracts = this.blockchainService.getContracts();
-		const provider = this.blockchainService.getProvider();
-		const currentBlock = await provider.getBlockNumber();
-
-		const contractState = await this.getDecentralizedEuroState(contracts.deuroContract);
-
-		return {
-			address: contractState.address,
-			name: contractState.name,
-			symbol: contractState.symbol,
-			decimals: contractState.decimals,
-			totalSupply: contractState.totalSupply.toString(),
-			reserveBalance: contractState.reserveBalance.toString(),
-			minterReserve: contractState.minterReserve.toString(),
-			equity: contractState.equity.toString(),
-			equityAddress: contractState.equityAddress,
-			minApplicationPeriod: contractState.minApplicationPeriod.toString(),
-			minApplicationFee: contractState.minApplicationFee.toString(),
-			block_number: currentBlock,
-			timestamp: new Date(),
-		};
-	}
-
-	async getCurrentEquityState(): Promise<EquityStateDto> {
-		const contracts = this.blockchainService.getContracts();
-		const provider = this.blockchainService.getProvider();
-		const currentBlock = await provider.getBlockNumber();
-
-		const contractState = await this.getEquityState(contracts.equityContract);
-
-		return {
-			address: contractState.address,
-			name: contractState.name,
-			symbol: contractState.symbol,
-			decimals: contractState.decimals,
-			totalSupply: contractState.totalSupply.toString(),
-			price: contractState.price.toString(),
-			totalVotes: contractState.totalVotes.toString(),
-			dEuroAddress: contractState.dEuroAddress,
-			valuationFactor: contractState.valuationFactor,
-			minHoldingDuration: contractState.minHoldingDuration.toString(),
-			block_number: currentBlock,
-			timestamp: new Date(),
-		};
-	}
-
-	async getCurrentPositionsState(): Promise<PositionStateDto[]> {
-		const contracts = this.blockchainService.getContracts();
-		const provider = this.blockchainService.getProvider();
-		const currentBlock = await provider.getBlockNumber();
-
-		const activePositionAddresses: string[] = await this.databaseService.getActivePositionAddresses();
-		const positions = await this.getPositionsState(contracts.mintingHubContract, activePositionAddresses);
-
-		return positions.map((position) => ({
-			address: position.address,
-			owner: position.owner,
-			original: position.original,
-			collateralAddress: position.collateralAddress,
-			collateralBalance: position.collateralBalance.toString(),
-			price: position.price.toString(),
-			virtualPrice: position.virtualPrice.toString(),
-			debt: position.debt.toString(),
-			interest: position.interest.toString(),
-			principal: position.principal.toString(),
-			collateralRequirement: position.collateralRequirement.toString(),
-			minimumCollateral: position.minimumCollateral.toString(),
-			limit: position.limit.toString(),
-			start: position.start.toString(),
-			cooldown: position.cooldown.toString(),
-			expiration: position.expiration.toString(),
-			lastAccrual: position.lastAccrual.toString(),
-			challengedAmount: position.challengedAmount.toString(),
-			challengePeriod: position.challengePeriod.toString(),
-			isClosed: position.isClosed,
-			expiredPurchasePrice: position.expiredPurchasePrice.toString(),
-			riskPremiumPPM: position.riskPremiumPPM,
-			reserveContribution: position.reserveContribution,
-			fixedAnnualRatePPM: position.fixedAnnualRatePPM,
-			block_number: currentBlock,
-			timestamp: new Date(),
-		}));
-	}
-
-	async getDailyStateHistory(stateType: string, days: number = 30) {
-		const tableName = `${stateType}_states`;
-		const query = `
-      SELECT * FROM ${tableName} 
-      WHERE timestamp >= NOW() - INTERVAL '${days} days'
-      ORDER BY timestamp DESC
-    `;
-
-		return this.databaseService.fetch(query);
-	}
-
-	async getCurrentDepsState(): Promise<DepsStateDto> {
-		const contracts = this.blockchainService.getContracts();
-		const provider = this.blockchainService.getProvider();
-		const currentBlock = await provider.getBlockNumber();
-
-		const contractState = await this.getDepsWrapperState(contracts.depsContract);
-
-		return {
-			address: contractState.address,
-			name: contractState.name,
-			symbol: contractState.symbol,
-			decimals: contractState.decimals,
-			totalSupply: contractState.totalSupply.toString(),
-			underlyingAddress: contractState.underlyingAddress,
-			underlyingSymbol: contractState.underlyingSymbol,
-			block_number: currentBlock,
-			timestamp: new Date(),
-		};
-	}
-
-	async getCurrentSavingsState(): Promise<SavingsStateDto> {
-		const contracts = this.blockchainService.getContracts();
-		const provider = this.blockchainService.getProvider();
-		const currentBlock = await provider.getBlockNumber();
-
-		const contractState = await this.getSavingsGatewayState(contracts.savingsContract, contracts.deuroContract);
-
-		return {
-			address: contractState.address,
-			currentRatePPM: contractState.currentRatePPM.toString(),
-			nextRatePPM: contractState.nextRatePPM.toString(),
-			nextChange: contractState.nextChange.toString(),
-			gatewayAddress: contractState.gatewayAddress,
-			equityAddress: contractState.equityAddress,
-			deuroAddress: contractState.deuroAddress,
-			totalSavings: contractState.totalSavings.toString(),
-			currentTicks: contractState.currentTicks.toString(),
-			block_number: currentBlock,
-			timestamp: new Date(),
-		};
-	}
-
-	async getCurrentFrontendState(): Promise<FrontendStateDto> {
-		const contracts = this.blockchainService.getContracts();
-		const provider = this.blockchainService.getProvider();
-		const currentBlock = await provider.getBlockNumber();
-
-		const contractState = await this.getFrontendGatewayState(contracts.frontendGatewayContract);
-
-		return {
-			address: contractState.address,
-			deuroAddress: contractState.deuroAddress,
-			equityAddress: contractState.equityAddress,
-			depsAddress: contractState.depsAddress,
-			mintingHubAddress: contractState.mintingHubAddress,
-			savingsAddress: contractState.savingsAddress,
-			feeRate: contractState.feeRate,
-			savingsFeeRate: contractState.savingsFeeRate,
-			mintingFeeRate: contractState.mintingFeeRate,
-			nextFeeRate: contractState.nextFeeRate,
-			nextSavingsFeeRate: contractState.nextSavingsFeeRate,
-			nextMintingFeeRate: contractState.nextMintingFeeRate,
-			changeTimeLock: contractState.changeTimeLock.toString(),
-			block_number: currentBlock,
-			timestamp: new Date(),
-		};
-	}
-
-	async getCurrentMintingHubState(): Promise<MintingHubStateDto> {
-		const contracts = this.blockchainService.getContracts();
-		const provider = this.blockchainService.getProvider();
-		const currentBlock = await provider.getBlockNumber();
-
-		const contractState = await this.getMintingHubState(contracts.mintingHubContract);
-
-		return {
-			openingFee: contractState.openingFee.toString(),
-			challengerReward: contractState.challengerReward.toString(),
-			expiredPriceFactor: contractState.expiredPriceFactor,
-			positionFactory: contractState.positionFactory,
-			deuro: contractState.deuro,
-			positionRoller: contractState.positionRoller,
-			rate: Number(contractState.rate),
-			block_number: currentBlock,
-			timestamp: new Date(),
-		};
-	}
-
-	async getActiveChallenges(): Promise<ChallengeStateDto[]> {
-		const contracts = this.blockchainService.getContracts();
-		const provider = this.blockchainService.getProvider();
-		const currentBlock = await provider.getBlockNumber();
-
-		const challenges = await this.getChallengesState(contracts.mintingHubContract);
-
-		return challenges
-			.filter((challenge) => challenge.phase > 0) // Only active challenges
-			.map((challenge) => ({
-				...challenge,
-				id: challenge.id,
-				size: challenge.size.toString(),
-				liqPrice: challenge.liqPrice.toString(),
-				currentPrice: challenge.currentPrice.toString(),
-				block_number: currentBlock,
-				timestamp: new Date(),
-			}));
-	}
-
-	async getCurrentCollateralStates(): Promise<CollateralStateDto[]> {
-		const provider = this.blockchainService.getProvider();
-		const currentBlock = await provider.getBlockNumber();
-
-		// Get position events to identify collateral types - for now use empty array
-		const positionEvents: any[] = [];
-
-		const collaterals = await this.getCollateralState(positionEvents, provider);
-
-		return collaterals.map((collateral) => ({
-			...collateral,
-			block_number: currentBlock,
-			timestamp: new Date(),
-		}));
-	}
-
-	async getCurrentBridgeStates(): Promise<BridgeStateDto[]> {
-		const provider = this.blockchainService.getProvider();
-		const blockchainId = this.blockchainService.getBlockchainId();
-		const currentBlock = await provider.getBlockNumber();
-
-		const bridgeStates = await this.getStablecoinBridgesStates(provider, blockchainId);
-
-		return bridgeStates.map((bridge) => ({
-			address: bridge.address,
-			limit: bridge.limit.toString(),
-			minted: bridge.minted.toString(),
-			horizon: bridge.horizon.toString(),
-			eurAddress: bridge.eurAddress,
-			eurSymbol: bridge.eurSymbol,
-			eurDecimals: bridge.eurDecimals,
-			dEuroAddress: bridge.dEuroAddress,
-			bridgeType: bridge.bridgeType,
-			block_number: currentBlock,
-			timestamp: new Date(),
-		}));
-	}
-
 	private getBridgeTypeFromSymbol(symbol: string): Bridge {
 		const symbolToBridge: { [key: string]: Bridge } = {
 			EURT: Bridge.EURT,
@@ -994,10 +734,11 @@ export class StatesService {
 		return positions;
 	}
 
-	private async getChallengesState(mintingHub: ethers.Contract): Promise<ChallengeState[]> {
+	private async getChallengesState(mintingHub: ethers.Contract): Promise<ChallengeStatus[]> {
 		const challenges = [];
 		let challengeId = 0;
 
+		// Instead of using a while(true) loop, fetch based on ChallengeStarted events -> largest challengeId
 		try {
 			while (true) {
 				const [challenger, position, start, size, liqPrice, currentPrice, phase, collateralAddress, positionOwner] =
@@ -1013,7 +754,7 @@ export class StatesService {
 						mintingHub.challenges(challengeId, 8), // positionOwner
 					]);
 
-				if (challenger === ethers.ZeroAddress) break;
+				if (challenger === ethers.ZeroAddress) break; // This is wrong!
 
 				challenges.push({
 					id: challengeId,

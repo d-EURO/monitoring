@@ -4,10 +4,12 @@ import { ScheduleModule } from '@nestjs/schedule';
 import monitoringConfig from './config/monitoring.config';
 import { DatabaseModule } from './database/database.module';
 import { BlockchainModule } from './blockchain/blockchain.module';
-import { MonitoringModule } from './monitoring/monitoring.module';
-import { EventsModule } from './events/events.module';
-import { StatesModule } from './states/states.module';
-import { AnalyticsModule } from './analytics/analytics.module';
+import { CollectionModule } from './collection/collection.module';
+import { HealthModule } from './api/health/health.module';
+import { PositionModule } from './api/positions/position.module';
+import { ChallengeModule } from './api/challenges/challenge.module';
+import { MinterModule } from './api/minters/minter.module';
+import { BridgeModule } from './api/bridges/bridge.module';
 
 @Module({
 	imports: [
@@ -19,10 +21,12 @@ import { AnalyticsModule } from './analytics/analytics.module';
 		ScheduleModule.forRoot(),
 		DatabaseModule,
 		BlockchainModule,
-		MonitoringModule,
-		EventsModule,
-		StatesModule,
-		AnalyticsModule,
+		CollectionModule,
+		HealthModule,
+		PositionModule,
+		ChallengeModule,
+		MinterModule,
+		BridgeModule,
 	],
 })
 export class AppModule {}

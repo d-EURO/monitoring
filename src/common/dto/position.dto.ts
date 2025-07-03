@@ -1,7 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export enum PositionStatus {
+	PROPOSED,
+	ACTIVE,
+	UNDERCOLLATERALIZED,
+	CHALLENGED,
+	COOLDOWN,
+	CLOSED,
+	EXPIRING,
+	EXPIRED,
+}
+
 export interface PositionState {
 	address: string;
+	status: PositionStatus;
 	owner: string;
 	original: string;
 	collateralAddress: string;
@@ -13,6 +25,7 @@ export interface PositionState {
 	debt: bigint;
 	interest: bigint;
 	minimumCollateral: bigint;
+	minimumChallengeAmount: bigint;
 	limit: bigint;
 	principal: bigint;
 	riskPremiumPPM: number;
@@ -33,6 +46,9 @@ export interface PositionState {
 export class PositionStateDto {
 	@ApiProperty({ description: 'Position contract address' })
 	address: string;
+
+	@ApiProperty({ description: 'Position status', enum: PositionStatus })
+	status: PositionStatus;
 
 	@ApiProperty({ description: 'Position owner address' })
 	owner: string;
@@ -66,6 +82,9 @@ export class PositionStateDto {
 
 	@ApiProperty({ description: 'Minimum collateral required' })
 	minimumCollateral: string;
+
+	@ApiProperty({ description: 'Minimum challenge amount' })
+	minimumChallengeAmount: string;
 
 	@ApiProperty({ description: 'Position limit' })
 	limit: string;
@@ -102,6 +121,12 @@ export class PositionStateDto {
 
 	@ApiProperty({ description: 'Whether position is closed' })
 	isClosed: boolean;
+
+	@ApiProperty({ description: 'Amount available for minting' })
+	availableForMinting: string;
+
+	@ApiProperty({ description: 'Amount available for cloning' })
+	availableForClones: string;
 
 	@ApiProperty({ description: 'Position creation time' })
 	created?: number;

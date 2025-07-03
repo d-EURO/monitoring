@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { MinterStatusEnum } from './minter.dto';
 
 export enum Bridge {
 	EURT = 'bridgeEURT',
@@ -50,6 +51,12 @@ export class BridgeStateDto {
 
 	@ApiProperty({ description: 'Time horizon for the bridge' })
 	horizon: string;
+
+	@ApiProperty({ 
+		description: 'Minter status (pending, approved, denied)',
+		enum: MinterStatusEnum 
+	})
+	minterStatus: MinterStatusEnum;
 
 	@ApiProperty({ description: 'Block number for this state snapshot' })
 	block_number: number;

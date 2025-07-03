@@ -1,13 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export interface MintingHubState {
-	openingFee: number;
-	challengerReward: number;
+	openingFee: string;
+	challengerReward: string;
 	expiredPriceFactor: number;
-	positionFactory: string;
-	deuro: string;
-	positionRoller: string;
-	rate: string;
 }
 
 export class MintingHubStateDto {
@@ -19,18 +15,6 @@ export class MintingHubStateDto {
 
 	@ApiProperty({ description: 'Expired price factor' })
 	expiredPriceFactor: number;
-
-	@ApiProperty({ description: 'Position factory contract address' })
-	positionFactory: string;
-
-	@ApiProperty({ description: 'dEURO contract address' })
-	deuro: string;
-
-	@ApiProperty({ description: 'Position roller contract address' })
-	positionRoller: string;
-
-	@ApiProperty({ description: 'Interest rate' })
-	rate: number;
 
 	@ApiProperty({ description: 'Block number for this state snapshot' })
 	block_number: number;

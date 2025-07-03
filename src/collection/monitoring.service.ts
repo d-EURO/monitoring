@@ -2,9 +2,9 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DatabaseService } from '../database/database.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
-import { EventsService } from '../events/events.service';
-import { StatesService } from '../states/states.service';
-import { SystemEventsData } from 'src/common/dto';
+import { EventsService } from './events/events.service';
+import { StatesService } from './states/states.service';
+import { SystemEventsData } from '../common/dto';
 
 @Injectable()
 export class MonitoringService implements OnModuleInit {
@@ -28,26 +28,6 @@ export class MonitoringService implements OnModuleInit {
 	@Cron(CronExpression.EVERY_5_MINUTES)
 	async scheduledMonitoring() {
 		await this.runMonitoringCycle();
-	}
-
-	@Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-	async dailyMaintenance() {
-		this.logger.log('Running daily maintenance tasks...');
-
-		try {
-			// Archive old monitoring metadata (keep last 30 days)
-			await this.databaseService.query(`
-        DELETE FROM monitoring_metadata 
-        WHERE cycle_timestamp < NOW() - INTERVAL '30 days'
-      `);
-
-			// Analyze database tables for performance
-			await this.databaseService.query('ANALYZE');
-
-			this.logger.log('Daily maintenance completed successfully');
-		} catch (error) {
-			this.logger.error('Daily maintenance failed:', error);
-		}
 	}
 
 	async runMonitoringCycle(): Promise<void> {
@@ -76,7 +56,6 @@ export class MonitoringService implements OnModuleInit {
 			const fromBlock = lastProcessedBlock ? lastProcessedBlock + 1 : this.blockchainService.getDeploymentBlock();
 
 			if (fromBlock <= currentBlock) {
-				blocksProcessed = currentBlock - fromBlock + 1;
 				const timestamp = new Date().toISOString();
 				this.logger.log(`[${timestamp}] Fetching system state from block ${fromBlock} to ${currentBlock}`);
 
@@ -84,6 +63,7 @@ export class MonitoringService implements OnModuleInit {
 				await this.statesService.getSystemState(eventsData.mintingHubPositionOpenedEvents);
 
 				success = true;
+				blocksProcessed = currentBlock - fromBlock + 1;
 				const duration = Date.now() - startTime;
 				await this.recordMonitoringCycle(fromBlock, currentBlock, eventsData, duration);
 			} else {

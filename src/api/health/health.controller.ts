@@ -1,14 +1,14 @@
 import { Controller, Get, Logger } from '@nestjs/common';
 import { ApiTags, ApiOkResponse, ApiOperation } from '@nestjs/swagger';
-import { MonitoringService } from './monitoring.service';
-import { DatabaseService } from '../database/database.service';
-import { BlockchainService } from '../blockchain/blockchain.service';
-import { HealthStatus, HealthStatusDto, ServiceDetailStatus } from './metrics.dto';
+import { MonitoringService } from '../../collection/monitoring.service';
+import { DatabaseService } from '../../database/database.service';
+import { BlockchainService } from '../../blockchain/blockchain.service';
+import { HealthStatus, HealthStatusDto, ServiceDetailStatus } from './health.dto';
 
 @ApiTags('Health')
 @Controller('health')
-export class MonitoringController {
-	private readonly logger = new Logger(MonitoringController.name);
+export class HealthController {
+	private readonly logger = new Logger(HealthController.name);
 
 	constructor(
 		private readonly monitoringService: MonitoringService,

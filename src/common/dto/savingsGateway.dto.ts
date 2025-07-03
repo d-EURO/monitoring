@@ -5,9 +5,6 @@ export interface SavingsGatewayState {
 	currentRatePPM: bigint;
 	nextRatePPM: bigint;
 	nextChange: bigint;
-	gatewayAddress: string;
-	equityAddress: string;
-	deuroAddress: string;
 	totalSavings: bigint;
 	currentTicks: bigint;
 }
@@ -24,15 +21,6 @@ export class SavingsStateDto {
 
 	@ApiProperty({ description: 'Timestamp of next rate change' })
 	nextChange: string;
-
-	@ApiProperty({ description: 'Savings gateway contract address' })
-	gatewayAddress: string;
-
-	@ApiProperty({ description: 'Equity contract address' })
-	equityAddress: string;
-
-	@ApiProperty({ description: 'dEURO contract address' })
-	deuroAddress: string;
 
 	@ApiProperty({ description: 'Total amount saved in the gateway' })
 	totalSavings: string;

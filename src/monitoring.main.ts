@@ -10,12 +10,10 @@ async function bootstrap() {
 
 	const config = new DocumentBuilder()
 		.setTitle('dEURO Monitoring API')
-		.setDescription('Comprehensive monitoring API for the dEURO protocol with historical data persistence')
+		.setDescription('Comprehensive monitoring API for the dEURO protocol')
 		.setVersion('2.0.0')
 		.addTag('Events', 'Historical blockchain events')
 		.addTag('States', 'Protocol state snapshots')
-		.addTag('Analytics', 'Aggregated protocol metrics')
-		.addTag('Health', 'System health and monitoring status')
 		.build();
 
 	const document = SwaggerModule.createDocument(app, config);
