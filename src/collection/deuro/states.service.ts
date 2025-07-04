@@ -107,13 +107,38 @@ export class DeuroStatesService {
 		deuro_transfer_count_24h: number;
 		deuro_unique_addresses_24h: number;
 	}> {
+		// Fix unique address calculation to avoid double counting
+		// Fix volume calculation to exclude minting (from zero address) and burning (to zero address)
 		const results = await this.databaseService.fetch(`
+			WITH transfer_data AS (
+				SELECT 
+					value,
+					from_address,
+					to_address
+				FROM deuro_transfer_events 
+				WHERE timestamp > NOW() - INTERVAL '24 hours'
+			),
+			volume_data AS (
+				SELECT 
+					COALESCE(SUM(value), 0) as volume,
+					COUNT(*) as count
+				FROM transfer_data
+				WHERE from_address != '0x0000000000000000000000000000000000000000' 
+					AND to_address != '0x0000000000000000000000000000000000000000'
+			),
+			unique_addresses AS (
+				SELECT COUNT(DISTINCT address) as unique_count
+				FROM (
+					SELECT from_address as address FROM transfer_data WHERE from_address != '0x0000000000000000000000000000000000000000'
+					UNION
+					SELECT to_address as address FROM transfer_data WHERE to_address != '0x0000000000000000000000000000000000000000'
+				) addresses
+			)
 			SELECT 
-				COALESCE(SUM(value), 0) as volume,
-				COUNT(*) as count,
-				COUNT(DISTINCT from_address) + COUNT(DISTINCT to_address) as unique_addresses
-			FROM deuro_transfer_events 
-			WHERE timestamp > NOW() - INTERVAL '24 hours'
+				volume_data.volume,
+				volume_data.count,
+				unique_addresses.unique_count as unique_addresses
+			FROM volume_data, unique_addresses
 		`);
 
 		return {
@@ -128,13 +153,38 @@ export class DeuroStatesService {
 		deps_transfer_count_24h: number;
 		deps_unique_addresses_24h: number;
 	}> {
+		// Fix unique address calculation to avoid double counting
+		// Fix volume calculation to exclude minting (from zero address) and burning (to zero address)
 		const results = await this.databaseService.fetch(`
+			WITH transfer_data AS (
+				SELECT 
+					value,
+					from_address,
+					to_address
+				FROM deps_transfer_events 
+				WHERE timestamp > NOW() - INTERVAL '24 hours'
+			),
+			volume_data AS (
+				SELECT 
+					COALESCE(SUM(value), 0) as volume,
+					COUNT(*) as count
+				FROM transfer_data
+				WHERE from_address != '0x0000000000000000000000000000000000000000' 
+					AND to_address != '0x0000000000000000000000000000000000000000'
+			),
+			unique_addresses AS (
+				SELECT COUNT(DISTINCT address) as unique_count
+				FROM (
+					SELECT from_address as address FROM transfer_data WHERE from_address != '0x0000000000000000000000000000000000000000'
+					UNION
+					SELECT to_address as address FROM transfer_data WHERE to_address != '0x0000000000000000000000000000000000000000'
+				) addresses
+			)
 			SELECT 
-				COALESCE(SUM(value), 0) as volume,
-				COUNT(*) as count,
-				COUNT(DISTINCT from_address) + COUNT(DISTINCT to_address) as unique_addresses
-			FROM deps_transfer_events 
-			WHERE timestamp > NOW() - INTERVAL '24 hours'
+				volume_data.volume,
+				volume_data.count,
+				unique_addresses.unique_count as unique_addresses
+			FROM volume_data, unique_addresses
 		`);
 
 		return {

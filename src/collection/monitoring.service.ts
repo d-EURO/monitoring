@@ -7,12 +7,12 @@ import { SystemStateRepository } from '../database/repositories';
 // Domain services
 import { DeuroEventsService } from './deuro/events.service';
 import { DeuroStatesService } from './deuro/states.service';
-import { PositionsEventsService } from './positions/events.service';
-import { PositionsStatesService } from './positions/states.service';
-import { ChallengesEventsService } from './challenges/events.service';
-import { ChallengesStatesService } from './challenges/states.service';
-import { MintersEventsService } from './minters/events.service';
-import { MintersStatesService } from './minters/states.service';
+import { PositionEventsService } from './position/events.service';
+import { PositionStatesService } from './position/states.service';
+import { ChallengeEventsService } from './challenge/events.service';
+import { ChallengeStatesService } from './challenge/states.service';
+import { MinterEventsService } from './minter/events.service';
+import { MinterStatesService } from './minter/states.service';
 
 @Injectable()
 export class MonitoringService implements OnModuleInit {
@@ -28,12 +28,12 @@ export class MonitoringService implements OnModuleInit {
 		// Domain services
 		private readonly deuroEventsService: DeuroEventsService,
 		private readonly deuroStatesService: DeuroStatesService,
-		private readonly positionsEventsService: PositionsEventsService,
-		private readonly positionsStatesService: PositionsStatesService,
-		private readonly challengesEventsService: ChallengesEventsService,
-		private readonly challengesStatesService: ChallengesStatesService,
-		private readonly mintersEventsService: MintersEventsService,
-		private readonly mintersStatesService: MintersStatesService
+		private readonly positionEventsService: PositionEventsService,
+		private readonly positionStatesService: PositionStatesService,
+		private readonly challengeEventsService: ChallengeEventsService,
+		private readonly challengeStatesService: ChallengeStatesService,
+		private readonly minterEventsService: MinterEventsService,
+		private readonly minterStatesService: MinterStatesService
 	) {}
 
 	async onModuleInit() {
@@ -85,15 +85,15 @@ export class MonitoringService implements OnModuleInit {
 						fromBlock,
 						currentBlock
 					),
-					this.positionsEventsService.getPositionsEvents(
+					this.positionEventsService.getPositionsEvents(
 						contracts.mintingHubContract,
 						contracts.rollerContract,
 						provider,
 						fromBlock,
 						currentBlock
 					),
-					this.challengesEventsService.getChallengesEvents(contracts.mintingHubContract, fromBlock, currentBlock),
-					this.mintersEventsService.getMintersEvents(contracts.deuroContract, fromBlock, currentBlock),
+					this.challengeEventsService.getChallengesEvents(contracts.mintingHubContract, fromBlock, currentBlock),
+					this.minterEventsService.getMintersEvents(contracts.deuroContract, fromBlock, currentBlock),
 				]);
 
 				// Fetch states from all domains
@@ -104,13 +104,13 @@ export class MonitoringService implements OnModuleInit {
 						contracts.depsContract,
 						contracts.savingsContract
 					),
-					this.positionsStatesService.getPositionsState(await this.databaseService.getActivePositionAddresses(), provider),
-					this.challengesStatesService.getChallengesState(contracts.mintingHubContract),
-					this.mintersStatesService.getMintersState(provider),
+					this.positionStatesService.getPositionsState(await this.databaseService.getActivePositionAddresses(), provider),
+					this.challengeStatesService.getChallengesState(contracts.mintingHubContract),
+					this.minterStatesService.getMintersState(provider),
 				]);
 
 				// Get collateral state
-				const collateralState = await this.positionsStatesService.getCollateralState(
+				const collateralState = await this.positionStatesService.getCollateralState(
 					positionsEvents.mintingHubPositionOpenedEvents,
 					provider
 				);
@@ -136,10 +136,10 @@ export class MonitoringService implements OnModuleInit {
 				});
 
 				// Persist positions and challenges (they handle their own transactions)
-				await this.positionsStatesService.persistPositionsState(positionsState, currentBlock);
-				await this.positionsStatesService.persistCollateralState(collateralState, currentBlock);
-				await this.challengesStatesService.persistChallengesState(challengesState, currentBlock);
-				await this.mintersStatesService.persistBridgesState(mintersState.bridges, currentBlock);
+				await this.positionStatesService.persistPositionsState(positionsState, currentBlock);
+				await this.positionStatesService.persistCollateralState(collateralState, currentBlock);
+				await this.challengeStatesService.persistChallengesState(challengesState, currentBlock);
+				await this.minterStatesService.persistBridgesState(mintersState.bridges, currentBlock);
 
 				const duration = Date.now() - startTime;
 				await this.recordMonitoringCycle(fromBlock, currentBlock, duration);

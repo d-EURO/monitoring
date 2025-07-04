@@ -4,18 +4,18 @@ import { DeuroMinterAppliedEvent, DeuroMinterDeniedEvent } from '../../common/dt
 import { fetchEvents } from '../../blockchain/utils/utils';
 import { EventPersistenceService } from '../../database/event-persistence.service';
 
-export interface MintersEventsData {
+export interface MinterEventsData {
 	deuroMinterAppliedEvents: DeuroMinterAppliedEvent[];
 	deuroMinterDeniedEvents: DeuroMinterDeniedEvent[];
 }
 
 @Injectable()
-export class MintersEventsService {
-	private readonly logger = new Logger(MintersEventsService.name);
+export class MinterEventsService {
+	private readonly logger = new Logger(MinterEventsService.name);
 
 	constructor(private readonly eventPersistenceService: EventPersistenceService) {}
 
-	async getMintersEvents(deuroContract: ethers.Contract, fromBlock: number, toBlock: number): Promise<MintersEventsData> {
+	async getMintersEvents(deuroContract: ethers.Contract, fromBlock: number, toBlock: number): Promise<MinterEventsData> {
 		this.logger.log(`Fetching minters events from block ${fromBlock} to ${toBlock}`);
 
 		const [deuroMinterAppliedEvents, deuroMinterDeniedEvents] = await Promise.all([
@@ -35,7 +35,7 @@ export class MintersEventsService {
 		};
 	}
 
-	private async persistEvents(eventsData: MintersEventsData): Promise<void> {
+	private async persistEvents(eventsData: MinterEventsData): Promise<void> {
 		this.logger.log('Persisting minters events to database...');
 		await this.eventPersistenceService.persistAllEvents(eventsData);
 		this.logger.log('Minters events persisted successfully');

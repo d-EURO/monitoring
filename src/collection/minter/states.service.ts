@@ -29,8 +29,8 @@ export interface BridgeStateData {
 }
 
 @Injectable()
-export class MintersStatesService {
-	private readonly logger = new Logger(MintersStatesService.name);
+export class MinterStatesService {
+	private readonly logger = new Logger(MinterStatesService.name);
 
 	constructor(
 		private readonly databaseService: DatabaseService,

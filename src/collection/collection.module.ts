@@ -5,12 +5,12 @@ import { BlockchainModule } from '../blockchain/blockchain.module';
 
 // Domain modules
 import { DeuroModule } from './deuro/deuro.module';
-import { PositionsModule } from './positions/positions.module';
-import { ChallengesModule } from './challenges/challenges.module';
-import { MintersModule } from './minters/minters.module';
+import { PositionModule } from './position/position.module';
+import { ChallengeModule } from './challenge/challenge.module';
+import { MinterModule } from './minter/minter.module';
 
 @Module({
-	imports: [DatabaseModule, BlockchainModule, DeuroModule, PositionsModule, ChallengesModule, MintersModule],
+	imports: [DatabaseModule, BlockchainModule, DeuroModule, PositionModule, ChallengeModule, MinterModule],
 	providers: [MonitoringService],
 	exports: [MonitoringService],
 })

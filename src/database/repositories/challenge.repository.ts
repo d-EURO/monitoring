@@ -77,12 +77,12 @@ export class ChallengeRepository {
 	private mapToDto(record: ChallengeRecord): ChallengeStateDto {
 		// Map the status string to enum safely
 		const statusMap: { [key: string]: ChallengeStatus } = {
-			'OPENED': ChallengeStatus.OPENED,
-			'PARTIALLY_AVERTED': ChallengeStatus.PARTIALLY_AVERTED,
-			'AVERTED': ChallengeStatus.AVERTED,
-			'AUCTION': ChallengeStatus.AUCTION,
-			'PARTIALLY_SUCCEEDED': ChallengeStatus.PARTIALLY_SUCCEEDED,
-			'SUCCEEDED': ChallengeStatus.SUCCEEDED,
+			OPENED: ChallengeStatus.OPENED,
+			PARTIALLY_AVERTED: ChallengeStatus.PARTIALLY_AVERTED,
+			AVERTED: ChallengeStatus.AVERTED,
+			AUCTION: ChallengeStatus.AUCTION,
+			PARTIALLY_SUCCEEDED: ChallengeStatus.PARTIALLY_SUCCEEDED,
+			SUCCEEDED: ChallengeStatus.SUCCEEDED,
 		};
 
 		return {

@@ -12,7 +12,7 @@ import { fetchEvents } from '../../blockchain/utils/utils';
 import { EventPersistenceService } from '../../database/event-persistence.service';
 import { DatabaseService } from '../../database/database.service';
 
-export interface PositionsEventsData {
+export interface PositionEventsData {
 	mintingHubPositionOpenedEvents: MintingHubPositionOpenedEvent[];
 	rollerRollEvents: RollerRollEvent[];
 	positionDeniedEvents: PositionDeniedEvent[];
@@ -20,8 +20,8 @@ export interface PositionsEventsData {
 }
 
 @Injectable()
-export class PositionsEventsService {
-	private readonly logger = new Logger(PositionsEventsService.name);
+export class PositionEventsService {
+	private readonly logger = new Logger(PositionEventsService.name);
 
 	constructor(
 		private readonly eventPersistenceService: EventPersistenceService,
@@ -34,7 +34,7 @@ export class PositionsEventsService {
 		provider: ethers.Provider,
 		fromBlock: number,
 		toBlock: number
-	): Promise<PositionsEventsData> {
+	): Promise<PositionEventsData> {
 		this.logger.log(`Fetching positions events from block ${fromBlock} to ${toBlock}`);
 
 		// Fetch MintingHub and Roller events
@@ -88,7 +88,7 @@ export class PositionsEventsService {
 		return events.flat();
 	}
 
-	private async persistEvents(eventsData: PositionsEventsData): Promise<void> {
+	private async persistEvents(eventsData: PositionEventsData): Promise<void> {
 		this.logger.log('Persisting positions events to database...');
 		await this.eventPersistenceService.persistAllEvents(eventsData);
 		this.logger.log('Positions events persisted successfully');

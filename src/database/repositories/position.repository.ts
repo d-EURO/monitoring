@@ -112,14 +112,14 @@ export class PositionRepository {
 	private mapToDto(record: PositionStateRecord): PositionStateDto {
 		// Map the status string to enum safely
 		const statusMap: { [key: string]: PositionStatus } = {
-			'PROPOSED': PositionStatus.PROPOSED,
-			'ACTIVE': PositionStatus.ACTIVE,
-			'UNDERCOLLATERALIZED': PositionStatus.UNDERCOLLATERALIZED,
-			'CHALLENGED': PositionStatus.CHALLENGED,
-			'COOLDOWN': PositionStatus.COOLDOWN,
-			'CLOSED': PositionStatus.CLOSED,
-			'EXPIRING': PositionStatus.EXPIRING,
-			'EXPIRED': PositionStatus.EXPIRED,
+			PROPOSED: PositionStatus.PROPOSED,
+			ACTIVE: PositionStatus.ACTIVE,
+			UNDERCOLLATERALIZED: PositionStatus.UNDERCOLLATERALIZED,
+			CHALLENGED: PositionStatus.CHALLENGED,
+			COOLDOWN: PositionStatus.COOLDOWN,
+			CLOSED: PositionStatus.CLOSED,
+			EXPIRING: PositionStatus.EXPIRING,
+			EXPIRED: PositionStatus.EXPIRED,
 		};
 
 		return {

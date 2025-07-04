@@ -5,8 +5,8 @@ import { PositionV2ABI } from '@deuro/eurocoin';
 import { PositionRepository, CollateralRepository } from '../../database/repositories';
 
 @Injectable()
-export class PositionsStatesService {
-	private readonly logger = new Logger(PositionsStatesService.name);
+export class PositionStatesService {
+	private readonly logger = new Logger(PositionStatesService.name);
 
 	constructor(
 		private readonly positionRepository: PositionRepository,

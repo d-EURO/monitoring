@@ -32,6 +32,7 @@ export interface PositionStateRecord {
 	is_closed: boolean;
 	available_for_minting: string;
 	available_for_clones: string;
+	created?: number;
 }
 
 export interface ChallengeRecord {
@@ -118,9 +119,8 @@ export interface CollateralStateRecord {
 	block_number: string;
 	timestamp: Date;
 	token_address: string;
-	token_name: string;
-	token_symbol: string;
-	token_decimals: number;
+	symbol: string;
+	decimals: number;
 	total_collateral: string;
 	position_count: number;
 }

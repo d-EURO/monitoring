@@ -13,12 +13,12 @@ export function calculateMinterStatus(
 	// Calculate if application period has expired
 	const now = Date.now();
 	const applicationEndTime = new Date(applicationTimestamp).getTime() + Number(applicationPeriod) * 1000;
-	
+
 	// If still within application period, status is PENDING
 	if (now < applicationEndTime) {
 		return MinterStatus.PENDING;
 	}
-	
+
 	// Otherwise, status is APPROVED
 	return MinterStatus.APPROVED;
 }

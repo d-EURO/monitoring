@@ -10,7 +10,7 @@ import {
 import { fetchEvents } from '../../blockchain/utils/utils';
 import { EventPersistenceService } from '../../database/event-persistence.service';
 
-export interface ChallengesEventsData {
+export interface ChallengeEventsData {
 	mintingHubChallengeStartedEvents: MintingHubChallengeStartedEvent[];
 	mintingHubChallengeAvertedEvents: MintingHubChallengeAvertedEvent[];
 	mintingHubChallengeSucceededEvents: MintingHubChallengeSucceededEvent[];
@@ -19,12 +19,12 @@ export interface ChallengesEventsData {
 }
 
 @Injectable()
-export class ChallengesEventsService {
-	private readonly logger = new Logger(ChallengesEventsService.name);
+export class ChallengeEventsService {
+	private readonly logger = new Logger(ChallengeEventsService.name);
 
 	constructor(private readonly eventPersistenceService: EventPersistenceService) {}
 
-	async getChallengesEvents(mintingHubContract: ethers.Contract, fromBlock: number, toBlock: number): Promise<ChallengesEventsData> {
+	async getChallengesEvents(mintingHubContract: ethers.Contract, fromBlock: number, toBlock: number): Promise<ChallengeEventsData> {
 		this.logger.log(`Fetching challenges events from block ${fromBlock} to ${toBlock}`);
 
 		const [
@@ -89,7 +89,7 @@ export class ChallengesEventsService {
 		};
 	}
 
-	private async persistEvents(eventsData: ChallengesEventsData): Promise<void> {
+	private async persistEvents(eventsData: ChallengeEventsData): Promise<void> {
 		this.logger.log('Persisting challenges events to database...');
 		await this.eventPersistenceService.persistAllEvents(eventsData);
 		this.logger.log('Challenges events persisted successfully');

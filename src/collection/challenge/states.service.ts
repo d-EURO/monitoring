@@ -4,8 +4,8 @@ import { ChallengeState, ChallengeStatus } from '../../common/dto';
 import { ChallengeRepository } from '../../database/repositories';
 
 @Injectable()
-export class ChallengesStatesService {
-	private readonly logger = new Logger(ChallengesStatesService.name);
+export class ChallengeStatesService {
+	private readonly logger = new Logger(ChallengeStatesService.name);
 
 	constructor(private readonly challengeRepository: ChallengeRepository) {}
 

@@ -483,3 +483,35 @@ CREATE INDEX IF NOT EXISTS idx_challenge_states_challenger ON challenge_states (
 CREATE INDEX IF NOT EXISTS idx_challenge_states_status ON challenge_states (status);
 CREATE INDEX IF NOT EXISTS idx_challenge_states_phase ON challenge_states (phase);
 
+-- Missing indexes for event tables (needed for efficient 24h metrics queries)
+CREATE INDEX IF NOT EXISTS idx_deuro_loss_events_timestamp ON deuro_loss_events (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_deuro_loss_events_reporting_minter ON deuro_loss_events (reporting_minter);
+
+CREATE INDEX IF NOT EXISTS idx_deuro_profit_events_timestamp ON deuro_profit_events (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_deuro_profit_events_reporting_minter ON deuro_profit_events (reporting_minter);
+
+CREATE INDEX IF NOT EXISTS idx_deuro_profit_distributed_events_timestamp ON deuro_profit_distributed_events (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_deuro_profit_distributed_events_recipient ON deuro_profit_distributed_events (recipient);
+
+CREATE INDEX IF NOT EXISTS idx_equity_delegation_events_timestamp ON equity_delegation_events (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_equity_delegation_events_from ON equity_delegation_events (from_address);
+CREATE INDEX IF NOT EXISTS idx_equity_delegation_events_to ON equity_delegation_events (to_address);
+
+CREATE INDEX IF NOT EXISTS idx_savings_interest_collected_events_timestamp ON savings_interest_collected_events (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_savings_interest_collected_events_account ON savings_interest_collected_events (account);
+
+CREATE INDEX IF NOT EXISTS idx_savings_rate_proposed_events_timestamp ON savings_rate_proposed_events (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_savings_rate_proposed_events_who ON savings_rate_proposed_events (who);
+
+CREATE INDEX IF NOT EXISTS idx_savings_rate_changed_events_timestamp ON savings_rate_changed_events (timestamp DESC);
+
+CREATE INDEX IF NOT EXISTS idx_roller_roll_events_timestamp ON roller_roll_events (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_roller_roll_events_source ON roller_roll_events (source);
+CREATE INDEX IF NOT EXISTS idx_roller_roll_events_target ON roller_roll_events (target);
+
+-- Indexes for state tables
+CREATE INDEX IF NOT EXISTS idx_collateral_states_block_number ON collateral_states (block_number DESC);
+CREATE INDEX IF NOT EXISTS idx_collateral_states_token_address ON collateral_states (token_address);
+
+CREATE INDEX IF NOT EXISTS idx_bridge_states_block_number ON bridge_states (block_number DESC);
+CREATE INDEX IF NOT EXISTS idx_bridge_states_bridge_address ON bridge_states (bridge_address);
