@@ -7,13 +7,7 @@ export class EventRepository {
 
 	// === Transfer events ===
 
-	async getDEuroTransfers(filters?: {
-		from?: string;
-		to?: string;
-		startTime?: Date;
-		endTime?: Date;
-		limit?: number;
-	}): Promise<any[]> {
+	async getDEuroTransfers(filters?: { from?: string; to?: string; startTime?: Date; endTime?: Date; limit?: number }): Promise<any[]> {
 		let query = 'SELECT * FROM deuro_transfer_events WHERE 1=1';
 		const params: any[] = [];
 
@@ -49,29 +43,30 @@ export class EventRepository {
 
 	async getDepsTransfers(address?: string, limit: number = 100): Promise<any[]> {
 		if (address) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM deps_transfer_events 
 				WHERE from_address = $1 OR to_address = $1
 				ORDER BY timestamp DESC 
 				LIMIT $2
-			`, [address.toLowerCase(), limit]);
+			`,
+				[address.toLowerCase(), limit]
+			);
 		}
 
-		return this.db.fetch(`
+		return this.db.fetch(
+			`
 			SELECT * FROM deps_transfer_events 
 			ORDER BY timestamp DESC 
 			LIMIT $1
-		`, [limit]);
+		`,
+			[limit]
+		);
 	}
 
 	// === Position events ===
 
-	async getPositionOpenedEvents(filters?: {
-		owner?: string;
-		position?: string;
-		collateral?: string;
-		limit?: number;
-	}): Promise<any[]> {
+	async getPositionOpenedEvents(filters?: { owner?: string; position?: string; collateral?: string; limit?: number }): Promise<any[]> {
 		let query = 'SELECT * FROM mintinghub_position_opened_events WHERE 1=1';
 		const params: any[] = [];
 
@@ -102,11 +97,14 @@ export class EventRepository {
 
 	async getPositionDeniedEvents(position?: string): Promise<any[]> {
 		if (position) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM position_denied_events 
 				WHERE position = $1 
 				ORDER BY timestamp DESC
-			`, [position.toLowerCase()]);
+			`,
+				[position.toLowerCase()]
+			);
 		}
 
 		return this.db.fetch(`
@@ -116,11 +114,14 @@ export class EventRepository {
 	}
 
 	async getPositionMintingUpdates(position: string): Promise<any[]> {
-		return this.db.fetch(`
+		return this.db.fetch(
+			`
 			SELECT * FROM position_minting_update_events 
 			WHERE position = $1 
 			ORDER BY timestamp DESC
-		`, [position.toLowerCase()]);
+		`,
+			[position.toLowerCase()]
+		);
 	}
 
 	// === Challenge events ===
@@ -161,11 +162,14 @@ export class EventRepository {
 
 	async getChallengeAvertedEvents(position?: string): Promise<any[]> {
 		if (position) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM mintinghub_challenge_averted_events 
 				WHERE position = $1 
 				ORDER BY timestamp DESC
-			`, [position.toLowerCase()]);
+			`,
+				[position.toLowerCase()]
+			);
 		}
 
 		return this.db.fetch(`
@@ -176,11 +180,14 @@ export class EventRepository {
 
 	async getChallengeSucceededEvents(position?: string): Promise<any[]> {
 		if (position) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM mintinghub_challenge_succeeded_events 
 				WHERE position = $1 
 				ORDER BY timestamp DESC
-			`, [position.toLowerCase()]);
+			`,
+				[position.toLowerCase()]
+			);
 		}
 
 		return this.db.fetch(`
@@ -193,11 +200,14 @@ export class EventRepository {
 
 	async getMinterApplications(minter?: string): Promise<any[]> {
 		if (minter) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM deuro_minter_applied_events 
 				WHERE minter = $1 
 				ORDER BY timestamp DESC
-			`, [minter.toLowerCase()]);
+			`,
+				[minter.toLowerCase()]
+			);
 		}
 
 		return this.db.fetch(`
@@ -208,11 +218,14 @@ export class EventRepository {
 
 	async getMinterDenials(minter?: string): Promise<any[]> {
 		if (minter) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM deuro_minter_denied_events 
 				WHERE minter = $1 
 				ORDER BY timestamp DESC
-			`, [minter.toLowerCase()]);
+			`,
+				[minter.toLowerCase()]
+			);
 		}
 
 		return this.db.fetch(`
@@ -225,11 +238,14 @@ export class EventRepository {
 
 	async getProfitEvents(timeframe?: { start: Date; end: Date }): Promise<any[]> {
 		if (timeframe) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM deuro_profit_events 
 				WHERE timestamp >= $1 AND timestamp <= $2
 				ORDER BY timestamp DESC
-			`, [timeframe.start, timeframe.end]);
+			`,
+				[timeframe.start, timeframe.end]
+			);
 		}
 
 		return this.db.fetch(`
@@ -240,11 +256,14 @@ export class EventRepository {
 
 	async getLossEvents(timeframe?: { start: Date; end: Date }): Promise<any[]> {
 		if (timeframe) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM deuro_loss_events 
 				WHERE timestamp >= $1 AND timestamp <= $2
 				ORDER BY timestamp DESC
-			`, [timeframe.start, timeframe.end]);
+			`,
+				[timeframe.start, timeframe.end]
+			);
 		}
 
 		return this.db.fetch(`
@@ -255,11 +274,14 @@ export class EventRepository {
 
 	async getProfitDistributions(recipient?: string): Promise<any[]> {
 		if (recipient) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM deuro_profit_distributed_events 
 				WHERE recipient = $1 
 				ORDER BY timestamp DESC
-			`, [recipient.toLowerCase()]);
+			`,
+				[recipient.toLowerCase()]
+			);
 		}
 
 		return this.db.fetch(`
@@ -272,28 +294,37 @@ export class EventRepository {
 
 	async getEquityTrades(trader?: string, limit: number = 100): Promise<any[]> {
 		if (trader) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM equity_trade_events 
 				WHERE who = $1 
 				ORDER BY timestamp DESC 
 				LIMIT $2
-			`, [trader.toLowerCase(), limit]);
+			`,
+				[trader.toLowerCase(), limit]
+			);
 		}
 
-		return this.db.fetch(`
+		return this.db.fetch(
+			`
 			SELECT * FROM equity_trade_events 
 			ORDER BY timestamp DESC 
 			LIMIT $1
-		`, [limit]);
+		`,
+			[limit]
+		);
 	}
 
 	async getEquityDelegations(address?: string): Promise<any[]> {
 		if (address) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM equity_delegation_events 
 				WHERE from_address = $1 OR to_address = $1
 				ORDER BY timestamp DESC
-			`, [address.toLowerCase()]);
+			`,
+				[address.toLowerCase()]
+			);
 		}
 
 		return this.db.fetch(`
@@ -306,27 +337,34 @@ export class EventRepository {
 
 	async getSavingsActivity(account: string): Promise<any> {
 		// Get all savings-related events for an account
-		const saved = await this.db.fetch(`
+		const saved = await this.db.fetch(
+			`
 			SELECT 'saved' as type, timestamp, amount 
 			FROM savings_saved_events 
 			WHERE account = $1
-		`, [account.toLowerCase()]);
+		`,
+			[account.toLowerCase()]
+		);
 
-		const withdrawn = await this.db.fetch(`
+		const withdrawn = await this.db.fetch(
+			`
 			SELECT 'withdrawn' as type, timestamp, amount 
 			FROM savings_withdrawn_events 
 			WHERE account = $1
-		`, [account.toLowerCase()]);
+		`,
+			[account.toLowerCase()]
+		);
 
-		const interest = await this.db.fetch(`
+		const interest = await this.db.fetch(
+			`
 			SELECT 'interest' as type, timestamp, interest as amount 
 			FROM savings_interest_collected_events 
 			WHERE account = $1
-		`, [account.toLowerCase()]);
-
-		return [...saved, ...withdrawn, ...interest].sort((a, b) => 
-			new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+		`,
+			[account.toLowerCase()]
 		);
+
+		return [...saved, ...withdrawn, ...interest].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 	}
 
 	async getSavingsRateChanges(): Promise<any[]> {
@@ -339,7 +377,8 @@ export class EventRepository {
 	// === Analytics queries ===
 
 	async getEventCounts(startTime: Date, endTime: Date): Promise<any> {
-		const result = await this.db.fetch(`
+		const result = await this.db.fetch(
+			`
 			SELECT 
 				(SELECT COUNT(*) FROM deuro_transfer_events WHERE timestamp >= $1 AND timestamp <= $2) as deuro_transfers,
 				(SELECT COUNT(*) FROM mintinghub_position_opened_events WHERE timestamp >= $1 AND timestamp <= $2) as positions_opened,
@@ -347,7 +386,9 @@ export class EventRepository {
 				(SELECT COUNT(*) FROM mintinghub_challenge_succeeded_events WHERE timestamp >= $1 AND timestamp <= $2) as challenges_succeeded,
 				(SELECT COUNT(*) FROM equity_trade_events WHERE timestamp >= $1 AND timestamp <= $2) as equity_trades,
 				(SELECT COUNT(*) FROM savings_saved_events WHERE timestamp >= $1 AND timestamp <= $2) as savings_deposits
-		`, [startTime, endTime]);
+		`,
+			[startTime, endTime]
+		);
 		return result[0];
 	}
 
@@ -369,7 +410,8 @@ export class EventRepository {
 
 	async getRecentActivity(limit: number = 50): Promise<any[]> {
 		// Union query to get recent events across all event types
-		return this.db.fetch(`
+		return this.db.fetch(
+			`
 			(
 				SELECT 'transfer' as event_type, tx_hash, timestamp, 
 					json_build_object('from', from_address, 'to', to_address, 'value', value) as data
@@ -395,18 +437,23 @@ export class EventRepository {
 			)
 			ORDER BY timestamp DESC
 			LIMIT $1
-		`, [limit]);
+		`,
+			[limit]
+		);
 	}
 
 	// === Forced sale and liquidation events ===
 
 	async getForcedSales(position?: string): Promise<any[]> {
 		if (position) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM mintinghub_forced_sale_events 
 				WHERE pos = $1 
 				ORDER BY timestamp DESC
-			`, [position.toLowerCase()]);
+			`,
+				[position.toLowerCase()]
+			);
 		}
 
 		return this.db.fetch(`
@@ -417,11 +464,14 @@ export class EventRepository {
 
 	async getPostponedReturns(beneficiary?: string): Promise<any[]> {
 		if (beneficiary) {
-			return this.db.fetch(`
+			return this.db.fetch(
+				`
 				SELECT * FROM mintinghub_postponed_return_events 
 				WHERE beneficiary = $1 
 				ORDER BY timestamp DESC
-			`, [beneficiary.toLowerCase()]);
+			`,
+				[beneficiary.toLowerCase()]
+			);
 		}
 
 		return this.db.fetch(`

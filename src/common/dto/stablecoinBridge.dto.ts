@@ -1,19 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { MinterStatusEnum } from './minter.dto';
 
 export enum Bridge {
-	EURT = 'bridgeEURT',
-	EURS = 'bridgeEURS',
-	VEUR = 'bridgeVEUR',
-	EURC = 'bridgeEURC',
-	EURR = 'bridgeEURR',
-	EUROP = 'bridgeEUROP',
-	EURI = 'bridgeEURI',
-	EURE = 'bridgeEURE',
+	EURT = 'EURT',
+	EURS = 'EURS',
+	VEUR = 'VEUR',
+	EURC = 'EURC',
+	EURR = 'EURR',
+	EUROP = 'EUROP',
+	EURI = 'EURI',
+	EURE = 'EURE',
 }
 
 export interface StablecoinBridgeState {
-	bridgeType: Bridge;
 	address: string;
 	eurAddress: string;
 	eurSymbol: string;
@@ -25,9 +23,6 @@ export interface StablecoinBridgeState {
 }
 
 export class BridgeStateDto {
-	@ApiProperty({ description: 'Bridge type', enum: Bridge })
-	bridgeType: Bridge;
-
 	@ApiProperty({ description: 'Bridge contract address' })
 	address: string;
 
@@ -51,16 +46,4 @@ export class BridgeStateDto {
 
 	@ApiProperty({ description: 'Time horizon for the bridge' })
 	horizon: string;
-
-	@ApiProperty({ 
-		description: 'Minter status (pending, approved, denied)',
-		enum: MinterStatusEnum 
-	})
-	minterStatus: MinterStatusEnum;
-
-	@ApiProperty({ description: 'Block number for this state snapshot' })
-	block_number: number;
-
-	@ApiProperty({ description: 'Timestamp of the state snapshot' })
-	timestamp: Date;
 }

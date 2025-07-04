@@ -250,60 +250,87 @@ CREATE TABLE IF NOT EXISTS position_minting_update_events (
 -- STATE TABLES
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS deuro_state (
+CREATE TABLE IF NOT EXISTS system_state (
+    deuro_total_supply NUMERIC(78, 0) NOT NULL,
+    deps_total_supply NUMERIC(78, 0) NOT NULL,
+    equity_shares NUMERIC(78, 0) NOT NULL,
+    equity_price NUMERIC(78, 0) NOT NULL,
+    reserve_total NUMERIC(78, 0) NOT NULL,
+    reserve_minter NUMERIC(78, 0) NOT NULL,
+    reserve_equity NUMERIC(78, 0) NOT NULL,
+
+    -- daily metrics
+    deuro_volume_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    deuro_transfer_count_24h INTEGER DEFAULT 0 NOT NULL,
+    deuro_unique_addresses_24h INTEGER DEFAULT 0 NOT NULL,
+    deps_volume_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    deps_transfer_count_24h INTEGER DEFAULT 0 NOT NULL,
+    deps_unique_addresses_24h INTEGER DEFAULT 0 NOT NULL,
+    equity_trade_volume_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    equity_trade_count_24h INTEGER DEFAULT 0 NOT NULL,
+    equity_delegations_24h INTEGER DEFAULT 0 NOT NULL,
+    savings_added_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    savings_withdrawn_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    savings_interest_collected_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+
+    -- global metrics
+    deuro_loss NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    deuro_profit NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- TODO (later): include transfers directly to equity contract if they didn't emit a Profit event
+    deuro_profit_distributed NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    savings_total NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    savings_interest_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    savings_rate NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    frontend_fees_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    frontends_active INTEGER DEFAULT 0 NOT NULL,
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    total_supply NUMERIC(78, 0) NOT NULL,
-    minter_reserve NUMERIC(78, 0) NOT NULL,
-    reserve_balance NUMERIC(78, 0) NOT NULL,
-    equity NUMERIC(78, 0) NOT NULL,
     PRIMARY KEY (block_number)
 );
 
-CREATE TABLE IF NOT EXISTS equity_state (
-    block_number BIGINT NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    total_shares NUMERIC(78, 0) NOT NULL,
-    total_votes NUMERIC(78, 0) NOT NULL,
-    price NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (block_number)
-);
+-- CREATE TABLE IF NOT EXISTS equity_state (
+--     block_number BIGINT NOT NULL,
+--     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+--     total_shares NUMERIC(78, 0) NOT NULL,
+--     total_votes NUMERIC(78, 0) NOT NULL, -- not interested
+--     price NUMERIC(78, 0) NOT NULL,
+--     PRIMARY KEY (block_number)
+-- );
 
-CREATE TABLE IF NOT EXISTS deps_state (
-    block_number BIGINT NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    total_wrapped NUMERIC(78, 0) NOT NULL,
-    wrapper_balance NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (block_number)
-);
+-- CREATE TABLE IF NOT EXISTS deps_state (
+--     block_number BIGINT NOT NULL,
+--     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+--     total_wrapped NUMERIC(78, 0) NOT NULL, -- equal to deps_total_supply
+--     wrapper_balance NUMERIC(78, 0) NOT NULL, -- not interested
+--     PRIMARY KEY (block_number)
+-- );
 
-CREATE TABLE IF NOT EXISTS savings_state (
-    block_number BIGINT NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    total_savings NUMERIC(78, 0) NOT NULL,
-    current_rate NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (block_number)
-);
+-- CREATE TABLE IF NOT EXISTS savings_state (
+--     block_number BIGINT NOT NULL,
+--     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+--     total_savings NUMERIC(78, 0) NOT NULL,
+--     current_rate NUMERIC(78, 0) NOT NULL,
+--     PRIMARY KEY (block_number)
+-- );
 
-CREATE TABLE IF NOT EXISTS frontend_state (
-    block_number BIGINT NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    total_fees_collected NUMERIC(78, 0) NOT NULL,
-    active_frontends INTEGER NOT NULL,
-    fee_rate INTEGER NOT NULL,
-    savings_fee_rate INTEGER NOT NULL,
-    minting_fee_rate INTEGER NOT NULL,
-    PRIMARY KEY (block_number)
-);
+-- CREATE TABLE IF NOT EXISTS frontend_state (
+--     block_number BIGINT NOT NULL,
+--     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+--     total_fees_collected NUMERIC(78, 0) NOT NULL,
+--     active_frontends INTEGER NOT NULL,
+--     fee_rate INTEGER NOT NULL, -- not interested
+--     savings_fee_rate INTEGER NOT NULL, -- not interested
+--     minting_fee_rate INTEGER NOT NULL, -- not interested
+--     PRIMARY KEY (block_number)
+-- );
 
-CREATE TABLE IF NOT EXISTS mintinghub_state (
-    block_number BIGINT NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    opening_fee NUMERIC(78, 0) NOT NULL,
-    challenger_reward NUMERIC(78, 0) NOT NULL,
-    expired_price_factor INTEGER NOT NULL,
-    PRIMARY KEY (block_number)
-);
+-- CREATE TABLE IF NOT EXISTS mintinghub_state ( -- not interested in any of it
+--     block_number BIGINT NOT NULL,
+--     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+--     opening_fee NUMERIC(78, 0) NOT NULL,
+--     challenger_reward NUMERIC(78, 0) NOT NULL,
+--     expired_price_factor INTEGER NOT NULL,
+--     PRIMARY KEY (block_number)
+-- );
 
 CREATE TABLE IF NOT EXISTS position_states (
     block_number BIGINT NOT NULL,
@@ -373,11 +400,13 @@ CREATE TABLE IF NOT EXISTS bridge_states (
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     bridge_address VARCHAR(42) NOT NULL,
-    source_token VARCHAR(42) NOT NULL,
-    horizon TIMESTAMP WITH TIME ZONE NOT NULL,
+    eur_address VARCHAR(42) NOT NULL,
+    eur_symbol VARCHAR(10) NOT NULL,
+    eur_decimals INTEGER NOT NULL,
+    deuro_address VARCHAR(42) NOT NULL,
+    horizon NUMERIC(78, 0) NOT NULL,
     limit NUMERIC(78, 0) NOT NULL,
-    total_bridged NUMERIC(78, 0) NOT NULL,
-    is_active BOOLEAN NOT NULL,
+    minted NUMERIC(78, 0) NOT NULL,
     PRIMARY KEY (block_number, bridge_address)
 );
 
@@ -435,8 +464,8 @@ CREATE INDEX IF NOT EXISTS idx_mintinghub_forced_sale_events_pos ON mintinghub_f
 CREATE INDEX IF NOT EXISTS idx_position_minting_update_events_timestamp ON position_minting_update_events (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_position_minting_update_events_position ON position_minting_update_events (position);
 
-CREATE INDEX IF NOT EXISTS idx_deuro_states_block_number ON deuro_state (block_number DESC);
-CREATE INDEX IF NOT EXISTS idx_deuro_states_timestamp ON deuro_state (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_system_state_block_number ON system_state (block_number DESC);
+CREATE INDEX IF NOT EXISTS idx_system_state_timestamp ON system_state (timestamp DESC);
 
 CREATE INDEX IF NOT EXISTS idx_equity_states_block_number ON equity_state (block_number DESC);
 CREATE INDEX IF NOT EXISTS idx_equity_states_timestamp ON equity_state (timestamp DESC);

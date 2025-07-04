@@ -211,7 +211,7 @@ export class EventPersistenceService {
 
 	constructor(private readonly databaseService: DatabaseService) {}
 
-	async persistAllEvents(eventsData: SystemEventsData): Promise<void> {
+	async persistAllEvents(eventsData: Partial<SystemEventsData>): Promise<void> {
 		try {
 			await this.databaseService.withTransaction(async (client) => {
 				for (const [eventType, config] of Object.entries(EventPersistenceService.eventConfigs)) {
@@ -229,7 +229,7 @@ export class EventPersistenceService {
 		}
 	}
 
-	private getTotalEventCount(eventsData: SystemEventsData): number {
+	private getTotalEventCount(eventsData: Partial<SystemEventsData>): number {
 		return Object.entries(eventsData).reduce((sum, [key, value]) => {
 			if (key === 'lastEventFetch' || key === 'blockRange') return sum;
 			return sum + (Array.isArray(value) ? value.length : 0);

@@ -1,23 +1,42 @@
 import { Module, Global } from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import { EventPersistenceService } from './event-persistence.service';
-import { PositionRepository, ChallengeRepository, EventRepository } from './repositories';
+import {
+	PositionRepository,
+	ChallengeRepository,
+	EventRepository,
+	MinterRepository,
+	SystemStateRepository,
+	CollateralRepository,
+	BridgeRepository,
+	DeuroRepository,
+} from './repositories';
 
 @Global()
 @Module({
 	providers: [
-		DatabaseService, 
+		DatabaseService,
 		EventPersistenceService,
 		PositionRepository,
 		ChallengeRepository,
 		EventRepository,
+		MinterRepository,
+		SystemStateRepository,
+		CollateralRepository,
+		BridgeRepository,
+		DeuroRepository,
 	],
 	exports: [
-		DatabaseService, 
+		DatabaseService,
 		EventPersistenceService,
 		PositionRepository,
 		ChallengeRepository,
 		EventRepository,
+		MinterRepository,
+		SystemStateRepository,
+		CollateralRepository,
+		BridgeRepository,
+		DeuroRepository,
 	],
 })
 export class DatabaseModule {}

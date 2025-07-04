@@ -1,38 +1,28 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export enum MinterStatusEnum {
+export enum MinterStatus {
 	PENDING = 'pending',
 	APPROVED = 'approved',
 	DENIED = 'denied',
 }
 
-export interface MinterStatus {
+export interface MinterState {
 	minter: string;
-	status: MinterStatusEnum;
+	status: MinterStatus;
 	applicationDate: Date;
 	applicationPeriod: string;
 	applicationFee: string;
 	message?: string;
 	denialDate?: Date;
 	denialMessage?: string;
-	// Bridge-specific fields (only for StablecoinBridge minters)
-	isBridge?: boolean;
-	bridgeLimit?: string;
-	bridgeMinted?: string;
-	bridgeHorizon?: Date;
-	bridgeSourceToken?: string;
-	bridgeSourceSymbol?: string;
 }
 
-export class MinterStatusDto {
+export class MinterStateDto {
 	@ApiProperty({ description: 'Minter address' })
 	minter: string;
 
-	@ApiProperty({ 
-		description: 'Current minter status',
-		enum: MinterStatusEnum,
-	})
-	status: MinterStatusEnum;
+	@ApiProperty({ description: 'Current minter status', enum: MinterStatus })
+	status: MinterStatus;
 
 	@ApiProperty({ description: 'Date when minter applied' })
 	applicationDate: Date;

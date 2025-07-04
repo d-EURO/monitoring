@@ -137,6 +137,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 		return rows.length > 0 ? rows[0].last_processed_block : null;
 	}
 
+	async updateLastProcessedBlock(client: any, blockNumber: number): Promise<void> {
+		const query = `
+      INSERT INTO monitoring_metadata (last_processed_block, events_processed, processing_duration_ms)
+      VALUES ($1, 0, 0)
+    `;
+		await client.query(query, [blockNumber]);
+	}
+
 	async getActivePositionAddresses(filters?: {
 		owner?: string;
 		collateral?: string;

@@ -1,89 +1,62 @@
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from '../../database/database.service';
-import { MinterStatus, MinterStatusEnum } from '../../common/dto/minter.dto';
+import { MinterRepository, BridgeRepository } from '../../database/repositories';
+import { MinterState } from '../../common/dto/minter.dto';
+import { BridgeStateDto } from '../../common/dto/stablecoinBridge.dto';
+import { calculateMinterStatus } from '../../common/utils/minter-status.util';
 
 @Injectable()
 export class MinterService {
-	constructor(private readonly db: DatabaseService) {}
+	constructor(
+		private readonly minterRepository: MinterRepository,
+		private readonly bridgeRepository: BridgeRepository
+	) {}
 
-	/**
-	 * Get all minters with their current status
-	 */
-	async getAllMinters(): Promise<MinterStatus[]> {
-		// Get the latest application for each minter
-		const applications = await this.db.fetch<{
-			minter: string;
-			timestamp: Date;
-			application_period: string;
-			application_fee: string;
-			message: string;
-		}>(`
-			SELECT minter, timestamp, application_period, application_fee, message
-			FROM deuro_minter_applied_events e1
-			WHERE timestamp = (
-				SELECT MAX(timestamp) 
-				FROM deuro_minter_applied_events e2 
-				WHERE e2.minter = e1.minter
-			)
-			ORDER BY timestamp DESC
-		`);
+	async getAllMinters(): Promise<MinterState[]> {
+		const [applications, denials] = await Promise.all([
+			this.minterRepository.getLatestApplications(),
+			this.minterRepository.getLatestDenials(),
+		]);
 
-		// Get the latest denial for each minter (if any)
-		const denials = await this.db.fetch<{
-			minter: string;
-			timestamp: Date;
-			message: string;
-		}>(`
-			SELECT minter, timestamp, message
-			FROM deuro_minter_denied_events d1
-			WHERE timestamp = (
-				SELECT MAX(timestamp) 
-				FROM deuro_minter_denied_events d2 
-				WHERE d2.minter = d1.minter
-			)
-		`);
+		const denialMap = new Map(denials.map((d) => [d.minter, { date: d.timestamp, message: d.message }]));
 
-		// Create a map of denials for quick lookup
-		const denialMap = new Map(
-			denials.map(d => [d.minter, { date: d.timestamp, message: d.message }])
-		);
-
-		// Build minter status list
-		return applications.map(app => {
-			const denial = denialMap.get(app.minter);
-			
-			// Determine status
-			let status: MinterStatusEnum;
-			if (denial && denial.date > app.timestamp) {
-				// Denied after this application
-				status = MinterStatusEnum.DENIED;
-			} else {
-				// Check if application period has passed
-				const applicationEndTime = new Date(app.timestamp).getTime() + 
-					(Number(app.application_period) * 1000);
-				const now = Date.now();
-				
-				status = now < applicationEndTime ? MinterStatusEnum.PENDING : MinterStatusEnum.APPROVED;
-			}
+		return applications.map((a) => {
+			const denial = denialMap.get(a.minter);
+			const status = calculateMinterStatus(a.timestamp, a.application_period, denial?.date);
 
 			return {
-				minter: app.minter,
+				minter: a.minter,
 				status,
-				applicationDate: app.timestamp,
-				applicationPeriod: app.application_period,
-				applicationFee: app.application_fee,
-				message: app.message,
+				applicationDate: a.timestamp,
+				applicationPeriod: a.application_period,
+				applicationFee: a.application_fee,
+				message: a.message,
 				denialDate: denial?.date,
 				denialMessage: denial?.message,
 			};
 		});
 	}
 
-	/**
-	 * Get minters filtered by status
-	 */
-	async getMintersByStatus(status: MinterStatusEnum): Promise<MinterStatus[]> {
-		const allMinters = await this.getAllMinters();
-		return allMinters.filter(m => m.status === status);
+	async getActiveBridges(): Promise<BridgeStateDto[]> {
+		const allBridges = await this.getAllBridges();
+		const currentTime = Math.floor(Date.now() / 1000);
+		return allBridges.filter((bridge) => {
+			const horizonTime = parseInt(bridge.horizon);
+			return currentTime <= horizonTime;
+		});
+	}
+
+	async getAllBridges(): Promise<BridgeStateDto[]> {
+		const bridgeStates = await this.bridgeRepository.getAllBridgeStates();
+
+		return bridgeStates.map((state) => ({
+			address: state.bridge_address,
+			eurAddress: state.eur_address,
+			eurSymbol: state.eur_symbol,
+			eurDecimals: state.eur_decimals,
+			dEuroAddress: state.deuro_address,
+			limit: state.limit.toString(),
+			minted: state.minted.toString(),
+			horizon: state.horizon.toString(),
+		}));
 	}
 }

@@ -16,6 +16,7 @@ export * from './event.dto';
 
 // System DTOs
 export * from './system.dto';
+export * from './system-state.dto';
 
 // Minter DTOs
 export * from './minter.dto';

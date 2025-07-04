@@ -1,10 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export interface CollateralState {
-	address: string;
-	name: string;
+	tokenAddress: string;
 	symbol: string;
 	decimals: number;
+	totalCollateral: bigint;
+	positionCount: number;
 }
 
 export class CollateralStateDto {

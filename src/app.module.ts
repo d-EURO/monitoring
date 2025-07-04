@@ -5,11 +5,10 @@ import monitoringConfig from './config/monitoring.config';
 import { DatabaseModule } from './database/database.module';
 import { BlockchainModule } from './blockchain/blockchain.module';
 import { CollectionModule } from './collection/collection.module';
-import { HealthModule } from './api/health/health.module';
 import { PositionModule } from './api/positions/position.module';
 import { ChallengeModule } from './api/challenges/challenge.module';
 import { MinterModule } from './api/minters/minter.module';
-import { BridgeModule } from './api/bridges/bridge.module';
+import { DeuroModule } from './api/deuro/deuro.module';
 
 @Module({
 	imports: [
@@ -22,11 +21,10 @@ import { BridgeModule } from './api/bridges/bridge.module';
 		DatabaseModule,
 		BlockchainModule,
 		CollectionModule,
-		HealthModule,
 		PositionModule,
 		ChallengeModule,
 		MinterModule,
-		BridgeModule,
+		DeuroModule,
 	],
 })
 export class AppModule {}
