@@ -10,29 +10,18 @@ export class SystemStateRepository {
 	async getLatestSystemState(): Promise<any> {
 		const result = await this.db.fetch(`
 			SELECT * FROM system_state 
-			WHERE block_number = (SELECT MAX(block_number) FROM system_state)
+			WHERE id = 1
 			LIMIT 1
 		`);
 		return result[0];
 	}
 
-	async getSystemStateAtBlock(blockNumber: number): Promise<any> {
-		const result = await this.db.fetch(
-			`
-			SELECT * FROM system_state 
-			WHERE block_number = $1
-			LIMIT 1
-		`,
-			[blockNumber]
-		);
-		return result[0];
-	}
 
 	// Write operations
 	async persistSystemState(client: any, stateData: SystemStateData): Promise<void> {
 		const query = `
 			INSERT INTO system_state (
-				block_number, timestamp,
+				id, block_number, timestamp,
 				-- Core state
 				deuro_total_supply, deps_total_supply, equity_shares, equity_price,
 				reserve_total, reserve_minter, reserve_equity,
@@ -46,10 +35,11 @@ export class SystemStateRepository {
 				savings_total, savings_interest_collected, savings_rate,
 				frontend_fees_collected, frontends_active
 			) VALUES (
-				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+				1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
 				$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
 			)
-			ON CONFLICT (block_number) DO UPDATE SET
+			ON CONFLICT (id) DO UPDATE SET
+				block_number = EXCLUDED.block_number,
 				timestamp = EXCLUDED.timestamp,
 				deuro_total_supply = EXCLUDED.deuro_total_supply,
 				deps_total_supply = EXCLUDED.deps_total_supply,

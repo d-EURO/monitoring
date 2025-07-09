@@ -10,8 +10,7 @@ export class ChallengeRepository {
 	async getAllChallenges(): Promise<ChallengeStateDto[]> {
 		const records = await this.db.fetch<ChallengeRecord>(`
 			SELECT * FROM challenge_states 
-			WHERE block_number = (SELECT MAX(block_number) FROM challenge_states)
-			ORDER BY challenge_number
+			ORDER BY challenge_id
 		`);
 		return records.map(this.mapToDto);
 	}
@@ -20,8 +19,7 @@ export class ChallengeRepository {
 		const records = await this.db.fetch<ChallengeRecord>(`
 			SELECT * FROM challenge_states 
 			WHERE status NOT IN ('AVERTED', 'SUCCEEDED')
-				AND block_number = (SELECT MAX(block_number) FROM challenge_states)
-			ORDER BY challenge_number
+			ORDER BY challenge_id
 		`);
 		return records.map(this.mapToDto);
 	}
@@ -37,7 +35,8 @@ export class ChallengeRepository {
 						collateral_address, liq_price, phase, status, current_price
 					)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-					ON CONFLICT (block_number, challenge_id) DO UPDATE SET
+					ON CONFLICT (challenge_id) DO UPDATE SET
+						block_number = EXCLUDED.block_number,
 						timestamp = EXCLUDED.timestamp,
 						challenger_address = EXCLUDED.challenger_address,
 						position_address = EXCLUDED.position_address,

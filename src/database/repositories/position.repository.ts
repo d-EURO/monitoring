@@ -11,7 +11,6 @@ export class PositionRepository {
 	async getAllPositions(): Promise<PositionStateDto[]> {
 		const records = await this.db.fetch<PositionStateRecord>(`
 			SELECT * FROM position_states 
-			WHERE block_number = (SELECT MAX(block_number) FROM position_states)
 			ORDER BY position_address
 		`);
 		return records.map(this.mapToDto);
@@ -21,7 +20,6 @@ export class PositionRepository {
 		const records = await this.db.fetch<PositionStateRecord>(`
 			SELECT * FROM position_states 
 			WHERE is_closed = false 
-				AND block_number = (SELECT MAX(block_number) FROM position_states)
 			ORDER BY position_address
 		`);
 		return records.map(this.mapToDto);
@@ -32,7 +30,6 @@ export class PositionRepository {
 			`
 			SELECT * FROM position_states 
 			WHERE collateral_address = $1 
-				AND block_number = (SELECT MAX(block_number) FROM position_states)
 			ORDER BY position_address
 		`,
 			[collateralAddress.toLowerCase()]
@@ -56,7 +53,8 @@ export class PositionRepository {
 						available_for_minting, available_for_clones
 					)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
-					ON CONFLICT (block_number, position_address) DO UPDATE SET
+					ON CONFLICT (position_address) DO UPDATE SET
+						block_number = EXCLUDED.block_number,
 						timestamp = EXCLUDED.timestamp,
 						status = EXCLUDED.status,
 						owner_address = EXCLUDED.owner_address,

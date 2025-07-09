@@ -11,7 +11,6 @@ export class BridgeRepository {
 	async getAllBridgeStates(): Promise<BridgeStateDto[]> {
 		const records = await this.db.fetch<BridgeStateRecord>(`
 			SELECT * FROM bridge_states 
-			WHERE block_number = (SELECT MAX(block_number) FROM bridge_states)
 			ORDER BY bridge_address
 		`);
 		return records.map(this.mapToDto);
@@ -23,7 +22,6 @@ export class BridgeRepository {
 			`
 			SELECT * FROM bridge_states 
 			WHERE horizon > $1 
-				AND block_number = (SELECT MAX(block_number) FROM bridge_states)
 			ORDER BY bridge_address
 		`,
 			[currentTime]
@@ -43,7 +41,8 @@ export class BridgeRepository {
 					deuro_address, horizon, limit, minted
 				)
 				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-				ON CONFLICT (block_number, bridge_address) DO UPDATE SET
+				ON CONFLICT (bridge_address) DO UPDATE SET
+					block_number = EXCLUDED.block_number,
 					timestamp = EXCLUDED.timestamp,
 					eur_address = EXCLUDED.eur_address,
 					eur_symbol = EXCLUDED.eur_symbol,

@@ -13,10 +13,6 @@ export class DeuroService {
 		return this.mapToDto(state);
 	}
 
-	async getHistoricalStates(limit: number = 100): Promise<DeuroStateDto[]> {
-		const states = await this.deuroRepository.getHistoricalStates(limit);
-		return states.map((state) => this.mapToDto(state));
-	}
 
 	private mapToDto(state: any): DeuroStateDto {
 		return {

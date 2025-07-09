@@ -11,7 +11,6 @@ export class CollateralRepository {
 	async getAllCollateralStates(): Promise<CollateralStateDto[]> {
 		const records = await this.db.fetch<CollateralStateRecord>(`
 			SELECT * FROM collateral_states 
-			WHERE block_number = (SELECT MAX(block_number) FROM collateral_states)
 			ORDER BY token_address
 		`);
 		return records.map(this.mapToDto);
@@ -31,7 +30,8 @@ export class CollateralRepository {
 					block_number, timestamp, token_address, symbol, decimals, total_collateral, position_count
 				)
 				VALUES ($1, $2, $3, $4, $5, $6, $7)
-				ON CONFLICT (block_number, token_address) DO UPDATE SET
+				ON CONFLICT (token_address) DO UPDATE SET
+					block_number = EXCLUDED.block_number,
 					timestamp = EXCLUDED.timestamp,
 					symbol = EXCLUDED.symbol,
 					decimals = EXCLUDED.decimals,
@@ -70,7 +70,8 @@ export class CollateralRepository {
 						block_number, timestamp, token_address, symbol, decimals, total_collateral, position_count
 					)
 					VALUES ($1, $2, $3, $4, $5, $6, $7)
-					ON CONFLICT (block_number, token_address) DO UPDATE SET
+					ON CONFLICT (token_address) DO UPDATE SET
+						block_number = EXCLUDED.block_number,
 						timestamp = EXCLUDED.timestamp,
 						symbol = EXCLUDED.symbol,
 						decimals = EXCLUDED.decimals,

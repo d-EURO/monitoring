@@ -1,4 +1,8 @@
 -- =============================================================================
+-- DEURO MONITORING DATABASE SCHEMA
+-- =============================================================================
+
+-- =============================================================================
 -- MONITORING INFRASTRUCTURE TABLES
 -- =============================================================================
 
@@ -250,7 +254,9 @@ CREATE TABLE IF NOT EXISTS position_minting_update_events (
 -- STATE TABLES
 -- =============================================================================
 
+-- Single row for system state
 CREATE TABLE IF NOT EXISTS system_state (
+    id INTEGER DEFAULT 1,
     deuro_total_supply NUMERIC(78, 0) NOT NULL,
     deps_total_supply NUMERIC(78, 0) NOT NULL,
     equity_shares NUMERIC(78, 0) NOT NULL,
@@ -275,21 +281,23 @@ CREATE TABLE IF NOT EXISTS system_state (
 
     -- global metrics
     deuro_loss NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    deuro_profit NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- TODO (later): include transfers directly to equity contract if they didn't emit a Profit event
+    deuro_profit NUMERIC(78, 0) DEFAULT 0 NOT NULL,
     deuro_profit_distributed NUMERIC(78, 0) DEFAULT 0 NOT NULL,
     savings_total NUMERIC(78, 0) DEFAULT 0 NOT NULL,
     savings_interest_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL,
     savings_rate NUMERIC(78, 0) DEFAULT 0 NOT NULL,
     frontend_fees_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL,
     frontends_active INTEGER DEFAULT 0 NOT NULL,
+    
+    -- metadata
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    PRIMARY KEY (block_number)
+    PRIMARY KEY (id),
+    CONSTRAINT single_row CHECK (id = 1)
 );
 
+-- Single row per position
 CREATE TABLE IF NOT EXISTS position_states (
-    block_number BIGINT NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     position_address VARCHAR(42) NOT NULL,
     status VARCHAR(20) NOT NULL,
     owner_address VARCHAR(42) NOT NULL,
@@ -319,12 +327,15 @@ CREATE TABLE IF NOT EXISTS position_states (
     available_for_minting NUMERIC(78, 0) NOT NULL,
     available_for_clones NUMERIC(78, 0) NOT NULL,
     created INTEGER,
-    PRIMARY KEY (block_number, position_address)
-);
-
-CREATE TABLE IF NOT EXISTS challenge_states (
+    
+    -- metadata
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (position_address)
+);
+
+-- Single row per challenge
+CREATE TABLE IF NOT EXISTS challenge_states (
     challenge_id INTEGER NOT NULL,
     challenger_address VARCHAR(42) NOT NULL,
     position_address VARCHAR(42) NOT NULL,
@@ -337,23 +348,29 @@ CREATE TABLE IF NOT EXISTS challenge_states (
     phase INTEGER NOT NULL,
     status VARCHAR(20) NOT NULL,
     current_price NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (block_number, challenge_id)
-);
-
-CREATE TABLE IF NOT EXISTS collateral_states (
+    
+    -- metadata
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (challenge_id)
+);
+
+-- Single row per collateral token
+CREATE TABLE IF NOT EXISTS collateral_states (
     token_address VARCHAR(42) NOT NULL,
     symbol VARCHAR(20) NOT NULL,
     decimals INTEGER NOT NULL,
     total_collateral NUMERIC(78, 0) NOT NULL,
     position_count INTEGER NOT NULL,
-    PRIMARY KEY (block_number, token_address)
-);
-
-CREATE TABLE IF NOT EXISTS bridge_states (
+    
+    -- metadata
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (token_address)
+);
+
+-- Single row per bridge
+CREATE TABLE IF NOT EXISTS bridge_states (
     bridge_address VARCHAR(42) NOT NULL,
     eur_address VARCHAR(42) NOT NULL,
     eur_symbol VARCHAR(10) NOT NULL,
@@ -362,13 +379,18 @@ CREATE TABLE IF NOT EXISTS bridge_states (
     horizon NUMERIC(78, 0) NOT NULL,
     limit NUMERIC(78, 0) NOT NULL,
     minted NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (block_number, bridge_address)
+    
+    -- metadata
+    block_number BIGINT NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (bridge_address)
 );
 
 -- =============================================================================
 -- PERFORMANCE INDEXES
 -- =============================================================================
 
+-- Event indexes
 CREATE INDEX IF NOT EXISTS idx_deuro_transfer_events_timestamp ON deuro_transfer_events (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_deuro_transfer_events_from ON deuro_transfer_events (from_address);
 CREATE INDEX IF NOT EXISTS idx_deuro_transfer_events_to ON deuro_transfer_events (to_address);
@@ -419,25 +441,6 @@ CREATE INDEX IF NOT EXISTS idx_mintinghub_forced_sale_events_pos ON mintinghub_f
 CREATE INDEX IF NOT EXISTS idx_position_minting_update_events_timestamp ON position_minting_update_events (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_position_minting_update_events_position ON position_minting_update_events (position);
 
-CREATE INDEX IF NOT EXISTS idx_system_state_block_number ON system_state (block_number DESC);
-CREATE INDEX IF NOT EXISTS idx_system_state_timestamp ON system_state (timestamp DESC);
-
-CREATE INDEX IF NOT EXISTS idx_equity_states_block_number ON equity_state (block_number DESC);
-CREATE INDEX IF NOT EXISTS idx_equity_states_timestamp ON equity_state (timestamp DESC);
-
-CREATE INDEX IF NOT EXISTS idx_position_states_block_number ON position_states (block_number DESC);
-CREATE INDEX IF NOT EXISTS idx_position_states_position_address ON position_states (position_address);
-CREATE INDEX IF NOT EXISTS idx_position_states_owner ON position_states (owner_address);
-CREATE INDEX IF NOT EXISTS idx_position_states_is_closed ON position_states (is_closed);
-CREATE INDEX IF NOT EXISTS idx_position_states_status ON position_states (status);
-CREATE INDEX IF NOT EXISTS idx_position_states_original ON position_states (original_address);
-
-CREATE INDEX IF NOT EXISTS idx_challenge_states_block_number ON challenge_states (block_number DESC);
-CREATE INDEX IF NOT EXISTS idx_challenge_states_position ON challenge_states (position_address);
-CREATE INDEX IF NOT EXISTS idx_challenge_states_challenger ON challenge_states (challenger_address);
-CREATE INDEX IF NOT EXISTS idx_challenge_states_status ON challenge_states (status);
-CREATE INDEX IF NOT EXISTS idx_challenge_states_phase ON challenge_states (phase);
-
 CREATE INDEX IF NOT EXISTS idx_deuro_loss_events_timestamp ON deuro_loss_events (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_deuro_loss_events_reporting_minter ON deuro_loss_events (reporting_minter);
 
@@ -463,8 +466,14 @@ CREATE INDEX IF NOT EXISTS idx_roller_roll_events_timestamp ON roller_roll_event
 CREATE INDEX IF NOT EXISTS idx_roller_roll_events_source ON roller_roll_events (source);
 CREATE INDEX IF NOT EXISTS idx_roller_roll_events_target ON roller_roll_events (target);
 
-CREATE INDEX IF NOT EXISTS idx_collateral_states_block_number ON collateral_states (block_number DESC);
-CREATE INDEX IF NOT EXISTS idx_collateral_states_token_address ON collateral_states (token_address);
+-- State table indexes
+CREATE INDEX IF NOT EXISTS idx_position_states_owner ON position_states (owner_address);
+CREATE INDEX IF NOT EXISTS idx_position_states_is_closed ON position_states (is_closed);
+CREATE INDEX IF NOT EXISTS idx_position_states_status ON position_states (status);
+CREATE INDEX IF NOT EXISTS idx_position_states_original ON position_states (original_address);
+CREATE INDEX IF NOT EXISTS idx_position_states_collateral ON position_states (collateral_address);
 
-CREATE INDEX IF NOT EXISTS idx_bridge_states_block_number ON bridge_states (block_number DESC);
-CREATE INDEX IF NOT EXISTS idx_bridge_states_bridge_address ON bridge_states (bridge_address);
+CREATE INDEX IF NOT EXISTS idx_challenge_states_position ON challenge_states (position_address);
+CREATE INDEX IF NOT EXISTS idx_challenge_states_challenger ON challenge_states (challenger_address);
+CREATE INDEX IF NOT EXISTS idx_challenge_states_status ON challenge_states (status);
+CREATE INDEX IF NOT EXISTS idx_challenge_states_phase ON challenge_states (phase);

@@ -9,20 +9,10 @@ export class DeuroRepository {
 	async getLatestState(): Promise<SystemStateRecord | null> {
 		const results = await this.db.fetch<SystemStateRecord>(`
 			SELECT * FROM system_state 
-			ORDER BY block_number DESC 
+			WHERE id = 1
 			LIMIT 1
 		`);
 		return results[0] || null;
 	}
 
-	async getHistoricalStates(limit: number = 100): Promise<SystemStateRecord[]> {
-		return this.db.fetch<SystemStateRecord>(
-			`
-			SELECT * FROM system_state 
-			ORDER BY block_number DESC 
-			LIMIT $1
-		`,
-			[limit]
-		);
-	}
 }

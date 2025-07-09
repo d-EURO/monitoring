@@ -1,5 +1,5 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { DeuroService } from './deuro.service';
 import { DeuroStateDto } from './deuro.dto';
 
@@ -14,11 +14,4 @@ export class DeuroController {
 		return this.deuroService.getCurrentState();
 	}
 
-	@Get('history')
-	@ApiQuery({ name: 'limit', type: 'number', required: false })
-	@ApiOkResponse({ type: [DeuroStateDto] })
-	async getHistoricalStates(@Query('limit') limit?: string): Promise<DeuroStateDto[]> {
-		const parsedLimit = limit ? parseInt(limit, 10) : 100;
-		return this.deuroService.getHistoricalStates(parsedLimit);
-	}
 }
