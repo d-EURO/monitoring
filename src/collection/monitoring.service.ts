@@ -119,7 +119,7 @@ export class MonitoringService implements OnModuleInit {
 				const frontendFeesCollected = 0n;
 				const frontendsActive = 0;
 
-				// Persist everything in a transaction
+				// Persist everything in a single atomic transaction
 				await this.databaseService.withTransaction(async (client) => {
 					// Persist the consolidated system state
 					const systemState = {
@@ -131,15 +131,15 @@ export class MonitoringService implements OnModuleInit {
 					};
 					await this.systemStateRepository.persistSystemState(client, systemState);
 
-					// Update last processed block
+					// Persist all other states using the same transaction
+					await this.positionStatesService.persistPositionsState(client, positionsState, currentBlock);
+					await this.positionStatesService.persistCollateralState(client, collateralState, currentBlock);
+					await this.challengeStatesService.persistChallengesState(client, challengesState, currentBlock);
+					await this.minterStatesService.persistBridgesState(client, mintersState.bridges, currentBlock);
+
+					// Only update last processed block after all states are successfully saved
 					await this.databaseService.updateLastProcessedBlock(client, currentBlock);
 				});
-
-				// Persist positions and challenges (they handle their own transactions)
-				await this.positionStatesService.persistPositionsState(positionsState, currentBlock);
-				await this.positionStatesService.persistCollateralState(collateralState, currentBlock);
-				await this.challengeStatesService.persistChallengesState(challengesState, currentBlock);
-				await this.minterStatesService.persistBridgesState(mintersState.bridges, currentBlock);
 
 				const duration = Date.now() - startTime;
 				await this.recordMonitoringCycle(fromBlock, currentBlock, duration);

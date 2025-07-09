@@ -7,6 +7,7 @@ import { PositionRepository, CollateralRepository } from '../../database/reposit
 @Injectable()
 export class PositionStatesService {
 	private readonly logger = new Logger(PositionStatesService.name);
+	private tokenMetadataCache = new Map<string, { symbol: string; decimals: number }>();
 
 	constructor(
 		private readonly positionRepository: PositionRepository,
@@ -16,15 +17,28 @@ export class PositionStatesService {
 	async getPositionsState(activePositionAddresses: string[], provider: ethers.Provider): Promise<PositionState[]> {
 		this.logger.log('Fetching positions state...');
 		const positions: PositionState[] = [];
+		const BATCH_SIZE = 10; // Process 10 positions in parallel
 
-		for (const positionAddress of activePositionAddresses) {
-			try {
-				const positionContract = new ethers.Contract(positionAddress, PositionV2ABI, provider);
-				const position = await this.getPositionState(positionContract);
-				positions.push(position);
-			} catch (error) {
-				this.logger.error(`Failed to fetch state for position ${positionAddress}:`, error);
-			}
+		// Split addresses into batches
+		const batches: string[][] = [];
+		for (let i = 0; i < activePositionAddresses.length; i += BATCH_SIZE) {
+			batches.push(activePositionAddresses.slice(i, i + BATCH_SIZE));
+		}
+
+		// Process each batch
+		for (const batch of batches) {
+			const batchPromises = batch.map(async (positionAddress) => {
+				try {
+					const positionContract = new ethers.Contract(positionAddress, PositionV2ABI, provider);
+					return await this.getPositionState(positionContract);
+				} catch (error) {
+					this.logger.error(`Failed to fetch state for position ${positionAddress}:`, error);
+					return null;
+				}
+			});
+
+			const batchResults = await Promise.all(batchPromises);
+			positions.push(...batchResults.filter((pos): pos is PositionState => pos !== null));
 		}
 
 		return positions;
@@ -38,14 +52,24 @@ export class PositionStatesService {
 		const uniqueCollaterals = [...new Set(positionEvents.map((event) => event.collateral))];
 
 		for (const collateralAddress of uniqueCollaterals) {
-			const collateralContract = new ethers.Contract(
-				collateralAddress,
-				['function symbol() view returns (string)', 'function decimals() view returns (uint8)'],
-				provider
-			);
-
 			try {
-				const [symbol, decimals] = await Promise.all([collateralContract.symbol(), collateralContract.decimals()]);
+				// Check cache first
+				let tokenMetadata = this.tokenMetadataCache.get(collateralAddress);
+
+				if (!tokenMetadata) {
+					// If not in cache, fetch from blockchain
+					const collateralContract = new ethers.Contract(
+						collateralAddress,
+						['function symbol() view returns (string)', 'function decimals() view returns (uint8)'],
+						provider
+					);
+
+					const [symbol, decimals] = await Promise.all([collateralContract.symbol(), collateralContract.decimals()]);
+					tokenMetadata = { symbol, decimals: Number(decimals) };
+
+					// Store in cache for future use
+					this.tokenMetadataCache.set(collateralAddress, tokenMetadata);
+				}
 
 				// Count positions using this collateral
 				const positionCount = positionEvents.filter((event) => event.collateral === collateralAddress).length;
@@ -55,8 +79,8 @@ export class PositionStatesService {
 
 				collateralMap.set(collateralAddress, {
 					tokenAddress: collateralAddress,
-					symbol,
-					decimals: Number(decimals),
+					symbol: tokenMetadata.symbol,
+					decimals: tokenMetadata.decimals,
 					totalCollateral,
 					positionCount,
 				});
@@ -184,11 +208,11 @@ export class PositionStatesService {
 		return positions.reduce((sum, pos) => sum + BigInt(pos.collateralBalance), 0n);
 	}
 
-	async persistPositionsState(positions: PositionState[], blockNumber: number): Promise<void> {
-		await this.positionRepository.savePositionStates(positions, blockNumber);
+	async persistPositionsState(client: any, positions: PositionState[], blockNumber: number): Promise<void> {
+		await this.positionRepository.savePositionStates(client, positions, blockNumber);
 	}
 
-	async persistCollateralState(collaterals: CollateralState[], blockNumber: number): Promise<void> {
-		await this.collateralRepository.saveCollateralStates(collaterals, blockNumber);
+	async persistCollateralState(client: any, collaterals: CollateralState[], blockNumber: number): Promise<void> {
+		await this.collateralRepository.saveCollateralStates(client, collaterals, blockNumber);
 	}
 }

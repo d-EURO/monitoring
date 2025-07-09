@@ -9,6 +9,7 @@ import { PositionModule } from './api/positions/position.module';
 import { ChallengeModule } from './api/challenges/challenge.module';
 import { MinterModule } from './api/minters/minter.module';
 import { DeuroModule } from './api/deuro/deuro.module';
+import { HealthController } from './health/health.controller';
 
 @Module({
 	imports: [
@@ -26,5 +27,6 @@ import { DeuroModule } from './api/deuro/deuro.module';
 		MinterModule,
 		DeuroModule,
 	],
+	controllers: [HealthController],
 })
 export class AppModule {}

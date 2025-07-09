@@ -1,13 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database.service';
-import { DeuroStateData } from '../../collection/deuro/states.service';
-
-export interface SystemStateData extends DeuroStateData {
-	frontend_fees_collected: bigint;
-	frontends_active: number;
-	block_number: number;
-	timestamp: Date;
-}
+import { SystemStateData } from '../../common/interfaces/state-data.interface';
 
 @Injectable()
 export class SystemStateRepository {

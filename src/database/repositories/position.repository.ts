@@ -41,11 +41,10 @@ export class PositionRepository {
 	}
 
 	// Write operations
-	async savePositionStates(positions: PositionState[], blockNumber: number): Promise<void> {
-		await this.db.withTransaction(async (client) => {
-			const timestamp = new Date();
-			for (const position of positions) {
-				const query = `
+	async savePositionStates(client: any, positions: PositionState[], blockNumber: number): Promise<void> {
+		const timestamp = new Date();
+		for (const position of positions) {
+			const query = `
 					INSERT INTO position_states (
 						block_number, timestamp, position_address, status, owner_address,
 						original_address, collateral_address, collateral_balance, price,
@@ -72,59 +71,46 @@ export class PositionRepository {
 						available_for_clones = EXCLUDED.available_for_clones
 				`;
 
-				await client.query(query, [
-					blockNumber,
-					timestamp,
-					position.address,
-					position.status,
-					position.owner,
-					position.original,
-					position.collateralAddress,
-					position.collateralBalance.toString(),
-					position.price.toString(),
-					position.virtualPrice.toString(),
-					position.expiredPurchasePrice.toString(),
-					position.collateralRequirement.toString(),
-					position.debt.toString(),
-					position.interest.toString(),
-					position.minimumCollateral.toString(),
-					position.minimumChallengeAmount.toString(),
-					position.limit.toString(),
-					position.principal.toString(),
-					position.riskPremiumPPM,
-					position.reserveContribution,
-					position.fixedAnnualRatePPM,
-					position.lastAccrual.toString(),
-					position.start.toString(),
-					position.cooldown.toString(),
-					position.expiration.toString(),
-					position.challengedAmount.toString(),
-					position.challengePeriod.toString(),
-					position.isClosed,
-					position.availableForMinting.toString(),
-					position.availableForClones.toString(),
-				]);
-			}
-		});
+			await client.query(query, [
+				blockNumber,
+				timestamp,
+				position.address,
+				position.status,
+				position.owner,
+				position.original,
+				position.collateralAddress,
+				position.collateralBalance.toString(),
+				position.price.toString(),
+				position.virtualPrice.toString(),
+				position.expiredPurchasePrice.toString(),
+				position.collateralRequirement.toString(),
+				position.debt.toString(),
+				position.interest.toString(),
+				position.minimumCollateral.toString(),
+				position.minimumChallengeAmount.toString(),
+				position.limit.toString(),
+				position.principal.toString(),
+				position.riskPremiumPPM,
+				position.reserveContribution,
+				position.fixedAnnualRatePPM,
+				position.lastAccrual.toString(),
+				position.start.toString(),
+				position.cooldown.toString(),
+				position.expiration.toString(),
+				position.challengedAmount.toString(),
+				position.challengePeriod.toString(),
+				position.isClosed,
+				position.availableForMinting.toString(),
+				position.availableForClones.toString(),
+			]);
+		}
 	}
 
 	// Mapping function
 	private mapToDto(record: PositionStateRecord): PositionStateDto {
-		// Map the status string to enum safely
-		const statusMap: { [key: string]: PositionStatus } = {
-			PROPOSED: PositionStatus.PROPOSED,
-			ACTIVE: PositionStatus.ACTIVE,
-			UNDERCOLLATERALIZED: PositionStatus.UNDERCOLLATERALIZED,
-			CHALLENGED: PositionStatus.CHALLENGED,
-			COOLDOWN: PositionStatus.COOLDOWN,
-			CLOSED: PositionStatus.CLOSED,
-			EXPIRING: PositionStatus.EXPIRING,
-			EXPIRED: PositionStatus.EXPIRED,
-		};
-
 		return {
 			address: record.position_address,
-			status: statusMap[record.status] || PositionStatus.ACTIVE,
+			status: record.status as PositionStatus,
 			owner: record.owner_address,
 			original: record.original_address,
 			collateralAddress: record.collateral_address,

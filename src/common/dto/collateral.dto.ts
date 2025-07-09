@@ -10,16 +10,19 @@ export interface CollateralState {
 
 export class CollateralStateDto {
 	@ApiProperty({ description: 'Collateral token contract address' })
-	address: string;
-
-	@ApiProperty({ description: 'Token name' })
-	name: string;
+	tokenAddress: string;
 
 	@ApiProperty({ description: 'Token symbol (e.g., ETH, WBTC)' })
 	symbol: string;
 
 	@ApiProperty({ description: 'Token decimal places' })
 	decimals: number;
+
+	@ApiProperty({ description: 'Total collateral amount locked' })
+	totalCollateral: string;
+
+	@ApiProperty({ description: 'Number of positions using this collateral' })
+	positionCount: number;
 
 	@ApiProperty({ description: 'Block number for this state snapshot' })
 	block_number: number;

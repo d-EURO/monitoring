@@ -11,6 +11,7 @@ export class MinterService {
 		private readonly bridgeRepository: BridgeRepository
 	) {}
 
+	// TODO: Write minters and their status directly to the database instead of calculating it on the fly
 	async getAllMinters(): Promise<MinterState[]> {
 		const [applications, denials] = await Promise.all([
 			this.minterRepository.getLatestApplications(),
@@ -49,11 +50,7 @@ export class MinterService {
 		const bridgeStates = await this.bridgeRepository.getAllBridgeStates();
 
 		return bridgeStates.map((state) => ({
-			address: state.bridge_address,
-			eurAddress: state.eur_address,
-			eurSymbol: state.eur_symbol,
-			eurDecimals: state.eur_decimals,
-			dEuroAddress: state.deuro_address,
+			...state,
 			limit: state.limit.toString(),
 			minted: state.minted.toString(),
 			horizon: state.horizon.toString(),

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-	ChallengeStatus,
+	ChallengeState,
 	CollateralState,
 	DecentralizedEuroState,
 	DEPSWrapperState,
@@ -75,7 +75,7 @@ export interface SystemStateData {
 	frontendState: FrontendGatewayState;
 	mintingHubState: MintingHubState;
 	positionsState: PositionState[];
-	challengesState: ChallengeStatus[];
+	challengesState: ChallengeState[];
 	collateralState: CollateralState[];
 	bridgeStates: StablecoinBridgeState[];
 }

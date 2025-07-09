@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database.service';
-import { ChallengeStateDto, ChallengeStatus } from '../../common/dto/challenge.dto';
+import { ChallengeState, ChallengeStateDto, ChallengeStatus } from '../../common/dto/challenge.dto';
 import { ChallengeRecord } from '../types';
 
 @Injectable()
@@ -27,11 +27,10 @@ export class ChallengeRepository {
 	}
 
 	// Write operations
-	async saveChallenges(challenges: any[], blockNumber: number): Promise<void> {
-		await this.db.withTransaction(async (client) => {
-			const timestamp = new Date();
-			for (const challenge of challenges) {
-				const query = `
+	async saveChallenges(client: any, challenges: ChallengeState[], blockNumber: number): Promise<void> {
+		const timestamp = new Date();
+		for (const challenge of challenges) {
+			const query = `
 					INSERT INTO challenge_states (
 						block_number, timestamp, challenge_id, challenger_address, position_address,
 						position_owner_address, start_timestamp, initial_size, size,
@@ -53,38 +52,27 @@ export class ChallengeRepository {
 						current_price = EXCLUDED.current_price
 				`;
 
-				await client.query(query, [
-					blockNumber,
-					timestamp,
-					challenge.id,
-					challenge.challenger,
-					challenge.position,
-					challenge.positionOwner,
-					challenge.start,
-					challenge.initialSize.toString(),
-					challenge.size,
-					challenge.collateralAddress,
-					challenge.liqPrice,
-					challenge.phase,
-					challenge.status,
-					challenge.currentPrice,
-				]);
-			}
-		});
+			await client.query(query, [
+				blockNumber,
+				timestamp,
+				challenge.id,
+				challenge.challenger,
+				challenge.position,
+				challenge.positionOwner,
+				challenge.start,
+				challenge.initialSize.toString(),
+				challenge.size,
+				challenge.collateralAddress,
+				challenge.liqPrice,
+				challenge.phase,
+				challenge.status,
+				challenge.currentPrice,
+			]);
+		}
 	}
 
 	// Mapping function
 	private mapToDto(record: ChallengeRecord): ChallengeStateDto {
-		// Map the status string to enum safely
-		const statusMap: { [key: string]: ChallengeStatus } = {
-			OPENED: ChallengeStatus.OPENED,
-			PARTIALLY_AVERTED: ChallengeStatus.PARTIALLY_AVERTED,
-			AVERTED: ChallengeStatus.AVERTED,
-			AUCTION: ChallengeStatus.AUCTION,
-			PARTIALLY_SUCCEEDED: ChallengeStatus.PARTIALLY_SUCCEEDED,
-			SUCCEEDED: ChallengeStatus.SUCCEEDED,
-		};
-
 		return {
 			id: record.challenge_id,
 			challenger: record.challenger_address,
@@ -96,7 +84,7 @@ export class ChallengeRepository {
 			collateralAddress: record.collateral_address,
 			liqPrice: record.liq_price,
 			phase: record.phase,
-			status: statusMap[record.status] || ChallengeStatus.OPENED,
+			status: record.status as ChallengeStatus,
 			currentPrice: record.current_price,
 			block_number: parseInt(record.block_number),
 			timestamp: record.timestamp,

@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum ChallengeStatus {
-	OPENED,
-	PARTIALLY_AVERTED,
-	AVERTED,
-	AUCTION,
-	PARTIALLY_SUCCEEDED,
-	SUCCEEDED,
+	OPENED = 'OPENED',
+	PARTIALLY_AVERTED = 'PARTIALLY_AVERTED',
+	AVERTED = 'AVERTED',
+	AUCTION = 'AUCTION',
+	PARTIALLY_SUCCEEDED = 'PARTIALLY_SUCCEEDED',
+	SUCCEEDED = 'SUCCEEDED',
 }
 
 export interface ChallengeState {

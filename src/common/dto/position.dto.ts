@@ -1,14 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum PositionStatus {
-	PROPOSED,
-	ACTIVE,
-	UNDERCOLLATERALIZED,
-	CHALLENGED,
-	COOLDOWN,
-	CLOSED,
-	EXPIRING,
-	EXPIRED,
+	PROPOSED = 'PROPOSED',
+	ACTIVE = 'ACTIVE',
+	UNDERCOLLATERALIZED = 'UNDERCOLLATERALIZED',
+	CHALLENGED = 'CHALLENGED',
+	COOLDOWN = 'COOLDOWN',
+	CLOSED = 'CLOSED',
+	EXPIRING = 'EXPIRING',
+	EXPIRED = 'EXPIRED',
 }
 
 export interface PositionState {

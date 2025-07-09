@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { DatabaseService } from '../../database/database.service';
 import { StablecoinBridgeABI } from '@deuro/eurocoin';
 import { MinterRepository, BridgeRepository } from '../../database/repositories';
 import { MinterStatus } from '../../common/dto/minter.dto';
@@ -33,7 +32,6 @@ export class MinterStatesService {
 	private readonly logger = new Logger(MinterStatesService.name);
 
 	constructor(
-		private readonly databaseService: DatabaseService,
 		private readonly minterRepository: MinterRepository,
 		private readonly bridgeRepository: BridgeRepository
 	) {}
@@ -119,11 +117,9 @@ export class MinterStatesService {
 		}
 	}
 
-	async persistBridgesState(bridges: BridgeStateData[], blockNumber: number): Promise<void> {
+	async persistBridgesState(client: any, bridges: BridgeStateData[], blockNumber: number): Promise<void> {
 		if (bridges.length === 0) return;
 
-		await this.databaseService.withTransaction(async (client) => {
-			await this.bridgeRepository.saveBridgeStates(client, bridges, blockNumber);
-		});
+		await this.bridgeRepository.saveBridgeStates(client, bridges, blockNumber);
 	}
 }

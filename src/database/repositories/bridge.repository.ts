@@ -1,22 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database.service';
+import { BridgeStateDto, StablecoinBridgeState } from '../../common/dto/stablecoinBridge.dto';
+import { BridgeStateRecord } from '../types/db-records';
 
 @Injectable()
 export class BridgeRepository {
 	constructor(private readonly db: DatabaseService) {}
 
 	// Read operations
-	async getAllBridgeStates(): Promise<any[]> {
-		return this.db.fetch(`
+	async getAllBridgeStates(): Promise<BridgeStateDto[]> {
+		const records = await this.db.fetch<BridgeStateRecord>(`
 			SELECT * FROM bridge_states 
 			WHERE block_number = (SELECT MAX(block_number) FROM bridge_states)
 			ORDER BY bridge_address
 		`);
+		return records.map(this.mapToDto);
 	}
 
-	async getActiveBridgeStates(): Promise<any[]> {
+	async getActiveBridgeStates(): Promise<BridgeStateDto[]> {
 		const currentTime = Math.floor(Date.now() / 1000);
-		return this.db.fetch(
+		const records = await this.db.fetch<BridgeStateRecord>(
 			`
 			SELECT * FROM bridge_states 
 			WHERE horizon > $1 
@@ -25,10 +28,11 @@ export class BridgeRepository {
 		`,
 			[currentTime]
 		);
+		return records.map(this.mapToDto);
 	}
 
 	// Write operations
-	async saveBridgeStates(client: any, bridges: any[], blockNumber: number): Promise<void> {
+	async saveBridgeStates(client: any, bridges: StablecoinBridgeState[], blockNumber: number): Promise<void> {
 		if (bridges.length === 0) return;
 
 		const timestamp = new Date();
@@ -63,5 +67,19 @@ export class BridgeRepository {
 				bridge.minted,
 			]);
 		}
+	}
+
+	// Mapping function
+	private mapToDto(record: BridgeStateRecord): BridgeStateDto {
+		return {
+			address: record.bridge_address,
+			eurAddress: record.eur_address,
+			eurSymbol: record.eur_symbol,
+			eurDecimals: record.eur_decimals,
+			dEuroAddress: record.deuro_address,
+			horizon: record.horizon,
+			limit: record.limit,
+			minted: record.minted,
+		};
 	}
 }

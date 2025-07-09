@@ -69,7 +69,7 @@ export class ChallengeStatesService {
 		}
 	}
 
-	async persistChallengesState(challenges: ChallengeState[], blockNumber: number): Promise<void> {
-		await this.challengeRepository.saveChallenges(challenges, blockNumber);
+	async persistChallengesState(client: any, challenges: ChallengeState[], blockNumber: number): Promise<void> {
+		await this.challengeRepository.saveChallenges(client, challenges, blockNumber);
 	}
 }

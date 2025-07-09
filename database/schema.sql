@@ -287,56 +287,11 @@ CREATE TABLE IF NOT EXISTS system_state (
     PRIMARY KEY (block_number)
 );
 
--- CREATE TABLE IF NOT EXISTS equity_state (
---     block_number BIGINT NOT NULL,
---     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
---     total_shares NUMERIC(78, 0) NOT NULL,
---     total_votes NUMERIC(78, 0) NOT NULL, -- not interested
---     price NUMERIC(78, 0) NOT NULL,
---     PRIMARY KEY (block_number)
--- );
-
--- CREATE TABLE IF NOT EXISTS deps_state (
---     block_number BIGINT NOT NULL,
---     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
---     total_wrapped NUMERIC(78, 0) NOT NULL, -- equal to deps_total_supply
---     wrapper_balance NUMERIC(78, 0) NOT NULL, -- not interested
---     PRIMARY KEY (block_number)
--- );
-
--- CREATE TABLE IF NOT EXISTS savings_state (
---     block_number BIGINT NOT NULL,
---     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
---     total_savings NUMERIC(78, 0) NOT NULL,
---     current_rate NUMERIC(78, 0) NOT NULL,
---     PRIMARY KEY (block_number)
--- );
-
--- CREATE TABLE IF NOT EXISTS frontend_state (
---     block_number BIGINT NOT NULL,
---     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
---     total_fees_collected NUMERIC(78, 0) NOT NULL,
---     active_frontends INTEGER NOT NULL,
---     fee_rate INTEGER NOT NULL, -- not interested
---     savings_fee_rate INTEGER NOT NULL, -- not interested
---     minting_fee_rate INTEGER NOT NULL, -- not interested
---     PRIMARY KEY (block_number)
--- );
-
--- CREATE TABLE IF NOT EXISTS mintinghub_state ( -- not interested in any of it
---     block_number BIGINT NOT NULL,
---     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
---     opening_fee NUMERIC(78, 0) NOT NULL,
---     challenger_reward NUMERIC(78, 0) NOT NULL,
---     expired_price_factor INTEGER NOT NULL,
---     PRIMARY KEY (block_number)
--- );
-
 CREATE TABLE IF NOT EXISTS position_states (
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     position_address VARCHAR(42) NOT NULL,
-    status VARCHAR(20) NOT NULL, -- PROPOSED, ACTIVE, UNDERCOLLATERALIZED, CHALLENGED, COOLDOWN, CLOSED, EXPIRING, EXPIRED
+    status VARCHAR(20) NOT NULL,
     owner_address VARCHAR(42) NOT NULL,
     original_address VARCHAR(42) NOT NULL,
     collateral_address VARCHAR(42) NOT NULL,
@@ -380,7 +335,7 @@ CREATE TABLE IF NOT EXISTS challenge_states (
     collateral_address VARCHAR(42) NOT NULL,
     liq_price NUMERIC(78, 0) NOT NULL,
     phase INTEGER NOT NULL,
-    status VARCHAR(20) NOT NULL, -- OPENED, PARTIALLY_AVERTED, AVERTED, AUCTION, PARTIALLY_SUCCEEDED, SUCCEEDED
+    status VARCHAR(20) NOT NULL,
     current_price NUMERIC(78, 0) NOT NULL,
     PRIMARY KEY (block_number, challenge_id)
 );
@@ -483,7 +438,6 @@ CREATE INDEX IF NOT EXISTS idx_challenge_states_challenger ON challenge_states (
 CREATE INDEX IF NOT EXISTS idx_challenge_states_status ON challenge_states (status);
 CREATE INDEX IF NOT EXISTS idx_challenge_states_phase ON challenge_states (phase);
 
--- Missing indexes for event tables (needed for efficient 24h metrics queries)
 CREATE INDEX IF NOT EXISTS idx_deuro_loss_events_timestamp ON deuro_loss_events (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_deuro_loss_events_reporting_minter ON deuro_loss_events (reporting_minter);
 
@@ -509,7 +463,6 @@ CREATE INDEX IF NOT EXISTS idx_roller_roll_events_timestamp ON roller_roll_event
 CREATE INDEX IF NOT EXISTS idx_roller_roll_events_source ON roller_roll_events (source);
 CREATE INDEX IF NOT EXISTS idx_roller_roll_events_target ON roller_roll_events (target);
 
--- Indexes for state tables
 CREATE INDEX IF NOT EXISTS idx_collateral_states_block_number ON collateral_states (block_number DESC);
 CREATE INDEX IF NOT EXISTS idx_collateral_states_token_address ON collateral_states (token_address);
 
