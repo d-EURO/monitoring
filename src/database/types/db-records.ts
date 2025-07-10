@@ -70,6 +70,19 @@ export interface MinterDenialRecord {
 	message: string;
 }
 
+export interface MinterStateRecord {
+	minter: string;
+	status: string;
+	application_period: string;
+	application_fee: string;
+	application_date: Date;
+	message?: string;
+	denial_date?: Date;
+	denial_message?: string;
+	deuro_minted: string;
+	deuro_burned: string;
+}
+
 export interface BridgeStateRecord {
 	block_number: string;
 	timestamp: Date;

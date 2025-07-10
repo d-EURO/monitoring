@@ -386,6 +386,27 @@ CREATE TABLE IF NOT EXISTS bridge_states (
     PRIMARY KEY (bridge_address)
 );
 
+-- Single row per minter
+CREATE TABLE IF NOT EXISTS minter_states (
+    minter VARCHAR(42) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    application_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    application_period NUMERIC(78, 0) NOT NULL,
+    application_fee NUMERIC(78, 0) NOT NULL,
+    message TEXT,
+    denial_date TIMESTAMP WITH TIME ZONE,
+    denial_message TEXT,
+    deuro_minted NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    deuro_burned NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+
+    -- metadata
+    block_number BIGINT NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (minter)
+);
+
+
+
 -- =============================================================================
 -- PERFORMANCE INDEXES
 -- =============================================================================

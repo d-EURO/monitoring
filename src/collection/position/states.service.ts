@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { PositionState, PositionStatus, CollateralState, MintingHubPositionOpenedEvent } from '../../common/dto';
 import { PositionV2ABI } from '@deuro/eurocoin';
 import { PositionRepository, CollateralRepository } from '../../database/repositories';
+import { MulticallService } from '../../common/services';
 
 @Injectable()
 export class PositionStatesService {
@@ -11,13 +12,14 @@ export class PositionStatesService {
 
 	constructor(
 		private readonly positionRepository: PositionRepository,
-		private readonly collateralRepository: CollateralRepository
+		private readonly collateralRepository: CollateralRepository,
+		private readonly multicallService: MulticallService
 	) {}
 
 	async getPositionsState(activePositionAddresses: string[], provider: ethers.Provider): Promise<PositionState[]> {
-		this.logger.log('Fetching positions state...');
+		this.logger.log(`Fetching state for ${activePositionAddresses.length} positions using multicall...`);
 		const positions: PositionState[] = [];
-		const BATCH_SIZE = 10; // Process 10 positions in parallel
+		const BATCH_SIZE = 50; // Process more positions per batch with multicall
 
 		// Split addresses into batches
 		const batches: string[][] = [];
@@ -25,22 +27,51 @@ export class PositionStatesService {
 			batches.push(activePositionAddresses.slice(i, i + BATCH_SIZE));
 		}
 
-		// Process each batch
-		for (const batch of batches) {
-			const batchPromises = batch.map(async (positionAddress) => {
-				try {
-					const positionContract = new ethers.Contract(positionAddress, PositionV2ABI, provider);
-					return await this.getPositionState(positionContract);
-				} catch (error) {
-					this.logger.error(`Failed to fetch state for position ${positionAddress}:`, error);
-					return null;
+		// Process each batch with multicall
+		for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+			const batch = batches[batchIndex];
+			this.logger.debug(`Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} positions)`);
+			
+			try {
+				// Create position contracts and get collateral addresses first
+				const positionContracts: ethers.Contract[] = [];
+				const collateralAddresses: string[] = [];
+				
+				// First, get collateral addresses for all positions in batch
+				const collateralCalls = batch.map(address => ({
+					contract: new ethers.Contract(address, PositionV2ABI, provider),
+					method: 'collateral',
+					args: []
+				}));
+				
+				const collaterals = await this.multicallService.executeBatch(provider, collateralCalls);
+				
+				for (let i = 0; i < batch.length; i++) {
+					positionContracts.push(collateralCalls[i].contract);
+					collateralAddresses.push(collaterals[i]);
 				}
-			});
-
-			const batchResults = await Promise.all(batchPromises);
-			positions.push(...batchResults.filter((pos): pos is PositionState => pos !== null));
+				
+				// Now fetch all position data using multicall
+				const positionDataResults = await this.multicallService.getPositionData(
+					provider,
+					positionContracts,
+					collateralAddresses
+				);
+				
+				// Convert results to PositionState objects
+				for (const { positionData, collateralBalance } of positionDataResults) {
+					const position = this.parsePositionData(positionData, collateralBalance);
+					if (position) {
+						positions.push(position);
+					}
+				}
+			} catch (error) {
+				this.logger.error(`Failed to fetch batch ${batchIndex + 1}:`, error);
+				// Continue with next batch instead of failing entirely
+			}
 		}
 
+		this.logger.log(`Successfully fetched ${positions.length} position states`);
 		return positions;
 	}
 
@@ -51,157 +82,157 @@ export class PositionStatesService {
 		// Get all unique collateral addresses from position events
 		const uniqueCollaterals = [...new Set(positionEvents.map((event) => event.collateral))];
 
-		for (const collateralAddress of uniqueCollaterals) {
+		if (uniqueCollaterals.length === 0) {
+			return [];
+		}
+
+		// Filter out collaterals we already have in cache
+		const uncachedCollaterals = uniqueCollaterals.filter(addr => !this.tokenMetadataCache.has(addr));
+
+		if (uncachedCollaterals.length > 0) {
+			this.logger.debug(`Fetching metadata for ${uncachedCollaterals.length} collateral tokens using multicall...`);
+			
+			// Prepare calls for all uncached collateral tokens
+			const metadataCalls = uncachedCollaterals.flatMap(address => {
+				const contract = new ethers.Contract(
+					address,
+					['function symbol() view returns (string)', 'function decimals() view returns (uint8)'],
+					provider
+				);
+				return [
+					{ contract, method: 'symbol' },
+					{ contract, method: 'decimals' }
+				];
+			});
+
 			try {
-				// Check cache first
-				let tokenMetadata = this.tokenMetadataCache.get(collateralAddress);
+				// Fetch all metadata in one multicall
+				const results = await this.multicallService.executeBatch(provider, metadataCalls);
 
-				if (!tokenMetadata) {
-					// If not in cache, fetch from blockchain
-					const collateralContract = new ethers.Contract(
-						collateralAddress,
-						['function symbol() view returns (string)', 'function decimals() view returns (uint8)'],
-						provider
-					);
-
-					const [symbol, decimals] = await Promise.all([collateralContract.symbol(), collateralContract.decimals()]);
-					tokenMetadata = { symbol, decimals: Number(decimals) };
-
-					// Store in cache for future use
-					this.tokenMetadataCache.set(collateralAddress, tokenMetadata);
+				// Cache the results
+				for (let i = 0; i < uncachedCollaterals.length; i++) {
+					const symbol = results[i * 2];
+					const decimals = Number(results[i * 2 + 1]);
+					this.tokenMetadataCache.set(uncachedCollaterals[i], { symbol, decimals });
 				}
-
-				// Count positions using this collateral
-				const positionCount = positionEvents.filter((event) => event.collateral === collateralAddress).length;
-
-				// Get total collateral from active positions
-				const totalCollateral = await this.getTotalCollateralForToken(collateralAddress);
-
-				collateralMap.set(collateralAddress, {
-					tokenAddress: collateralAddress,
-					symbol: tokenMetadata.symbol,
-					decimals: tokenMetadata.decimals,
-					totalCollateral,
-					positionCount,
-				});
 			} catch (error) {
-				this.logger.warn(`Failed to fetch collateral info for ${collateralAddress}:`, error);
+				this.logger.error('Failed to fetch collateral metadata with multicall:', error);
 			}
+		}
+
+		// Build collateral state for all tokens
+		for (const collateralAddress of uniqueCollaterals) {
+			const tokenMetadata = this.tokenMetadataCache.get(collateralAddress);
+			
+			if (!tokenMetadata) {
+				this.logger.warn(`Missing metadata for collateral ${collateralAddress}`);
+				continue;
+			}
+
+			// Count positions using this collateral
+			const positionCount = positionEvents.filter((event) => event.collateral === collateralAddress).length;
+
+			// Get total collateral from active positions
+			const totalCollateral = await this.getTotalCollateralForToken(collateralAddress);
+
+			collateralMap.set(collateralAddress, {
+				tokenAddress: collateralAddress,
+				symbol: tokenMetadata.symbol,
+				decimals: tokenMetadata.decimals,
+				totalCollateral,
+				positionCount,
+			});
 		}
 
 		return Array.from(collateralMap.values());
 	}
 
-	private async getPositionState(positionContract: ethers.Contract): Promise<PositionState> {
-		const [
-			positionAddress,
-			owner,
-			start,
-			expiration,
-			price,
-			collateral,
-			principal,
-			interest,
-			original,
-			challengePeriod,
-			riskPremiumPPM,
-			reserveContribution,
-			fixedAnnualRatePPM,
-			lastAccrual,
-			cooldownEnd,
-			availableForMinting,
-			availableForClones,
-			challengeData,
-			status,
-			recentCollateral,
-			expiredPurchasePrice,
-			minimumRequiredCollateral,
-		] = await Promise.all([
-			positionContract.getAddress(),
-			positionContract.owner(),
-			positionContract.start(),
-			positionContract.expiration(),
-			positionContract.price(),
-			positionContract.collateral(),
-			positionContract.principal(),
-			positionContract.interest(),
-			positionContract.original(),
-			positionContract.challengePeriod(),
-			positionContract.riskPremiumPPM(),
-			positionContract.reserveContribution(),
-			positionContract.fixedAnnualRatePPM(),
-			positionContract.lastAccrual(),
-			positionContract.cooldownEnd(),
-			positionContract.availableForMinting(),
-			positionContract.availableForClones(),
-			positionContract.virtualUnpaidInterest(),
-			positionContract.challengeData(),
-			positionContract.status(),
-			positionContract.recentCollateral(),
-			positionContract.expiredPurchasePrice(),
-			positionContract.minimumRequiredCollateral(),
-		]);
+	private parsePositionData(positionData: any[], collateralBalance: bigint): PositionState | null {
+		try {
+			const [
+				positionAddress,
+				owner,
+				start,
+				expiration,
+				price,
+				collateral,
+				principal,
+				interest,
+				original,
+				challengePeriod,
+				riskPremiumPPM,
+				reserveContribution,
+				fixedAnnualRatePPM,
+				lastAccrual,
+				cooldownEnd,
+				availableForMinting,
+				availableForClones,
+				virtualUnpaidInterest,
+				challengeData,
+				status,
+				recentCollateral,
+				expiredPurchasePrice,
+				minimumRequiredCollateral
+			] = positionData;
 
-		const collateralContract = new ethers.Contract(
-			collateral,
-			['function balanceOf(address) view returns (uint256)'],
-			positionContract.runner
-		);
-		const collateralBalance = await collateralContract.balanceOf(positionAddress);
+			const debt = principal + interest;
+			const minimumChallenge = debt / 20n; // 5% of debt
+			const virtualPrice = (recentCollateral * 10n ** 36n) / debt;
 
-		const debt = principal + interest;
-		const minimumChallenge = debt / 20n; // 5% of debt
-		const virtualPrice = (recentCollateral * 10n ** 36n) / debt;
+			// Determine position status
+			let positionStatus = PositionStatus.ACTIVE;
+			const now = BigInt(Math.floor(Date.now() / 1000));
+			if (status === 2n) {
+				positionStatus = PositionStatus.CLOSED;
+			} else if (now > expiration) {
+				positionStatus = PositionStatus.EXPIRED;
+			} else if (now > expiration - 30n * 24n * 60n * 60n) {
+				positionStatus = PositionStatus.EXPIRING;
+			} else if (challengeData.challenger !== ethers.ZeroAddress) {
+				positionStatus = PositionStatus.CHALLENGED;
+			} else if (now < cooldownEnd) {
+				positionStatus = PositionStatus.COOLDOWN;
+			} else if (collateralBalance < minimumRequiredCollateral) {
+				positionStatus = PositionStatus.UNDERCOLLATERALIZED;
+			}
 
-		// Determine position status
-		let positionStatus = PositionStatus.ACTIVE;
-		const now = BigInt(Math.floor(Date.now() / 1000));
-		if (status === 2n) {
-			positionStatus = PositionStatus.CLOSED;
-		} else if (now > expiration) {
-			positionStatus = PositionStatus.EXPIRED;
-		} else if (now > expiration - 30n * 24n * 60n * 60n) {
-			positionStatus = PositionStatus.EXPIRING;
-		} else if (challengeData.challenger !== ethers.ZeroAddress) {
-			positionStatus = PositionStatus.CHALLENGED;
-		} else if (now < cooldownEnd) {
-			positionStatus = PositionStatus.COOLDOWN;
-		} else if (collateralBalance < minimumRequiredCollateral) {
-			positionStatus = PositionStatus.UNDERCOLLATERALIZED;
+			return {
+				address: positionAddress,
+				status: positionStatus,
+				owner,
+				original,
+				collateralAddress: collateral,
+				collateralBalance,
+				price,
+				virtualPrice,
+				expiredPurchasePrice,
+				collateralRequirement: minimumRequiredCollateral,
+				debt,
+				interest,
+				minimumCollateral: minimumRequiredCollateral,
+				minimumChallengeAmount: minimumChallenge,
+				limit: principal,
+				principal,
+				riskPremiumPPM: Number(riskPremiumPPM),
+				reserveContribution: Number(reserveContribution),
+				fixedAnnualRatePPM: Number(fixedAnnualRatePPM),
+				lastAccrual,
+				start,
+				cooldown: cooldownEnd,
+				expiration,
+				challengedAmount: challengeData.size,
+				challengePeriod,
+				isClosed: status === 2n,
+				availableForMinting,
+				availableForClones,
+				created: Number(start),
+			};
+		} catch (error) {
+			this.logger.error('Failed to parse position data:', error);
+			return null;
 		}
-
-		return {
-			address: positionAddress,
-			status: positionStatus,
-			owner,
-			original,
-			collateralAddress: collateral,
-			collateralBalance,
-			price,
-			virtualPrice,
-			expiredPurchasePrice,
-			collateralRequirement: minimumRequiredCollateral,
-			debt,
-			interest,
-			minimumCollateral: minimumRequiredCollateral,
-			minimumChallengeAmount: minimumChallenge,
-			limit: principal,
-			principal,
-			riskPremiumPPM: Number(riskPremiumPPM),
-			reserveContribution: Number(reserveContribution),
-			fixedAnnualRatePPM: Number(fixedAnnualRatePPM),
-			lastAccrual,
-			start,
-			cooldown: cooldownEnd,
-			expiration,
-			challengedAmount: challengeData.size,
-			challengePeriod,
-			isClosed: status === 2n,
-			availableForMinting,
-			availableForClones,
-			created: Number(start),
-		};
 	}
+
 
 	private async getTotalCollateralForToken(tokenAddress: string): Promise<bigint> {
 		const positions = await this.positionRepository.getPositionsByCollateral(tokenAddress);

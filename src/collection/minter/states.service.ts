@@ -2,30 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { StablecoinBridgeABI } from '@deuro/eurocoin';
 import { MinterRepository, BridgeRepository } from '../../database/repositories';
-import { MinterStatus } from '../../common/dto/minter.dto';
-import { calculateMinterStatus } from '../../common/utils/minter-status.util';
-
-export interface MinterStateData {
-	minter: string;
-	status: MinterStatus;
-	applicationDate: Date;
-	applicationPeriod: bigint;
-	applicationFee: bigint;
-	message: string;
-	denialDate?: Date;
-	denialMessage?: string;
-}
-
-export interface BridgeStateData {
-	address: string;
-	eurAddress: string;
-	eurSymbol: string;
-	eurDecimals: number;
-	dEuroAddress: string;
-	limit: bigint;
-	minted: bigint;
-	horizon: bigint;
-}
+import { MinterState, MinterStatus } from '../../common/dto/minter.dto';
+import { MulticallService } from '../../common/services';
+import { StablecoinBridgeState } from 'src/common/dto';
 
 @Injectable()
 export class MinterStatesService {
@@ -33,30 +12,26 @@ export class MinterStatesService {
 
 	constructor(
 		private readonly minterRepository: MinterRepository,
-		private readonly bridgeRepository: BridgeRepository
+		private readonly bridgeRepository: BridgeRepository,
+		private readonly multicallService: MulticallService
 	) {}
 
-	async getMintersState(provider: ethers.Provider): Promise<{ minters: MinterStateData[]; bridges: BridgeStateData[] }> {
+	async getMintersState(provider: ethers.Provider): Promise<{ minters: MinterState[]; bridges: StablecoinBridgeState[] }> {
 		this.logger.log('Fetching minters and bridges state...');
 
-		// Get all minter states from events
 		const minters = await this.getAllMinterStates();
+		const approvedMinters = minters.filter((m) => m.status === MinterStatus.APPROVED);
+		if (approvedMinters.length === 0) return { minters, bridges: [] };
 
-		// Check each minter to see if it's a bridge
-		const bridges: BridgeStateData[] = [];
-		for (const minter of minters) {
-			if (minter.status === MinterStatus.APPROVED) {
-				const bridgeData = await this.checkIfBridge(minter.minter, provider);
-				if (bridgeData) {
-					bridges.push(bridgeData);
-				}
-			}
-		}
+		const bridges = await this.retrieveBridgeStates(
+			approvedMinters.map((m) => m.minter),
+			provider
+		);
 
 		return { minters, bridges };
 	}
 
-	private async getAllMinterStates(): Promise<MinterStateData[]> {
+	private async getAllMinterStates(): Promise<MinterState[]> {
 		const [applications, denials] = await Promise.all([
 			this.minterRepository.getLatestApplications(),
 			this.minterRepository.getLatestDenials(),
@@ -64,62 +39,131 @@ export class MinterStatesService {
 
 		const denialMap = new Map(denials.map((d) => [d.minter, { date: d.timestamp, message: d.message }]));
 
-		return applications.map((a) => {
-			const denial = denialMap.get(a.minter);
-			const status = calculateMinterStatus(a.timestamp, a.application_period, denial?.date);
+		return Promise.all(
+			applications.map(async (a) => {
+				const denial = denialMap.get(a.minter);
+				const status = this.calculateMinterStatus(a.timestamp, a.application_period, denial?.date);
+				const deuroMinted = await this.minterRepository.getTotalMintedByMinter(a.minter).catch(() => BigInt(0));
+				const deuroBurned = await this.minterRepository.getTotalBurnedByMinter(a.minter).catch(() => BigInt(0));
 
-			return {
-				minter: a.minter,
-				status,
-				applicationDate: a.timestamp,
-				applicationPeriod: BigInt(a.application_period),
-				applicationFee: BigInt(a.application_fee),
-				message: a.message,
-				denialDate: denial?.date,
-				denialMessage: denial?.message,
-			};
-		});
+				return {
+					minter: a.minter,
+					status,
+					applicationDate: a.timestamp,
+					applicationPeriod: a.application_period,
+					applicationFee: a.application_fee,
+					message: a.message,
+					denialDate: denial?.date,
+					denialMessage: denial?.message,
+					deuroMinted: deuroMinted.toString(),
+					deuroBurned: deuroBurned.toString(),
+				};
+			})
+		);
 	}
 
-	private async checkIfBridge(minterAddress: string, provider: ethers.Provider): Promise<BridgeStateData | null> {
+	private async retrieveBridgeStates(minterAddresses: string[], provider: ethers.Provider): Promise<StablecoinBridgeState[]> {
+		this.logger.debug(`Checking ${minterAddresses.length} minters for bridge contracts using multicall...`);
+
+		const bridgeCalls = minterAddresses.flatMap((address) => {
+			const bridgeContract = new ethers.Contract(address, StablecoinBridgeABI, provider);
+			return [
+				{ contract: bridgeContract, method: 'eur' },
+				{ contract: bridgeContract, method: 'dEURO' },
+				{ contract: bridgeContract, method: 'limit' },
+				{ contract: bridgeContract, method: 'minted' },
+				{ contract: bridgeContract, method: 'horizon' },
+			];
+		});
+
 		try {
-			const bridgeContract = new ethers.Contract(minterAddress, StablecoinBridgeABI, provider);
+			const results = await this.multicallService.executeBatch(provider, bridgeCalls);
 
-			const [eurAddress, dEuroAddress, limit, minted, horizon] = await Promise.all([
-				bridgeContract.eur(),
-				bridgeContract.dEURO(),
-				bridgeContract.limit(),
-				bridgeContract.minted(),
-				bridgeContract.horizon(),
-			]);
+			const bridges: StablecoinBridgeState[] = [];
+			const validBridges: { address: string; eurAddress: string; data: any[] }[] = [];
+			for (let i = 0; i < minterAddresses.length; i++) {
+				try {
+					const baseIndex = i * 5;
+					const eurAddress = results[baseIndex];
+					const dEuroAddress = results[baseIndex + 1];
+					const limit = results[baseIndex + 2];
+					const minted = results[baseIndex + 3];
+					const horizon = results[baseIndex + 4];
 
-			const eurContract = new ethers.Contract(
-				eurAddress,
-				['function symbol() view returns (string)', 'function decimals() view returns (uint8)'],
-				provider
-			);
+					if (eurAddress && dEuroAddress) {
+						validBridges.push({
+							address: minterAddresses[i],
+							eurAddress,
+							data: [dEuroAddress, limit, minted, horizon],
+						});
+					}
+				} catch {
+					// Not a bridge, skip
+				}
+			}
 
-			const [eurSymbol, eurDecimals] = await Promise.all([eurContract.symbol(), eurContract.decimals()]);
+			if (validBridges.length === 0) {
+				return [];
+			}
 
-			return {
-				address: minterAddress,
-				eurAddress,
-				eurSymbol,
-				eurDecimals,
-				dEuroAddress,
-				limit,
-				minted,
-				horizon,
-			};
+			// Get EUR token info for all valid bridges
+			const eurTokenCalls = validBridges.flatMap(({ eurAddress }) => {
+				const eurContract = new ethers.Contract(
+					eurAddress,
+					['function symbol() view returns (string)', 'function decimals() view returns (uint8)'],
+					provider
+				);
+				return [
+					{ contract: eurContract, method: 'symbol' },
+					{ contract: eurContract, method: 'decimals' },
+				];
+			});
+
+			const eurTokenResults = await this.multicallService.executeBatch(provider, eurTokenCalls);
+
+			// Build final bridge data
+			for (let i = 0; i < validBridges.length; i++) {
+				const { address, eurAddress, data } = validBridges[i];
+				const [dEuroAddress, limit, minted, horizon] = data;
+				const eurSymbol = eurTokenResults[i * 2];
+				const eurDecimals = eurTokenResults[i * 2 + 1];
+
+				bridges.push({
+					address,
+					eurAddress,
+					eurSymbol,
+					eurDecimals,
+					dEuroAddress,
+					limit,
+					minted,
+					horizon,
+				});
+			}
+
+			this.logger.log(`Found ${bridges.length} bridge contracts out of ${minterAddresses.length} approved minters`);
+			return bridges;
 		} catch (error) {
-			// Not a bridge contract or error fetching data
-			return null;
+			this.logger.error('Failed to check bridges with multicall:', error);
+			return [];
 		}
 	}
 
-	async persistBridgesState(client: any, bridges: BridgeStateData[], blockNumber: number): Promise<void> {
-		if (bridges.length === 0) return;
+	private calculateMinterStatus(applicationTimestamp: Date, applicationPeriod: string | bigint, denialTimestamp?: Date): MinterStatus {
+		if (denialTimestamp && denialTimestamp > applicationTimestamp) return MinterStatus.DENIED;
 
+		const now = Date.now();
+		const applicationEndTime = new Date(applicationTimestamp).getTime() + Number(applicationPeriod) * 1000;
+		if (now < applicationEndTime) return MinterStatus.PENDING;
+		return MinterStatus.APPROVED;
+	}
+
+	async persistBridgesState(client: any, bridges: StablecoinBridgeState[], blockNumber: number): Promise<void> {
+		if (bridges.length === 0) return;
 		await this.bridgeRepository.saveBridgeStates(client, bridges, blockNumber);
+	}
+
+	async persistMintersState(client: any, minters: MinterState[], blockNumber: number): Promise<void> {
+		if (minters.length === 0) return;
+		await this.minterRepository.saveMinterStates(client, minters, blockNumber);
 	}
 }

@@ -1,6 +1,31 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from './database.service';
-import { SystemEventsData } from '../common/dto';
+import { 
+	SystemEventsData,
+	DeuroTransferEvent,
+	DepsTransferEvent,
+	DeuroMinterAppliedEvent,
+	DeuroMinterDeniedEvent,
+	DeuroLossEvent,
+	DeuroProfitEvent,
+	DeuroProfitDistributedEvent,
+	EquityTradeEvent,
+	EquityDelegationEvent,
+	SavingsSavedEvent,
+	SavingsInterestCollectedEvent,
+	SavingsWithdrawnEvent,
+	SavingsRateProposedEvent,
+	SavingsRateChangedEvent,
+	MintingHubPositionOpenedEvent,
+	RollerRollEvent,
+	PositionDeniedEvent,
+	MintingHubChallengeStartedEvent,
+	MintingHubChallengeAvertedEvent,
+	MintingHubChallengeSucceededEvent,
+	MintingHubPostponedReturnEvent,
+	MintingHubForcedSaleEvent,
+	PositionMintingUpdateEvent
+} from '../common/dto';
 import pgFormat from 'pg-format';
 
 interface PersistConfig<T> {
@@ -30,17 +55,17 @@ export class EventPersistenceService {
 		deuroTransferEvents: {
 			table: 'deuro_transfer_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'from_address', 'to_address', 'value'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.from, e.to, e.value.toString()],
+			mapEvent: (e: DeuroTransferEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.from, e.to, e.value.toString()],
 		},
 		depsTransferEvents: {
 			table: 'deps_transfer_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'from_address', 'to_address', 'value'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.from, e.to, e.value.toString()],
+			mapEvent: (e: DepsTransferEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.from, e.to, e.value.toString()],
 		},
 		deuroMinterAppliedEvents: {
 			table: 'deuro_minter_applied_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'minter', 'application_period', 'application_fee', 'message'],
-			mapEvent: (e: any) => [
+			mapEvent: (e: DeuroMinterAppliedEvent) => [
 				e.txHash,
 				new Date(e.timestamp * 1000),
 				e.logIndex,
@@ -53,27 +78,27 @@ export class EventPersistenceService {
 		deuroMinterDeniedEvents: {
 			table: 'deuro_minter_denied_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'minter', 'message'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.minter, e.message],
+			mapEvent: (e: DeuroMinterDeniedEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.minter, e.message],
 		},
 		deuroLossEvents: {
 			table: 'deuro_loss_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'reporting_minter', 'amount'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.reportingMinter, e.amount.toString()],
+			mapEvent: (e: DeuroLossEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.reportingMinter, e.amount.toString()],
 		},
 		deuroProfitEvents: {
 			table: 'deuro_profit_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'reporting_minter', 'amount'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.reportingMinter, e.amount.toString()],
+			mapEvent: (e: DeuroProfitEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.reportingMinter, e.amount.toString()],
 		},
 		deuroProfitDistributedEvents: {
 			table: 'deuro_profit_distributed_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'recipient', 'amount'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.recipient, e.amount.toString()],
+			mapEvent: (e: DeuroProfitDistributedEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.recipient, e.amount.toString()],
 		},
 		equityTradeEvents: {
 			table: 'equity_trade_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'who', 'amount', 'tot_price', 'new_price'],
-			mapEvent: (e: any) => [
+			mapEvent: (e: EquityTradeEvent) => [
 				e.txHash,
 				new Date(e.timestamp * 1000),
 				e.logIndex,
@@ -86,27 +111,27 @@ export class EventPersistenceService {
 		equityDelegationEvents: {
 			table: 'equity_delegation_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'from_address', 'to_address'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.from, e.to],
+			mapEvent: (e: EquityDelegationEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.from, e.to],
 		},
 		savingsSavedEvents: {
 			table: 'savings_saved_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'account', 'amount'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.account, e.amount.toString()],
+			mapEvent: (e: SavingsSavedEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.account, e.amount.toString()],
 		},
 		savingsInterestCollectedEvents: {
 			table: 'savings_interest_collected_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'account', 'interest'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.account, e.interest.toString()],
+			mapEvent: (e: SavingsInterestCollectedEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.account, e.interest.toString()],
 		},
 		savingsWithdrawnEvents: {
 			table: 'savings_withdrawn_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'account', 'amount'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.account, e.amount.toString()],
+			mapEvent: (e: SavingsWithdrawnEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.account, e.amount.toString()],
 		},
 		savingsRateProposedEvents: {
 			table: 'savings_rate_proposed_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'who', 'next_rate', 'next_change'],
-			mapEvent: (e: any) => [
+			mapEvent: (e: SavingsRateProposedEvent) => [
 				e.txHash,
 				new Date(e.timestamp * 1000),
 				e.logIndex,
@@ -118,17 +143,17 @@ export class EventPersistenceService {
 		savingsRateChangedEvents: {
 			table: 'savings_rate_changed_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'new_rate'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.newRate.toString()],
+			mapEvent: (e: SavingsRateChangedEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.newRate.toString()],
 		},
 		mintingHubPositionOpenedEvents: {
 			table: 'mintinghub_position_opened_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'owner', 'position', 'original', 'collateral'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.owner, e.position, e.original, e.collateral],
+			mapEvent: (e: MintingHubPositionOpenedEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.owner, e.position, e.original, e.collateral],
 		},
 		rollerRollEvents: {
 			table: 'roller_roll_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'source', 'coll_withdraw', 'repay', 'target', 'coll_deposit', 'mint'],
-			mapEvent: (e: any) => [
+			mapEvent: (e: RollerRollEvent) => [
 				e.txHash,
 				new Date(e.timestamp * 1000),
 				e.logIndex,
@@ -143,12 +168,12 @@ export class EventPersistenceService {
 		positionDeniedEvents: {
 			table: 'position_denied_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'position', 'sender', 'message'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.position, e.sender, e.message],
+			mapEvent: (e: PositionDeniedEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.position, e.sender, e.message],
 		},
 		mintingHubChallengeStartedEvents: {
 			table: 'mintinghub_challenge_started_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'challenger', 'position', 'size', 'number'],
-			mapEvent: (e: any) => [
+			mapEvent: (e: MintingHubChallengeStartedEvent) => [
 				e.txHash,
 				new Date(e.timestamp * 1000),
 				e.logIndex,
@@ -161,12 +186,12 @@ export class EventPersistenceService {
 		mintingHubChallengeAvertedEvents: {
 			table: 'mintinghub_challenge_averted_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'position', 'number', 'size'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.position, e.number.toString(), e.size.toString()],
+			mapEvent: (e: MintingHubChallengeAvertedEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.position, e.number.toString(), e.size.toString()],
 		},
 		mintingHubChallengeSucceededEvents: {
 			table: 'mintinghub_challenge_succeeded_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'position', 'number', 'bid', 'acquired_collateral', 'challenge_size'],
-			mapEvent: (e: any) => [
+			mapEvent: (e: MintingHubChallengeSucceededEvent) => [
 				e.txHash,
 				new Date(e.timestamp * 1000),
 				e.logIndex,
@@ -180,12 +205,12 @@ export class EventPersistenceService {
 		mintingHubPostponedReturnEvents: {
 			table: 'mintinghub_postponed_return_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'collateral', 'beneficiary', 'amount'],
-			mapEvent: (e: any) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.collateral, e.beneficiary, e.amount.toString()],
+			mapEvent: (e: MintingHubPostponedReturnEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.collateral, e.beneficiary, e.amount.toString()],
 		},
 		mintingHubForcedSaleEvents: {
 			table: 'mintinghub_forced_sale_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'pos', 'amount', 'price_e36_minus_decimals'],
-			mapEvent: (e: any) => [
+			mapEvent: (e: MintingHubForcedSaleEvent) => [
 				e.txHash,
 				new Date(e.timestamp * 1000),
 				e.logIndex,
@@ -197,7 +222,7 @@ export class EventPersistenceService {
 		positionMintingUpdateEvents: {
 			table: 'position_minting_update_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'position', 'collateral', 'price', 'principal'],
-			mapEvent: (e: any) => [
+			mapEvent: (e: PositionMintingUpdateEvent) => [
 				e.txHash,
 				new Date(e.timestamp * 1000),
 				e.logIndex,
@@ -217,7 +242,7 @@ export class EventPersistenceService {
 				for (const [eventType, config] of Object.entries(EventPersistenceService.eventConfigs)) {
 					const events = eventsData[eventType as keyof SystemEventsData];
 					if (Array.isArray(events) && events.length > 0) {
-						await persistEvents(client, events, config);
+						await persistEvents(client, events as any[], config as PersistConfig<any>);
 					}
 				}
 			});

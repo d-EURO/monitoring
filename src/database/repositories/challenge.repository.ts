@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database.service';
 import { ChallengeState, ChallengeStateDto, ChallengeStatus } from '../../common/dto/challenge.dto';
-import { ChallengeRecord } from '../types';
+import { ChallengeRecord, MintingHubChallengeStartedEventRecord, MintingHubChallengeSucceededEventRecord } from '../types';
 
 @Injectable()
 export class ChallengeRepository {
@@ -12,7 +12,7 @@ export class ChallengeRepository {
 			SELECT * FROM challenge_states 
 			ORDER BY challenge_id
 		`);
-		return records.map(this.mapToDto);
+		return records.map(this.mapToChallengeStateDto);
 	}
 
 	async getOpenChallenges(): Promise<ChallengeStateDto[]> {
@@ -21,7 +21,61 @@ export class ChallengeRepository {
 			WHERE status NOT IN ('AVERTED', 'SUCCEEDED')
 			ORDER BY challenge_id
 		`);
-		return records.map(this.mapToDto);
+		return records.map(this.mapToChallengeStateDto);
+	}
+
+	// Helper methods for updating challenges
+	async getChallengeById(challengeId: number): Promise<ChallengeStateDto | null> {
+		const records = await this.db.fetch<ChallengeRecord>(
+			`
+          SELECT * FROM challenge_states 
+          WHERE challenge_id = $1
+          LIMIT 1`,
+			[challengeId]
+		);
+		return records.length > 0 ? this.mapToChallengeStateDto(records[0]) : null;
+	}
+
+	async getMaxChallengeId(): Promise<number> {
+		const result = await this.db.fetch<{ max_id: string | null }>(`
+          SELECT MAX(challenge_id) as max_id FROM challenge_states
+      `);
+		return result[0].max_id ? parseInt(result[0].max_id, 10) : 0;
+	}
+
+	async getActiveChallengeStartedEvents(): Promise<MintingHubChallengeStartedEventRecord[]> {
+		const records = await this.db.fetch<MintingHubChallengeStartedEventRecord>(`
+			SELECT * FROM mintinghub_challenge_started_events
+			WHERE number NOT IN (
+				SELECT challenge_id FROM challenge_states
+				WHERE status IN ('AVERTED', 'SUCCEEDED')
+			) 
+		`);
+		return records.map(this.mapToChallengeStartedDto);
+	}
+
+	async getAcquiredCollateralByChallengeId(challengeId: number): Promise<string> {
+		const result = await this.db.fetch<{ total_bid: string }>(
+			`
+		  SELECT SUM(acquired_collateral) AS total_bid
+		  FROM mintinghub_challenge_succeeded_events
+		  WHERE number = $1
+	  `,
+			[challengeId]
+		);
+		return result.length > 0 && result[0].total_bid ? result[0].total_bid : '0';
+	}
+
+	async getAvertedAmountByChallengeId(challengeId: number): Promise<string> {
+		const result = await this.db.fetch<{ total_averted: string }>(
+			`
+			SELECT SUM(size) AS total_averted
+			FROM mintinghub_challenge_averted_events
+			WHERE number = $1
+		`,
+			[challengeId]
+		);
+		return result.length > 0 && result[0].total_averted ? result[0].total_averted : '0';
 	}
 
 	// Write operations
@@ -71,7 +125,7 @@ export class ChallengeRepository {
 	}
 
 	// Mapping function
-	private mapToDto(record: ChallengeRecord): ChallengeStateDto {
+	private mapToChallengeStateDto(record: ChallengeRecord): ChallengeStateDto {
 		return {
 			id: record.challenge_id,
 			challenger: record.challenger_address,
@@ -87,6 +141,31 @@ export class ChallengeRepository {
 			currentPrice: record.current_price,
 			block_number: parseInt(record.block_number),
 			timestamp: record.timestamp,
+		};
+	}
+
+	private mapToChallengeStartedDto(record: MintingHubChallengeStartedEventRecord): MintingHubChallengeStartedEventRecord {
+		return {
+			tx_hash: record.tx_hash,
+			timestamp: record.timestamp,
+			log_index: record.log_index,
+			challenger: record.challenger,
+			position: record.position,
+			size: record.size.toString(),
+			number: record.number.toString(),
+		};
+	}
+
+	private mapToBidDto(record: MintingHubChallengeSucceededEventRecord): MintingHubChallengeSucceededEventRecord {
+		return {
+			tx_hash: record.tx_hash,
+			timestamp: record.timestamp,
+			log_index: record.log_index,
+			position: record.position,
+			number: record.number.toString(),
+			bid: record.bid.toString(),
+			acquired_collateral: record.acquired_collateral.toString(),
+			challenge_size: record.challenge_size.toString(),
 		};
 	}
 }

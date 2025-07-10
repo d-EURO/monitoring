@@ -135,6 +135,7 @@ export class MonitoringService implements OnModuleInit {
 					await this.positionStatesService.persistPositionsState(client, positionsState, currentBlock);
 					await this.positionStatesService.persistCollateralState(client, collateralState, currentBlock);
 					await this.challengeStatesService.persistChallengesState(client, challengesState, currentBlock);
+					await this.minterStatesService.persistMintersState(client, mintersState.minters, currentBlock);
 					await this.minterStatesService.persistBridgesState(client, mintersState.bridges, currentBlock);
 
 					// Only update last processed block after all states are successfully saved

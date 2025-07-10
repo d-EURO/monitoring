@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { MinterRepository, BridgeRepository } from '../../database/repositories';
-import { MinterState } from '../../common/dto/minter.dto';
+import { MinterStateDto } from '../../common/dto/minter.dto';
 import { BridgeStateDto } from '../../common/dto/stablecoinBridge.dto';
-import { calculateMinterStatus } from '../../common/utils/minter-status.util';
 
 @Injectable()
 export class MinterService {
@@ -11,30 +10,8 @@ export class MinterService {
 		private readonly bridgeRepository: BridgeRepository
 	) {}
 
-	// TODO: Write minters and their status directly to the database instead of calculating it on the fly
-	async getAllMinters(): Promise<MinterState[]> {
-		const [applications, denials] = await Promise.all([
-			this.minterRepository.getLatestApplications(),
-			this.minterRepository.getLatestDenials(),
-		]);
-
-		const denialMap = new Map(denials.map((d) => [d.minter, { date: d.timestamp, message: d.message }]));
-
-		return applications.map((a) => {
-			const denial = denialMap.get(a.minter);
-			const status = calculateMinterStatus(a.timestamp, a.application_period, denial?.date);
-
-			return {
-				minter: a.minter,
-				status,
-				applicationDate: a.timestamp,
-				applicationPeriod: a.application_period,
-				applicationFee: a.application_fee,
-				message: a.message,
-				denialDate: denial?.date,
-				denialMessage: denial?.message,
-			};
-		});
+	async getAllMinters(): Promise<MinterStateDto[]> {
+		return this.minterRepository.getAllMinterStates();
 	}
 
 	async getActiveBridges(): Promise<BridgeStateDto[]> {

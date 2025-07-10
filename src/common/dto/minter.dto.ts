@@ -15,6 +15,8 @@ export interface MinterState {
 	message?: string;
 	denialDate?: Date;
 	denialMessage?: string;
+	deuroMinted: string;
+	deuroBurned: string;
 }
 
 export class MinterStateDto {
@@ -41,4 +43,10 @@ export class MinterStateDto {
 
 	@ApiProperty({ description: 'Denial reason', required: false })
 	denialMessage?: string;
+
+	@ApiProperty({ description: 'Total dEURO minted by this minter', required: false })
+	deuroMinted?: string;
+
+	@ApiProperty({ description: 'Total dEURO burned by this minter', required: false })
+	deuroBurned?: string;
 }
