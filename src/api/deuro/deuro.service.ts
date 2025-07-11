@@ -13,7 +13,6 @@ export class DeuroService {
 		return this.mapToDto(state);
 	}
 
-
 	private mapToDto(state: any): DeuroStateDto {
 		return {
 			deuroTotalSupply: state.deuro_total_supply.toString(),

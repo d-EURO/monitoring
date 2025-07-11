@@ -28,16 +28,16 @@ export async function fetchEvents<T extends BaseEvent>(
 	// Fetch uncached blocks in parallel
 	const uniqueBlockNumbers = [...new Set(events.map((e) => e.blockNumber))];
 	const missingBlocks = uniqueBlockNumbers.filter((blockNum) => !blockCache.has(blockNum));
-	
+
 	if (missingBlocks.length > 0) {
 		// Batch block fetching to reduce RPC calls
 		const BATCH_SIZE = 50; // Fetch 50 blocks at a time
 		const provider = events[0].provider;
-		
+
 		for (let i = 0; i < missingBlocks.length; i += BATCH_SIZE) {
 			const batch = missingBlocks.slice(i, i + BATCH_SIZE);
 			const newBlocks = await Promise.all(batch.map((blockNum) => provider.getBlock(blockNum)));
-			
+
 			newBlocks.forEach((block) => {
 				if (block && block.number !== undefined) {
 					blockCache.set(block.number, block);

@@ -59,6 +59,10 @@ export class MonitoringConfig {
 	@Min(1)
 	@Max(100)
 	pgMaxClients?: number = 10;
+
+	@IsOptional()
+	@IsString()
+	allowedOrigins?: string;
 }
 
 export default registerAs('monitoring', () => {
@@ -79,6 +83,7 @@ export default registerAs('monitoring', () => {
 	config.dbPassword = process.env.DB_PASSWORD;
 	config.dbSsl = process.env.DB_SSL === 'true';
 	config.pgMaxClients = process.env.PG_MAX_CLIENTS ? parseInt(process.env.PG_MAX_CLIENTS) : 10;
+	config.allowedOrigins = process.env.ALLOWED_ORIGINS;
 
 	validateConfiguration(config);
 

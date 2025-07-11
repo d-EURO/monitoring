@@ -6,7 +6,18 @@ import { Logger } from '@nestjs/common';
 async function bootstrap() {
 	const logger = new Logger('Bootstrap');
 
-	const app = await NestFactory.create(AppModule, { cors: true });
+	const allowedOrigins = process.env.ALLOWED_ORIGINS
+		? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+		: ['http://localhost:3000', 'http://localhost:5173'];
+
+	const app = await NestFactory.create(AppModule, {
+		cors: {
+			origin: allowedOrigins,
+			credentials: true,
+			methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+			allowedHeaders: ['Content-Type', 'Authorization'],
+		},
+	});
 
 	const config = new DocumentBuilder()
 		.setTitle('dEURO Monitoring API')
@@ -28,6 +39,7 @@ async function bootstrap() {
 
 	logger.log(`dEURO Monitoring API running on port ${port}`);
 	logger.log(`Swagger documentation available at http://localhost:${port}/`);
+	logger.log(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
 }
 
 bootstrap().catch((error) => {

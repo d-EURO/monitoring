@@ -31,33 +31,29 @@ export class PositionStatesService {
 		for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
 			const batch = batches[batchIndex];
 			this.logger.debug(`Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} positions)`);
-			
+
 			try {
 				// Create position contracts and get collateral addresses first
 				const positionContracts: ethers.Contract[] = [];
 				const collateralAddresses: string[] = [];
-				
+
 				// First, get collateral addresses for all positions in batch
-				const collateralCalls = batch.map(address => ({
+				const collateralCalls = batch.map((address) => ({
 					contract: new ethers.Contract(address, PositionV2ABI, provider),
 					method: 'collateral',
-					args: []
+					args: [],
 				}));
-				
+
 				const collaterals = await this.multicallService.executeBatch(provider, collateralCalls);
-				
+
 				for (let i = 0; i < batch.length; i++) {
 					positionContracts.push(collateralCalls[i].contract);
 					collateralAddresses.push(collaterals[i]);
 				}
-				
+
 				// Now fetch all position data using multicall
-				const positionDataResults = await this.multicallService.getPositionData(
-					provider,
-					positionContracts,
-					collateralAddresses
-				);
-				
+				const positionDataResults = await this.multicallService.getPositionData(provider, positionContracts, collateralAddresses);
+
 				// Convert results to PositionState objects
 				for (const { positionData, collateralBalance } of positionDataResults) {
 					const position = this.parsePositionData(positionData, collateralBalance);
@@ -87,13 +83,13 @@ export class PositionStatesService {
 		}
 
 		// Filter out collaterals we already have in cache
-		const uncachedCollaterals = uniqueCollaterals.filter(addr => !this.tokenMetadataCache.has(addr));
+		const uncachedCollaterals = uniqueCollaterals.filter((addr) => !this.tokenMetadataCache.has(addr));
 
 		if (uncachedCollaterals.length > 0) {
 			this.logger.debug(`Fetching metadata for ${uncachedCollaterals.length} collateral tokens using multicall...`);
-			
+
 			// Prepare calls for all uncached collateral tokens
-			const metadataCalls = uncachedCollaterals.flatMap(address => {
+			const metadataCalls = uncachedCollaterals.flatMap((address) => {
 				const contract = new ethers.Contract(
 					address,
 					['function symbol() view returns (string)', 'function decimals() view returns (uint8)'],
@@ -101,7 +97,7 @@ export class PositionStatesService {
 				);
 				return [
 					{ contract, method: 'symbol' },
-					{ contract, method: 'decimals' }
+					{ contract, method: 'decimals' },
 				];
 			});
 
@@ -123,7 +119,7 @@ export class PositionStatesService {
 		// Build collateral state for all tokens
 		for (const collateralAddress of uniqueCollaterals) {
 			const tokenMetadata = this.tokenMetadataCache.get(collateralAddress);
-			
+
 			if (!tokenMetadata) {
 				this.logger.warn(`Missing metadata for collateral ${collateralAddress}`);
 				continue;
@@ -172,7 +168,7 @@ export class PositionStatesService {
 				status,
 				recentCollateral,
 				expiredPurchasePrice,
-				minimumRequiredCollateral
+				minimumRequiredCollateral,
 			] = positionData;
 
 			const debt = principal + interest;
@@ -232,7 +228,6 @@ export class PositionStatesService {
 			return null;
 		}
 	}
-
 
 	private async getTotalCollateralForToken(tokenAddress: string): Promise<bigint> {
 		const positions = await this.positionRepository.getPositionsByCollateral(tokenAddress);

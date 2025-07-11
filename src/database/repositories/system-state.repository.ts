@@ -16,7 +16,6 @@ export class SystemStateRepository {
 		return result[0];
 	}
 
-
 	// Write operations
 	async persistSystemState(client: any, stateData: SystemStateData): Promise<void> {
 		const query = `

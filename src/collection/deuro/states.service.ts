@@ -13,7 +13,7 @@ export class DeuroStatesService {
 	constructor(
 		private readonly deuroRepository: DeuroRepository,
 		private readonly multicallService: MulticallService,
-		private readonly blockchainService: BlockchainService,
+		private readonly blockchainService: BlockchainService
 	) {}
 
 	async getDeuroState(
@@ -37,7 +37,8 @@ export class DeuroStatesService {
 		];
 
 		const results = await this.multicallService.executeBatch(deuroContract.runner as ethers.Provider, calls);
-		const [deuroTotalSupply, minterReserve, reserveTotal, savingsBalance, equityShares, equityPrice, depsTotalSupply, currentRatePPM] = results;
+		const [deuroTotalSupply, minterReserve, reserveTotal, savingsBalance, equityShares, equityPrice, depsTotalSupply, currentRatePPM] =
+			results;
 
 		// Calculate equity reserve (total reserve minus minter reserve)
 		const equityReserve = BigInt(reserveTotal) - BigInt(minterReserve);

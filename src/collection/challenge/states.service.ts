@@ -17,10 +17,10 @@ export class ChallengeStatesService {
 	async getChallengesState(mintingHub: ethers.Contract): Promise<ChallengeState[]> {
 		try {
 			this.logger.log('Fetching challenges state...');
-			
+
 			const activeChallenges = await this.challengeRepository.getActiveChallengeStartedEvents();
 			if (activeChallenges.length === 0) return [];
-			
+
 			// Get position data
 			const allPositions = await this.positionRepository.getAllPositions();
 			const addressToPosition = new Map(allPositions.map((p) => [p.address, p]));
@@ -29,29 +29,28 @@ export class ChallengeStatesService {
 			const priceCalls = activeChallenges.map((s) => ({
 				contract: mintingHub,
 				method: 'price',
-				args: [s.number]
+				args: [s.number],
 			}));
-			
-			const currentPrices = await this.multicallService.executeBatch(
-				mintingHub.runner as ethers.Provider,
-				priceCalls
-			);
-			
+
+			const currentPrices = await this.multicallService.executeBatch(mintingHub.runner as ethers.Provider, priceCalls);
+
 			const currentTimestamp = Math.floor(Date.now() / 1000);
 
 			// Process all challenges in parallel
 			const challengePromises = activeChallenges.map(async (event, index) => {
 				const initialSize = BigInt(event.size);
-				const avertedAmount = BigInt(await this.challengeRepository.getAvertedAmountByChallengeId(Number(event.number)) || '0');
-				const acquiredCollateral = BigInt(await this.challengeRepository.getAcquiredCollateralByChallengeId(Number(event.number)) || '0');
+				const avertedAmount = BigInt((await this.challengeRepository.getAvertedAmountByChallengeId(Number(event.number))) || '0');
+				const acquiredCollateral = BigInt(
+					(await this.challengeRepository.getAcquiredCollateralByChallengeId(Number(event.number))) || '0'
+				);
 				const remainingAmount = initialSize - avertedAmount - acquiredCollateral;
 				const position = addressToPosition.get(event.position);
 				const challengePeriod = Number(position?.challengePeriod);
-			
+
 				const challengeStartTime = Number(event.timestamp);
 				const auctionStart = challengeStartTime + challengePeriod;
 				let status = ChallengeStatus.OPENED;
-				
+
 				if (remainingAmount === 0n) {
 					status = acquiredCollateral > 0n ? ChallengeStatus.SUCCEEDED : ChallengeStatus.AVERTED;
 				} else if (currentTimestamp < auctionStart) {
@@ -72,14 +71,13 @@ export class ChallengeStatesService {
 					liqPrice: position?.virtualPrice || '0',
 					phase: challengePeriod,
 					status,
-					currentPrice: currentPrices[index]?.toString() || '0'
+					currentPrice: currentPrices[index]?.toString() || '0',
 				};
 			});
 
 			const challenges = await Promise.all(challengePromises);
 			this.logger.log(`Successfully fetched ${challenges.length} challenges`);
 			return challenges;
-			
 		} catch (error) {
 			this.logger.error('Failed to fetch challenges state:', error);
 			return [];

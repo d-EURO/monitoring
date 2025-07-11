@@ -32,7 +32,7 @@ export class MulticallService {
 		}>
 	): Promise<any[]> {
 		const multicallProvider = this.getMulticallProvider(provider);
-		
+
 		try {
 			// Create multicall-wrapped contracts
 			const promises = calls.map(({ contract, method, args = [] }) => {
@@ -42,7 +42,7 @@ export class MulticallService {
 
 			// Execute all calls in a single RPC request
 			const results = await Promise.all(promises);
-			
+
 			this.logger.debug(`Executed ${calls.length} calls in a single multicall`);
 			return results;
 		} catch (error) {
@@ -59,18 +59,20 @@ export class MulticallService {
 		provider: ethers.Provider,
 		positionContracts: ethers.Contract[],
 		collateralAddresses: string[]
-	): Promise<Array<{
-		positionData: any[];
-		collateralBalance: bigint;
-	}>> {
+	): Promise<
+		Array<{
+			positionData: any[];
+			collateralBalance: bigint;
+		}>
+	> {
 		const multicallProvider = this.getMulticallProvider(provider);
-		
+
 		try {
 			const results = await Promise.all(
 				positionContracts.map(async (positionContract, index) => {
 					// Connect position contract to multicall provider
 					const multicallPosition = positionContract.connect(multicallProvider) as ethers.Contract;
-					
+
 					// Create collateral contract for balance check
 					const collateralContract = new ethers.Contract(
 						collateralAddresses[index],
@@ -104,7 +106,7 @@ export class MulticallService {
 						recentCollateral,
 						expiredPurchasePrice,
 						minimumRequiredCollateral,
-						collateralBalance
+						collateralBalance,
 					] = await Promise.all([
 						multicallPosition.getAddress(),
 						multicallPosition.owner(),
@@ -129,7 +131,7 @@ export class MulticallService {
 						multicallPosition.recentCollateral(),
 						multicallPosition.expiredPurchasePrice(),
 						multicallPosition.minimumRequiredCollateral(),
-						collateralContract.balanceOf(await positionContract.getAddress())
+						collateralContract.balanceOf(await positionContract.getAddress()),
 					]);
 
 					return {
@@ -156,9 +158,9 @@ export class MulticallService {
 							status,
 							recentCollateral,
 							expiredPurchasePrice,
-							minimumRequiredCollateral
+							minimumRequiredCollateral,
 						],
-						collateralBalance
+						collateralBalance,
 					};
 				})
 			);

@@ -65,7 +65,6 @@ export class MinterRepository {
 		return records.map(this.mapToDto);
 	}
 
-
 	async saveMinterStates(client: any, minters: MinterState[], blockNumber: number): Promise<void> {
 		if (minters.length === 0) return;
 
@@ -120,6 +119,6 @@ export class MinterRepository {
 			denialMessage: record.denial_message,
 			deuroMinted: record.deuro_minted,
 			deuroBurned: record.deuro_burned,
-		}
+		};
 	}
 }

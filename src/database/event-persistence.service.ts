@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from './database.service';
-import { 
+import {
 	SystemEventsData,
 	DeuroTransferEvent,
 	DepsTransferEvent,
@@ -24,7 +24,7 @@ import {
 	MintingHubChallengeSucceededEvent,
 	MintingHubPostponedReturnEvent,
 	MintingHubForcedSaleEvent,
-	PositionMintingUpdateEvent
+	PositionMintingUpdateEvent,
 } from '../common/dto';
 import pgFormat from 'pg-format';
 
@@ -93,7 +93,13 @@ export class EventPersistenceService {
 		deuroProfitDistributedEvents: {
 			table: 'deuro_profit_distributed_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'recipient', 'amount'],
-			mapEvent: (e: DeuroProfitDistributedEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.recipient, e.amount.toString()],
+			mapEvent: (e: DeuroProfitDistributedEvent) => [
+				e.txHash,
+				new Date(e.timestamp * 1000),
+				e.logIndex,
+				e.recipient,
+				e.amount.toString(),
+			],
 		},
 		equityTradeEvents: {
 			table: 'equity_trade_events',
@@ -121,7 +127,13 @@ export class EventPersistenceService {
 		savingsInterestCollectedEvents: {
 			table: 'savings_interest_collected_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'account', 'interest'],
-			mapEvent: (e: SavingsInterestCollectedEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.account, e.interest.toString()],
+			mapEvent: (e: SavingsInterestCollectedEvent) => [
+				e.txHash,
+				new Date(e.timestamp * 1000),
+				e.logIndex,
+				e.account,
+				e.interest.toString(),
+			],
 		},
 		savingsWithdrawnEvents: {
 			table: 'savings_withdrawn_events',
@@ -148,7 +160,15 @@ export class EventPersistenceService {
 		mintingHubPositionOpenedEvents: {
 			table: 'mintinghub_position_opened_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'owner', 'position', 'original', 'collateral'],
-			mapEvent: (e: MintingHubPositionOpenedEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.owner, e.position, e.original, e.collateral],
+			mapEvent: (e: MintingHubPositionOpenedEvent) => [
+				e.txHash,
+				new Date(e.timestamp * 1000),
+				e.logIndex,
+				e.owner,
+				e.position,
+				e.original,
+				e.collateral,
+			],
 		},
 		rollerRollEvents: {
 			table: 'roller_roll_events',
@@ -186,7 +206,14 @@ export class EventPersistenceService {
 		mintingHubChallengeAvertedEvents: {
 			table: 'mintinghub_challenge_averted_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'position', 'number', 'size'],
-			mapEvent: (e: MintingHubChallengeAvertedEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.position, e.number.toString(), e.size.toString()],
+			mapEvent: (e: MintingHubChallengeAvertedEvent) => [
+				e.txHash,
+				new Date(e.timestamp * 1000),
+				e.logIndex,
+				e.position,
+				e.number.toString(),
+				e.size.toString(),
+			],
 		},
 		mintingHubChallengeSucceededEvents: {
 			table: 'mintinghub_challenge_succeeded_events',
@@ -205,7 +232,14 @@ export class EventPersistenceService {
 		mintingHubPostponedReturnEvents: {
 			table: 'mintinghub_postponed_return_events',
 			columns: ['tx_hash', 'timestamp', 'log_index', 'collateral', 'beneficiary', 'amount'],
-			mapEvent: (e: MintingHubPostponedReturnEvent) => [e.txHash, new Date(e.timestamp * 1000), e.logIndex, e.collateral, e.beneficiary, e.amount.toString()],
+			mapEvent: (e: MintingHubPostponedReturnEvent) => [
+				e.txHash,
+				new Date(e.timestamp * 1000),
+				e.logIndex,
+				e.collateral,
+				e.beneficiary,
+				e.amount.toString(),
+			],
 		},
 		mintingHubForcedSaleEvents: {
 			table: 'mintinghub_forced_sale_events',

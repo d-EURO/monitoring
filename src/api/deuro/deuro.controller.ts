@@ -13,5 +13,4 @@ export class DeuroController {
 	async getCurrentState(): Promise<DeuroStateDto | null> {
 		return this.deuroService.getCurrentState();
 	}
-
 }
