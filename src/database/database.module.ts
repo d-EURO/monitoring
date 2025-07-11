@@ -4,7 +4,6 @@ import { EventPersistenceService } from './event-persistence.service';
 import {
 	PositionRepository,
 	ChallengeRepository,
-	EventRepository,
 	MinterRepository,
 	SystemStateRepository,
 	CollateralRepository,
@@ -19,7 +18,6 @@ import {
 		EventPersistenceService,
 		PositionRepository,
 		ChallengeRepository,
-		EventRepository,
 		MinterRepository,
 		SystemStateRepository,
 		CollateralRepository,
@@ -31,7 +29,6 @@ import {
 		EventPersistenceService,
 		PositionRepository,
 		ChallengeRepository,
-		EventRepository,
 		MinterRepository,
 		SystemStateRepository,
 		CollateralRepository,

@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DatabaseService } from '../database/database.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
-import { SystemStateRepository } from '../database/repositories';
+import { PositionRepository, SystemStateRepository } from '../database/repositories';
 
 // Domain services
 import { DeuroEventsService } from './deuro/events.service';
@@ -25,6 +25,7 @@ export class MonitoringService implements OnModuleInit {
 		private readonly databaseService: DatabaseService,
 		private readonly blockchainService: BlockchainService,
 		private readonly systemStateRepository: SystemStateRepository,
+		private readonly positionRepository: PositionRepository,
 		// Domain services
 		private readonly deuroEventsService: DeuroEventsService,
 		private readonly deuroStatesService: DeuroStatesService,
@@ -71,12 +72,10 @@ export class MonitoringService implements OnModuleInit {
 			if (fromBlock <= currentBlock) {
 				const timestamp = new Date().toISOString();
 				this.logger.log(`[${timestamp}] Fetching system state from block ${fromBlock} to ${currentBlock}`);
-
-				// Get contracts
 				const contracts = this.blockchainService.getContracts();
 
-				// Fetch events from all domains in parallel
-				const [, positionsEvents, ,] = await Promise.all([
+				// Fetch all event in parallel
+				const [_deuroEvents, positionsEvents, _challengeEvents, _minterEvents] = await Promise.all([
 					this.deuroEventsService.getDeuroEvents(
 						contracts.deuroContract,
 						contracts.equityContract,
@@ -104,7 +103,7 @@ export class MonitoringService implements OnModuleInit {
 						contracts.depsContract,
 						contracts.savingsContract
 					),
-					this.positionStatesService.getPositionsState(await this.databaseService.getActivePositionAddresses(), provider),
+					this.positionStatesService.getPositionsState(await this.positionRepository.getActivePositionAddresses(), provider),
 					this.challengeStatesService.getChallengesState(contracts.mintingHubContract),
 					this.minterStatesService.getMintersState(provider),
 				]);
@@ -115,13 +114,12 @@ export class MonitoringService implements OnModuleInit {
 					provider
 				);
 
-				// Get frontend state (TODO: implement if needed)
+				// TODO: Implement later
 				const frontendFeesCollected = 0n;
 				const frontendsActive = 0;
 
 				// Persist everything in a single atomic transaction
 				await this.databaseService.withTransaction(async (client) => {
-					// Persist the consolidated system state
 					const systemState = {
 						...deuroState,
 						frontend_fees_collected: frontendFeesCollected,
@@ -130,8 +128,6 @@ export class MonitoringService implements OnModuleInit {
 						timestamp: new Date(),
 					};
 					await this.systemStateRepository.persistSystemState(client, systemState);
-
-					// Persist all other states using the same transaction
 					await this.positionStatesService.persistPositionsState(client, positionsState, currentBlock);
 					await this.positionStatesService.persistCollateralState(client, collateralState, currentBlock);
 					await this.challengeStatesService.persistChallengesState(client, challengesState, currentBlock);
