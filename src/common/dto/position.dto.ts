@@ -41,6 +41,8 @@ export interface PositionState {
 	availableForMinting: bigint;
 	availableForClones: bigint;
 	created?: number;
+	marketPrice?: bigint;
+	collateralizationRatio?: number;
 }
 
 export class PositionStateDto {
@@ -130,6 +132,12 @@ export class PositionStateDto {
 
 	@ApiProperty({ description: 'Position creation time' })
 	created?: number;
+
+	@ApiProperty({ description: 'Market price of collateral token', required: false })
+	marketPrice?: string;
+
+	@ApiProperty({ description: 'Collateralization ratio (market price / virtual price)', required: false })
+	collateralizationRatio?: number;
 
 	@ApiProperty({ description: 'Block number for this state snapshot' })
 	block_number: number;

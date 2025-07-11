@@ -33,6 +33,8 @@ export interface PositionStateRecord {
 	available_for_minting: string;
 	available_for_clones: string;
 	created?: number;
+	market_price?: string;
+	collateralization_ratio?: string;
 }
 
 export interface ChallengeRecord {

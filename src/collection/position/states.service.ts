@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import { PositionState, PositionStatus, CollateralState, MintingHubPositionOpenedEvent } from '../../common/dto';
 import { PositionV2ABI } from '@deuro/eurocoin';
 import { PositionRepository, CollateralRepository } from '../../database/repositories';
-import { MulticallService } from '../../common/services';
+import { MulticallService, PriceService } from '../../common/services';
 
 @Injectable()
 export class PositionStatesService {
@@ -13,7 +13,8 @@ export class PositionStatesService {
 	constructor(
 		private readonly positionRepository: PositionRepository,
 		private readonly collateralRepository: CollateralRepository,
-		private readonly multicallService: MulticallService
+		private readonly multicallService: MulticallService,
+		private readonly priceService: PriceService
 	) {}
 
 	async getPositionsState(activePositionAddresses: string[], provider: ethers.Provider): Promise<PositionState[]> {
@@ -65,6 +66,11 @@ export class PositionStatesService {
 				this.logger.error(`Failed to fetch batch ${batchIndex + 1}:`, error);
 				// Continue with next batch instead of failing entirely
 			}
+		}
+
+		// Fetch market prices and calculate collateralization ratios
+		if (positions.length > 0) {
+			await this.enrichPositionsWithMarketData(positions, provider);
 		}
 
 		this.logger.log(`Successfully fetched ${positions.length} position states`);
@@ -232,6 +238,81 @@ export class PositionStatesService {
 	private async getTotalCollateralForToken(tokenAddress: string): Promise<bigint> {
 		const positions = await this.positionRepository.getPositionsByCollateral(tokenAddress);
 		return positions.reduce((sum, pos) => sum + BigInt(pos.collateralBalance), 0n);
+	}
+
+	private async enrichPositionsWithMarketData(positions: PositionState[], provider: ethers.Provider): Promise<void> {
+		try {
+			const uniqueCollaterals = [...new Set(positions.map((p) => p.collateralAddress.toLowerCase()))];
+			if (uniqueCollaterals.length === 0) return;
+
+			const apiAddresses = uniqueCollaterals.filter((addr) => {
+				const metadata = this.tokenMetadataCache.get(addr);
+				return !metadata || !['WFPS', 'DEPS'].includes(metadata.symbol.toUpperCase());
+			});
+
+			let marketPrices: { [key: string]: string } = {};
+
+			if (apiAddresses.length > 0) {
+				const usdToEur = await this.priceService.getUsdToEur();
+				const usdPrices = await this.priceService.getTokenPrices(apiAddresses);
+				marketPrices = Object.entries(usdPrices).reduce(
+					(acc, [address, usdPrice]) => {
+						acc[address] = String(Number(usdPrice) * usdToEur);
+						return acc;
+					},
+					{} as { [key: string]: string }
+				);
+			}
+
+			for (const collateralAddress of uniqueCollaterals) {
+				const metadata = this.tokenMetadataCache.get(collateralAddress);
+				if (metadata && ['WFPS', 'DEPS'].includes(metadata.symbol.toUpperCase())) {
+					try {
+						const collateralContract = new ethers.Contract(
+							collateralAddress,
+							['function underlying() view returns (address)'],
+							provider
+						);
+						const underlying = await collateralContract.underlying();
+						const equityContract = new ethers.Contract(underlying, ['function price() view returns (uint256)'], provider);
+						const nativePrice = await equityContract.price();
+						let formattedPrice = ethers.formatUnits(nativePrice, metadata.decimals);
+						
+						// For WFPS, convert CHF to EUR
+						if (metadata.symbol.toUpperCase() === 'WFPS') {
+							const [usdToEur, usdToChf] = await Promise.all([
+								this.priceService.getUsdToEur(),
+								this.priceService.getUsdToChf()
+							]);
+							formattedPrice = String((Number(formattedPrice) / usdToChf) * usdToEur);
+						}
+						
+						marketPrices[collateralAddress] = formattedPrice;
+					} catch (error) {
+						this.logger.warn(`Failed to fetch on-chain price for ${metadata.symbol}:`, error);
+					}
+				}
+			}
+
+			for (const position of positions) {
+				const marketPrice = marketPrices[position.collateralAddress.toLowerCase()];
+				if (marketPrice) {
+					const metadata = this.tokenMetadataCache.get(position.collateralAddress.toLowerCase());
+					if (metadata) {
+						const scaledMarketPrice = ethers.parseUnits(marketPrice, BigInt(36) - BigInt(metadata.decimals));
+						position.marketPrice = scaledMarketPrice;
+						if (position.virtualPrice > 0n) {
+							const ratio = (scaledMarketPrice * 10000n) / position.virtualPrice;
+							position.collateralizationRatio = Number(ratio) / 10000;
+						}
+					}
+				}
+			}
+
+			this.logger.log(`Enriched ${positions.length} positions with market data`);
+		} catch (error) {
+			this.logger.error('Failed to enrich positions with market data:', error);
+		}
 	}
 
 	async persistPositionsState(client: any, positions: PositionState[], blockNumber: number): Promise<void> {

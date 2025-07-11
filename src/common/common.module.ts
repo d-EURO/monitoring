@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { MulticallService } from './services';
+import { MulticallService, PriceService } from './services';
 
 @Module({
-	providers: [MulticallService],
-	exports: [MulticallService],
+	providers: [MulticallService, PriceService],
+	exports: [MulticallService, PriceService],
 })
 export class CommonModule {}

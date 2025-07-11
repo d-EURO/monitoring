@@ -63,6 +63,13 @@ export class MonitoringConfig {
 	@IsOptional()
 	@IsString()
 	allowedOrigins?: string;
+
+	@Transform(({ value }) => parseInt(value))
+	@IsOptional()
+	@IsNumber()
+	@Min(60000) // Minimum 1 minute
+	@Max(3600000) // Maximum 1 hour
+	priceCacheTtlMs?: number = 300000; // Default 5 minutes
 }
 
 export default registerAs('monitoring', () => {
@@ -84,6 +91,7 @@ export default registerAs('monitoring', () => {
 	config.dbSsl = process.env.DB_SSL === 'true';
 	config.pgMaxClients = process.env.PG_MAX_CLIENTS ? parseInt(process.env.PG_MAX_CLIENTS) : 10;
 	config.allowedOrigins = process.env.ALLOWED_ORIGINS;
+	config.priceCacheTtlMs = process.env.PRICE_CACHE_TTL_MS ? parseInt(process.env.PRICE_CACHE_TTL_MS) : 300000;
 
 	validateConfiguration(config);
 

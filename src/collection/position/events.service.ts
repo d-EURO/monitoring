@@ -10,7 +10,7 @@ import {
 import { PositionV2ABI } from '@deuro/eurocoin';
 import { fetchEvents } from '../../blockchain/utils/utils';
 import { EventPersistenceService } from '../../database/event-persistence.service';
-import { DatabaseService } from '../../database/database.service';
+import { PositionRepository } from '../../database/repositories';
 
 export interface PositionEventsData {
 	mintingHubPositionOpenedEvents: MintingHubPositionOpenedEvent[];
@@ -25,7 +25,7 @@ export class PositionEventsService {
 
 	constructor(
 		private readonly eventPersistenceService: EventPersistenceService,
-		private readonly databaseService: DatabaseService
+		private readonly positionRepository: PositionRepository
 	) {}
 
 	async getPositionsEvents(
@@ -50,7 +50,7 @@ export class PositionEventsService {
 		]);
 
 		// Fetch events from individual position contracts
-		const activePositionAddresses: string[] = await this.databaseService.getActivePositionAddresses();
+		const activePositionAddresses: string[] = await this.positionRepository.getActivePositionAddresses();
 		const [positionDeniedEvents, positionMintingUpdateEvents] = await Promise.all([
 			this.fetchPositionEvents<PositionDeniedEvent>(activePositionAddresses, provider, 'PositionDenied', fromBlock, toBlock),
 			this.fetchPositionEvents<PositionMintingUpdateEvent>(activePositionAddresses, provider, 'MintingUpdate', fromBlock, toBlock),

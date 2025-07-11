@@ -93,9 +93,9 @@ export class PositionRepository {
 						limit_amount, principal, risk_premium_ppm, reserve_contribution,
 						fixed_annual_rate_ppm, last_accrual, start_timestamp, cooldown_period,
 						expiration_timestamp, challenged_amount, challenge_period, is_closed,
-						available_for_minting, available_for_clones
+						available_for_minting, available_for_clones, market_price, collateralization_ratio
 					)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
 					ON CONFLICT (position_address) DO UPDATE SET
 						block_number = EXCLUDED.block_number,
 						timestamp = EXCLUDED.timestamp,
@@ -109,7 +109,9 @@ export class PositionRepository {
 						challenged_amount = EXCLUDED.challenged_amount,
 						is_closed = EXCLUDED.is_closed,
 						available_for_minting = EXCLUDED.available_for_minting,
-						available_for_clones = EXCLUDED.available_for_clones
+						available_for_clones = EXCLUDED.available_for_clones,
+						market_price = EXCLUDED.market_price,
+						collateralization_ratio = EXCLUDED.collateralization_ratio
 				`;
 
 			await client.query(query, [
@@ -143,6 +145,8 @@ export class PositionRepository {
 				position.isClosed,
 				position.availableForMinting.toString(),
 				position.availableForClones.toString(),
+				position.marketPrice ? position.marketPrice.toString() : null,
+				position.collateralizationRatio || null,
 			]);
 		}
 	}
@@ -179,6 +183,8 @@ export class PositionRepository {
 			availableForMinting: record.available_for_minting,
 			availableForClones: record.available_for_clones,
 			created: parseInt(record.block_number),
+			marketPrice: record.market_price || undefined,
+			collateralizationRatio: record.collateralization_ratio ? parseFloat(record.collateralization_ratio) : undefined,
 			block_number: parseInt(record.block_number),
 			timestamp: record.timestamp,
 		};

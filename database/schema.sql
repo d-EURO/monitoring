@@ -327,6 +327,8 @@ CREATE TABLE IF NOT EXISTS position_states (
     available_for_minting NUMERIC(78, 0) NOT NULL,
     available_for_clones NUMERIC(78, 0) NOT NULL,
     created INTEGER,
+    market_price NUMERIC(78, 0),
+    collateralization_ratio NUMERIC(10, 4),
     
     -- metadata
     block_number BIGINT NOT NULL,
