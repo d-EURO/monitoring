@@ -43,7 +43,7 @@ export class PositionEventsService {
 			fetchEvents<MintingHubPositionOpenedEvent>(
 				mintingHubContract,
 				mintingHubContract.filters.PositionOpened(),
-				22300000, // TODO: Revert to fromBlock for production
+				fromBlock,
 				toBlock,
 				this.logger
 			),

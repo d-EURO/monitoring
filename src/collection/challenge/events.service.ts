@@ -37,7 +37,7 @@ export class ChallengeEventsService {
 			fetchEvents<MintingHubChallengeStartedEvent>(
 				mintingHubContract,
 				mintingHubContract.filters.ChallengeStarted(),
-				22300000, // TODO: Revert to fromBlock for production
+				fromBlock,
 				toBlock,
 				this.logger
 			),
