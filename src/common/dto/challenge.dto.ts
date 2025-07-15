@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum ChallengeStatus {
-	OPENED = 'OPENED',
+	AVERTING = 'AVERTING',
 	PARTIALLY_AVERTED = 'PARTIALLY_AVERTED',
 	AVERTED = 'AVERTED',
 	AUCTION = 'AUCTION',

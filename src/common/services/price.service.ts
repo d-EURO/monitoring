@@ -76,15 +76,23 @@ export class PriceService {
 		}
 
 		try {
-			const response = await axios.get<TokenPrice>(`${this.GECKO_TERMINAL_API_URL}/${remaining.join(',')}`, {
+			const response = await axios.get<TokenPrice>(`${this.GECKO_TERMINAL_API_URL}/${remaining.map(a => a.toLowerCase()).join(',')}`, {
 				headers: { accept: 'application/json' },
 				timeout: 10000, // 10 second timeout
 			});
 
-			const prices = response.data.data.attributes.token_prices;
-			for (const [address, price] of Object.entries(prices)) this.setCache(address, price);
-			this.logger.log(`Fetched prices for ${Object.keys(prices).length} tokens from GeckoTerminal`);
-			return prices;
+			const apiPrices = response.data.data.attributes.token_prices;
+			const normalizedPrices: { [key: string]: string } = {};
+			for (const inputAddress of remaining) {
+				const price = apiPrices[inputAddress.toLowerCase()];
+				if (price) {
+					normalizedPrices[inputAddress] = price;
+					this.setCache(inputAddress, price);
+				}
+			}
+			
+			this.logger.log(`Fetched prices for ${Object.keys(normalizedPrices).length} tokens from GeckoTerminal`);
+			return { ...cached, ...normalizedPrices };
 		} catch (error) {
 			this.logger.error('Failed to fetch token prices from GeckoTerminal:', error);
 			if (cached) {
@@ -131,7 +139,7 @@ export class PriceService {
 	 * Fetches USD to EUR conversion rate
 	 * @returns USD to EUR exchange rate
 	 */
-	private async getUsdToEur(): Promise<number> {
+	async getUsdToEur(): Promise<number> {
 		const cacheKey = 'usd-eur-rate';
 		const cached = this.priceCache.get(cacheKey);
 
@@ -161,7 +169,7 @@ export class PriceService {
 	 * Fetches USD to CHF conversion rate
 	 * @returns USD to CHF exchange rate
 	 */
-	private async getUsdToChf(): Promise<number> {
+	async getUsdToChf(): Promise<number> {
 		const cacheKey = 'usd-chf-rate';
 		const cached = this.priceCache.get(cacheKey);
 

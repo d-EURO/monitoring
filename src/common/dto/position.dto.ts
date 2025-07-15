@@ -3,7 +3,6 @@ import { ApiProperty } from '@nestjs/swagger';
 export enum PositionStatus {
 	PROPOSED = 'PROPOSED',
 	ACTIVE = 'ACTIVE',
-	UNDERCOLLATERALIZED = 'UNDERCOLLATERALIZED',
 	CHALLENGED = 'CHALLENGED',
 	COOLDOWN = 'COOLDOWN',
 	CLOSED = 'CLOSED',

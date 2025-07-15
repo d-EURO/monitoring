@@ -105,6 +105,8 @@ export interface DeuroStateRecord {
 	savings_rate: string;
 	frontend_fees_collected: string;
 	frontends_active: number;
+	usd_to_eur_rate: number;
+	usd_to_chf_rate: number;
 	block_number: string;
 	timestamp: Date;
 }

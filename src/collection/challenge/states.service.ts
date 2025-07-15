@@ -23,23 +23,27 @@ export class ChallengeStatesService {
 			if (activeChallenges.length === 0) return [];
 
 			// Get positions
-			const positions = positionStates || await this.positionRepository.getAllPositions();
+			const positions = positionStates || (await this.positionRepository.getAllPositions());
 			const addressToPosition = new Map<string, PositionState>(positions.map((p) => [p.address.toLowerCase(), p]));
 
 			// Get current prices for all challenges using multicall
 			const provider = mintingHub.runner as ethers.Provider;
 			const multicallMintingHub = this.multicallService.connect(mintingHub, provider);
 			const priceCalls = activeChallenges.map((s) => multicallMintingHub.price(s.number));
-			const currentPrices = await this.multicallService.executeBatch(priceCalls);
-			
+			const challengeCalls = activeChallenges.map((s) => multicallMintingHub.challenges(s.number));
+			const results = await this.multicallService.executeBatch([...priceCalls, ...challengeCalls]);
+			const currentPrices = results.slice(0, activeChallenges.length);
+			const challengeData = results.slice(activeChallenges.length);
+
 			// Process all challenges in parallel
 			const currentTimestamp = Math.floor(Date.now() / 1000);
 			const challengePromises = activeChallenges.map(async (event, index) => {
-				const [ avertedAmountFromDb, acquiredCollateralFromDb ] = await Promise.all([
+				const [avertedAmountFromDb, acquiredCollateralFromDb] = await Promise.all([
 					this.challengeRepository.getAvertedAmountByChallengeId(Number(event.number)),
-					this.challengeRepository.getAcquiredCollateralByChallengeId(Number(event.number))
+					this.challengeRepository.getAcquiredCollateralByChallengeId(Number(event.number)),
 				]);
 
+				const isActive = challengeData[event.number].challenger !== ethers.ZeroAddress;
 				const initialSize = BigInt(event.size);
 				const avertedAmount = BigInt(avertedAmountFromDb || '0');
 				const acquiredCollateral = BigInt(acquiredCollateralFromDb || '0');
@@ -48,15 +52,19 @@ export class ChallengeStatesService {
 				const challengePeriod = position ? Number(position.challengePeriod) : 0;
 				const challengeStartTime = Number(event.timestamp);
 				const auctionStart = challengeStartTime + challengePeriod;
-				
-				let status = ChallengeStatus.OPENED;
-				if (remainingAmount === 0n) {
-					status = acquiredCollateral > 0n ? ChallengeStatus.SUCCEEDED : ChallengeStatus.AVERTED;
-				} else if (currentTimestamp < auctionStart) {
-					status = avertedAmount > 0n ? ChallengeStatus.PARTIALLY_AVERTED : ChallengeStatus.OPENED;
-				} else {
-					status = ChallengeStatus.AUCTION;
-				}
+
+				const status =
+					!isActive && acquiredCollateral > 0n
+						? ChallengeStatus.SUCCEEDED
+						: !isActive && avertedAmount > 0n
+							? ChallengeStatus.AVERTED
+							: isActive && currentTimestamp < auctionStart && avertedAmount > 0n
+								? ChallengeStatus.PARTIALLY_AVERTED
+								: isActive && currentTimestamp < auctionStart
+									? ChallengeStatus.AVERTING
+									: isActive && currentTimestamp >= auctionStart && acquiredCollateral > 0n
+										? ChallengeStatus.PARTIALLY_SUCCEEDED
+										: ChallengeStatus.AUCTION;
 
 				return {
 					id: Number(event.number),

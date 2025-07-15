@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { MulticallService } from '../../common/services';
+import { MulticallService, PriceService } from '../../common/services';
 import { DeuroStateRepository } from 'src/database/repositories';
 import { ContractSet } from '../../blockchain/types/contracts';
 import { DeuroStateData } from 'src/common/dto';
@@ -11,7 +11,8 @@ export class DeuroStatesService {
 
 	constructor(
 		private readonly deuroStateRepository: DeuroStateRepository,
-		private readonly multicallService: MulticallService
+		private readonly multicallService: MulticallService,
+		private readonly priceService: PriceService
 	) {}
 
 	async getDeuroState(contracts: ContractSet): Promise<DeuroStateData> {
@@ -58,6 +59,12 @@ export class DeuroStatesService {
 			this.deuroStateRepository.getTotalInterestCollected(),
 		]);
 
+		// Fetch currency conversion rates
+		const [usdToEur, usdToChf] = await Promise.all([
+			this.priceService.getUsdToEur(),
+			this.priceService.getUsdToChf()
+		]);
+
 		return {
 			deuro_total_supply: deuroTotalSupply,
 			deps_total_supply: depsTotalSupply,
@@ -78,6 +85,8 @@ export class DeuroStatesService {
 			savings_interest_collected: totalInterestCollected,
 			frontend_fees_collected: BigInt(0), // TODO: Placeholder, frontend fees not implemented yet
 			frontends_active: 0, // TODO: Placeholder, frontends not implemented yet
+			usd_to_eur_rate: usdToEur,
+			usd_to_chf_rate: usdToChf,
 		};
 	}
 

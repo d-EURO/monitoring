@@ -86,7 +86,7 @@ export class MonitoringService implements OnModuleInit {
 				// Fetch remaining states in parallel
 				const [deuroState, collateralState, challengesState, mintersState] = await Promise.all([
 					this.deuroStateService.getDeuroState(contracts),
-					this.collateralStatesService.getCollateralState(positionsEvents.mintingHubPositionOpenedEvents, provider),
+					this.collateralStatesService.getCollateralState(positionsEvents.mintingHubPositionOpenedEvents, provider, positionsState),
 					this.challengeStatesService.getChallengesState(contracts.mintingHubContract, positionsState),
 					this.minterStatesService.getMintersState(provider),
 				]);

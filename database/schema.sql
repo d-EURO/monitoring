@@ -289,6 +289,10 @@ CREATE TABLE IF NOT EXISTS deuro_state (
     frontend_fees_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL,
     frontends_active INTEGER DEFAULT 0 NOT NULL,
     
+    -- currency rates
+    usd_to_eur_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL,
+    usd_to_chf_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL,
+    
     -- metadata
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -364,6 +368,7 @@ CREATE TABLE IF NOT EXISTS collateral_states (
     decimals INTEGER NOT NULL,
     total_collateral NUMERIC(78, 0) NOT NULL,
     position_count INTEGER NOT NULL,
+    price NUMERIC(30, 18) DEFAULT 0,
     
     -- metadata
     block_number BIGINT NOT NULL,

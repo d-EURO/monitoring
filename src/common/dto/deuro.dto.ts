@@ -28,6 +28,8 @@ export interface DeuroStateData {
 	savings_interest_collected: bigint;
 	frontend_fees_collected: bigint;
 	frontends_active: number;
+	usd_to_eur_rate: number;
+	usd_to_chf_rate: number;
 }
 
 export class DeuroStateDto {
@@ -111,4 +113,10 @@ export class DeuroStateDto {
 
 	@ApiProperty({ description: 'Number of active frontends' })
 	frontendsActive: number;
+
+	@ApiProperty({ description: 'USD to EUR exchange rate' })
+	usdToEurRate: number;
+
+	@ApiProperty({ description: 'USD to CHF exchange rate' })
+	usdToChfRate: number;
 }

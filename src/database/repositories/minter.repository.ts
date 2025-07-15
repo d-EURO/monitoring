@@ -38,7 +38,7 @@ export class MinterRepository {
 			`
 			SELECT COALESCE(SUM(value), '0') as total_minted
 			FROM deuro_transfer_events
-			WHERE to_address = $1 AND from_address = '0x0000000000000000000000000000000000000000'
+			WHERE LOWER(to_address) = LOWER($1) AND from_address = '0x0000000000000000000000000000000000000000'
 		`,
 			[minter]
 		);
@@ -50,7 +50,7 @@ export class MinterRepository {
 			`
 			SELECT COALESCE(SUM(value), '0') as total_burned
 			FROM deuro_transfer_events
-			WHERE from_address = $1 AND to_address = '0x0000000000000000000000000000000000000000'
+			WHERE LOWER(from_address) = LOWER($1) AND to_address = '0x0000000000000000000000000000000000000000'
 		`,
 			[minter]
 		);

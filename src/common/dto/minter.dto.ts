@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum MinterStatus {
-	PENDING = 'pending',
-	APPROVED = 'approved',
-	DENIED = 'denied',
+	PENDING = 'PENDING',
+	APPROVED = 'APPROVED',
+	DENIED = 'DENIED',
 }
 
 export interface MinterState {

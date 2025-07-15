@@ -212,11 +212,13 @@ export class DeuroStateRepository {
 					deuro_loss, deuro_profit, deuro_profit_distributed,
 					savings_total, savings_interest_collected, savings_rate,
 					frontend_fees_collected, frontends_active,
+					-- Currency rates
+					usd_to_eur_rate, usd_to_chf_rate,
 					-- Metadata
 					block_number, timestamp
 				) VALUES (
 					1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-					$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, NOW()
+					$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, NOW()
 				)
 				ON CONFLICT (id) DO UPDATE SET
 					deuro_total_supply = EXCLUDED.deuro_total_supply,
@@ -246,6 +248,8 @@ export class DeuroStateRepository {
 					savings_rate = EXCLUDED.savings_rate,
 					frontend_fees_collected = EXCLUDED.frontend_fees_collected,
 					frontends_active = EXCLUDED.frontends_active,
+					usd_to_eur_rate = EXCLUDED.usd_to_eur_rate,
+					usd_to_chf_rate = EXCLUDED.usd_to_chf_rate,
 					block_number = EXCLUDED.block_number,
 					timestamp = EXCLUDED.timestamp
 			`;
@@ -278,6 +282,8 @@ export class DeuroStateRepository {
 			stateData.savings_rate.toString(),
 			stateData.frontend_fees_collected.toString(),
 			stateData.frontends_active,
+			stateData.usd_to_eur_rate,
+			stateData.usd_to_chf_rate,
 			blockNumber,
 		]);
 	}
@@ -312,6 +318,8 @@ export class DeuroStateRepository {
 			savings_interest_collected: BigInt(record.savings_interest_collected),
 			frontend_fees_collected: BigInt(record.frontend_fees_collected),
 			frontends_active: record.frontends_active,
+			usd_to_eur_rate: record.usd_to_eur_rate,
+			usd_to_chf_rate: record.usd_to_chf_rate,
 		};
 	}
 }

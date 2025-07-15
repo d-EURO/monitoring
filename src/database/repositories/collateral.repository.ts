@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database.service';
-import { PositionState, CollateralState } from '../../common/dto';
+import { CollateralState } from '../../common/dto';
 import { CollateralStateRecord } from '../types/state-records';
 
 @Injectable()
@@ -17,67 +17,23 @@ export class CollateralRepository {
 	}
 
 	// Write operations
-	async persistCollateralStates(
-		client: any,
-		blockNumber: number,
-		timestamp: Date,
-		collaterals: CollateralState[],
-		positions: PositionState[] = []
-	): Promise<void> {
+	async saveCollateralStates(client: any, collaterals: CollateralState[], blockNumber: number): Promise<void> {
+		const timestamp = new Date();
 		for (const collateral of collaterals) {
 			const query = `
 				INSERT INTO collateral_states (
-					block_number, timestamp, token_address, symbol, decimals, total_collateral, position_count
+					block_number, timestamp, token_address, symbol, decimals, total_collateral, position_count, price
 				)
-				VALUES ($1, $2, $3, $4, $5, $6, $7)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 				ON CONFLICT (token_address) DO UPDATE SET
 					block_number = EXCLUDED.block_number,
 					timestamp = EXCLUDED.timestamp,
 					symbol = EXCLUDED.symbol,
 					decimals = EXCLUDED.decimals,
 					total_collateral = EXCLUDED.total_collateral,
-					position_count = EXCLUDED.position_count
+					position_count = EXCLUDED.position_count,
+					price = EXCLUDED.price
 			`;
-
-			// Calculate totals from position data for this specific collateral
-			const collateralPositions = positions.filter(
-				(p) => p.collateralAddress.toLowerCase() === collateral.tokenAddress.toLowerCase() && !p.isClosed
-			);
-			const positionCount = collateralPositions.length;
-			let totalCollateral = BigInt(0);
-
-			for (const position of collateralPositions) {
-				totalCollateral += BigInt(position.collateralBalance || 0);
-			}
-
-			await client.query(query, [
-				blockNumber,
-				timestamp,
-				collateral.tokenAddress,
-				collateral.symbol,
-				collateral.decimals,
-				totalCollateral.toString(),
-				positionCount,
-			]);
-		}
-	}
-
-	async saveCollateralStates(client: any, collaterals: CollateralState[], blockNumber: number): Promise<void> {
-		const timestamp = new Date();
-		for (const collateral of collaterals) {
-			const query = `
-					INSERT INTO collateral_states (
-						block_number, timestamp, token_address, symbol, decimals, total_collateral, position_count
-					)
-					VALUES ($1, $2, $3, $4, $5, $6, $7)
-					ON CONFLICT (token_address) DO UPDATE SET
-						block_number = EXCLUDED.block_number,
-						timestamp = EXCLUDED.timestamp,
-						symbol = EXCLUDED.symbol,
-						decimals = EXCLUDED.decimals,
-						total_collateral = EXCLUDED.total_collateral,
-						position_count = EXCLUDED.position_count
-				`;
 
 			await client.query(query, [
 				blockNumber,
@@ -87,6 +43,7 @@ export class CollateralRepository {
 				collateral.decimals,
 				collateral.totalCollateral.toString(),
 				collateral.positionCount,
+				collateral.price,
 			]);
 		}
 	}

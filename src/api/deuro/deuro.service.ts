@@ -42,6 +42,8 @@ export class DeuroService {
 			savingsRate: state.savings_rate.toString(),
 			frontendFeesCollected: state.frontend_fees_collected.toString(),
 			frontendsActive: state.frontends_active,
+			usdToEurRate: state.usd_to_eur_rate,
+			usdToChfRate: state.usd_to_chf_rate,
 		};
 	}
 }

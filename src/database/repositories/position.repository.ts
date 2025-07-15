@@ -85,11 +85,11 @@ export class PositionRepository {
 			`
 			SELECT timestamp 
 			FROM mintinghub_position_opened_events 
-			WHERE position = $1 
+			WHERE LOWER(position) = LOWER($1) 
 			ORDER BY timestamp DESC 
 			LIMIT 1
 		`,
-			[address.toLowerCase()]
+			[address]
 		);
 
 		return records.length > 0 ? Math.floor(records[0].timestamp.getTime() / 1000) : null;

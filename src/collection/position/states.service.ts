@@ -84,7 +84,6 @@ export class PositionStatesService {
 						cooldown,
 						availableForMinting,
 						availableForClones,
-						challengeData,
 						isClosed,
 						collateralRequirement,
 						minimumCollateral,
@@ -112,7 +111,6 @@ export class PositionStatesService {
 						multicallPosition.cooldown(),
 						multicallPosition.availableForMinting(),
 						multicallPosition.availableForClones(),
-						multicallPosition.challengeData(),
 						multicallPosition.isClosed(),
 						multicallPosition.getCollateralRequirement(),
 						multicallPosition.minimumCollateral(),
@@ -130,12 +128,10 @@ export class PositionStatesService {
 						status = PositionStatus.EXPIRED;
 					} else if (now > expiration - 30n * 24n * 60n * 60n) {
 						status = PositionStatus.EXPIRING;
-					} else if (challengeData.challenger !== ethers.ZeroAddress) {
+					} else if (challengedAmount > 0n) {
 						status = PositionStatus.CHALLENGED;
 					} else if (now < cooldown) {
 						status = PositionStatus.COOLDOWN;
-					} else if (collateralBalance < collateralRequirement) {
-						status = PositionStatus.UNDERCOLLATERALIZED;
 					}
 
 					// Get PositionOpened event for the position created timestamp

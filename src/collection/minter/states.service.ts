@@ -48,8 +48,8 @@ export class MinterStatesService {
 			applications.map(async (a) => {
 				const denial = denialMap.get(a.minter);
 				const status = this.calculateMinterStatus(a.timestamp, a.application_period, denial?.date);
-				const deuroMinted = await this.minterRepository.getTotalMintedByMinter(a.minter).catch(() => BigInt(0));
-				const deuroBurned = await this.minterRepository.getTotalBurnedByMinter(a.minter).catch(() => BigInt(0));
+				const deuroMinted = await this.minterRepository.getTotalMintedByMinter(a.minter.toLowerCase());
+				const deuroBurned = await this.minterRepository.getTotalBurnedByMinter(a.minter.toLowerCase());
 
 				return {
 					minter: a.minter,
@@ -75,11 +75,11 @@ export class MinterStatesService {
 			const bridgeContract = new ethers.Contract(address, StablecoinBridgeABI, provider);
 			const multicallBridge = this.multicallService.connect(bridgeContract, provider);
 			bridgeCalls.push(
-				multicallBridge.eur(),
-				multicallBridge.dEURO(),
-				multicallBridge.limit(),
-				multicallBridge.minted(),
-				multicallBridge.horizon()
+				multicallBridge.eur().catch(() => null),
+				multicallBridge.dEURO().catch(() => null),
+				multicallBridge.limit().catch(() => 0n),
+				multicallBridge.minted().catch(() => 0n),
+				multicallBridge.horizon().catch(() => 0n)
 			);
 		}
 
@@ -98,7 +98,7 @@ export class MinterStatesService {
 					const minted = results[baseIndex + 3];
 					const horizon = results[baseIndex + 4];
 
-					if (eurAddress && dEuroAddress) {
+					if (eurAddress && eurAddress !== null && dEuroAddress && dEuroAddress !== null) {
 						validBridges.push({
 							address: minterAddresses[i],
 							eurAddress,
