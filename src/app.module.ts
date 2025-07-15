@@ -9,6 +9,7 @@ import { PositionModule } from './api/positions/position.module';
 import { ChallengeModule } from './api/challenges/challenge.module';
 import { MinterModule } from './api/minters/minter.module';
 import { DeuroModule } from './api/deuro/deuro.module';
+import { CollateralModule } from './api/collateral/collateral.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -26,6 +27,7 @@ import { HealthController } from './health/health.controller';
 		ChallengeModule,
 		MinterModule,
 		DeuroModule,
+		CollateralModule,
 	],
 	controllers: [HealthController],
 })

@@ -1,10 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { StablecoinBridgeABI } from '@deuro/eurocoin';
+import { ERC20ABI, StablecoinBridgeABI } from '@deuro/eurocoin';
 import { MinterRepository, BridgeRepository } from '../../database/repositories';
 import { MinterState, MinterStatus } from '../../common/dto/minter.dto';
 import { MulticallService } from '../../common/services';
 import { StablecoinBridgeState } from 'src/common/dto';
+
+export interface MinterStateData {
+	minters: MinterState[];
+	bridges: StablecoinBridgeState[];
+}
 
 @Injectable()
 export class MinterStatesService {
@@ -16,7 +21,7 @@ export class MinterStatesService {
 		private readonly multicallService: MulticallService
 	) {}
 
-	async getMintersState(provider: ethers.Provider): Promise<{ minters: MinterState[]; bridges: StablecoinBridgeState[] }> {
+	async getMintersState(provider: ethers.Provider): Promise<MinterStateData> {
 		this.logger.log('Fetching minters and bridges state...');
 
 		const minters = await this.getAllMinterStates();
@@ -65,20 +70,23 @@ export class MinterStatesService {
 	private async retrieveBridgeStates(minterAddresses: string[], provider: ethers.Provider): Promise<StablecoinBridgeState[]> {
 		this.logger.debug(`Checking ${minterAddresses.length} minters for bridge contracts using multicall...`);
 
-		const bridgeCalls = minterAddresses.flatMap((address) => {
+		const bridgeCalls: Promise<any>[] = [];
+		for (const address of minterAddresses) {
 			const bridgeContract = new ethers.Contract(address, StablecoinBridgeABI, provider);
-			return [
-				{ contract: bridgeContract, method: 'eur' },
-				{ contract: bridgeContract, method: 'dEURO' },
-				{ contract: bridgeContract, method: 'limit' },
-				{ contract: bridgeContract, method: 'minted' },
-				{ contract: bridgeContract, method: 'horizon' },
-			];
-		});
+			const multicallBridge = this.multicallService.connect(bridgeContract, provider);
+			bridgeCalls.push(
+				multicallBridge.eur(),
+				multicallBridge.dEURO(),
+				multicallBridge.limit(),
+				multicallBridge.minted(),
+				multicallBridge.horizon()
+			);
+		}
 
 		try {
-			const results = await this.multicallService.executeBatch(provider, bridgeCalls);
+			const results = await this.multicallService.executeBatch(bridgeCalls);
 
+			// Process results
 			const bridges: StablecoinBridgeState[] = [];
 			const validBridges: { address: string; eurAddress: string; data: any[] }[] = [];
 			for (let i = 0; i < minterAddresses.length; i++) {
@@ -107,19 +115,14 @@ export class MinterStatesService {
 			}
 
 			// Get EUR token info for all valid bridges
-			const eurTokenCalls = validBridges.flatMap(({ eurAddress }) => {
-				const eurContract = new ethers.Contract(
-					eurAddress,
-					['function symbol() view returns (string)', 'function decimals() view returns (uint8)'],
-					provider
-				);
-				return [
-					{ contract: eurContract, method: 'symbol' },
-					{ contract: eurContract, method: 'decimals' },
-				];
-			});
+			const eurTokenCalls: Promise<any>[] = [];
+			for (const { eurAddress } of validBridges) {
+				const eurContract = new ethers.Contract(eurAddress, ERC20ABI, provider);
+				const multicallEur = this.multicallService.connect(eurContract, provider);
+				eurTokenCalls.push(multicallEur.symbol(), multicallEur.decimals());
+			}
 
-			const eurTokenResults = await this.multicallService.executeBatch(provider, eurTokenCalls);
+			const eurTokenResults = await this.multicallService.executeBatch(eurTokenCalls);
 
 			// Build final bridge data
 			for (let i = 0; i < validBridges.length; i++) {
@@ -127,7 +130,6 @@ export class MinterStatesService {
 				const [dEuroAddress, limit, minted, horizon] = data;
 				const eurSymbol = eurTokenResults[i * 2];
 				const eurDecimals = eurTokenResults[i * 2 + 1];
-
 				bridges.push({
 					address,
 					eurAddress,
@@ -148,22 +150,44 @@ export class MinterStatesService {
 		}
 	}
 
+	async persistFullMintersState(client: any, mintersState: MinterStateData, blockNumber: number): Promise<void> {
+		const { minters, bridges } = mintersState;
+		if (minters.length === 0 && bridges.length === 0) return;
+
+		this.logger.log(`Persisting ${minters.length} minters and ${bridges.length} bridges state at block ${blockNumber}`);
+		await this.persistBridgesState(client, bridges, blockNumber);
+		await this.persistMintersState(client, minters, blockNumber);
+	}
+
 	private calculateMinterStatus(applicationTimestamp: Date, applicationPeriod: string | bigint, denialTimestamp?: Date): MinterStatus {
 		if (denialTimestamp && denialTimestamp > applicationTimestamp) return MinterStatus.DENIED;
 
-		const now = Date.now();
 		const applicationEndTime = new Date(applicationTimestamp).getTime() + Number(applicationPeriod) * 1000;
-		if (now < applicationEndTime) return MinterStatus.PENDING;
+		if (Date.now() < applicationEndTime) return MinterStatus.PENDING;
 		return MinterStatus.APPROVED;
 	}
 
-	async persistBridgesState(client: any, bridges: StablecoinBridgeState[], blockNumber: number): Promise<void> {
+	private async persistBridgesState(client: any, bridges: StablecoinBridgeState[], blockNumber: number): Promise<void> {
 		if (bridges.length === 0) return;
-		await this.bridgeRepository.saveBridgeStates(client, bridges, blockNumber);
+		this.logger.log(`Persisting ${bridges.length} bridge states...`);
+		try {
+			await this.bridgeRepository.saveBridgeStates(client, bridges, blockNumber);
+			this.logger.log('Bridge states persisted successfully');
+		} catch (error) {
+			this.logger.error('Failed to persist bridge states:', error);
+			throw error;
+		}
 	}
 
-	async persistMintersState(client: any, minters: MinterState[], blockNumber: number): Promise<void> {
+	private async persistMintersState(client: any, minters: MinterState[], blockNumber: number): Promise<void> {
 		if (minters.length === 0) return;
-		await this.minterRepository.saveMinterStates(client, minters, blockNumber);
+		this.logger.log(`Persisting ${minters.length} minter states...`);
+		try {
+			await this.minterRepository.saveMinterStates(client, minters, blockNumber);
+			this.logger.log('Minter states persisted successfully');
+		} catch (error) {
+			this.logger.error('Failed to persist minter states:', error);
+			throw error;
+		}
 	}
 }

@@ -1,47 +1,41 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { DatabaseService } from '../../database/database.service';
-import { DeuroStateData } from '../../common/interfaces/state-data.interface';
 import { MulticallService } from '../../common/services';
-import { BlockchainService } from 'src/blockchain/blockchain.service';
-import { DeuroRepository } from 'src/database/repositories';
+import { DeuroStateRepository } from 'src/database/repositories';
+import { ContractSet } from '../../blockchain/types/contracts';
+import { DeuroStateData } from 'src/common/dto';
 
 @Injectable()
 export class DeuroStatesService {
 	private readonly logger = new Logger(DeuroStatesService.name);
 
 	constructor(
-		private readonly deuroRepository: DeuroRepository,
-		private readonly multicallService: MulticallService,
-		private readonly blockchainService: BlockchainService
+		private readonly deuroStateRepository: DeuroStateRepository,
+		private readonly multicallService: MulticallService
 	) {}
 
-	async getDeuroState(
-		deuroContract: ethers.Contract,
-		equityContract: ethers.Contract,
-		depsContract: ethers.Contract,
-		savingsContract: ethers.Contract
-	): Promise<DeuroStateData> {
+	async getDeuroState(contracts: ContractSet): Promise<DeuroStateData> {
 		this.logger.log('Fetching dEURO state using multicall...');
+		const { deuroContract, equityContract, depsContract, savingsContract } = contracts;
 
-		// Prepare all contract calls
-		const calls = [
-			{ contract: deuroContract, method: 'totalSupply' },
-			{ contract: deuroContract, method: 'minterReserve' },
-			{ contract: deuroContract, method: 'balanceOf', args: [this.blockchainService.getContracts().equityContract.getAddress()] },
-			{ contract: deuroContract, method: 'balanceOf', args: [this.blockchainService.getContracts().savingsContract.getAddress()] },
-			{ contract: equityContract, method: 'totalSupply' },
-			{ contract: equityContract, method: 'price' },
-			{ contract: depsContract, method: 'totalSupply' },
-			{ contract: savingsContract, method: 'currentRatePPM' },
-		];
+		// Connect contracts to multicall provider
+		const provider = deuroContract.runner as ethers.Provider;
+		const multicallDeuro = this.multicallService.connect(deuroContract, provider);
+		const multicallEquity = this.multicallService.connect(equityContract, provider);
+		const multicallDeps = this.multicallService.connect(depsContract, provider);
+		const multicallSavings = this.multicallService.connect(savingsContract, provider);
 
-		const results = await this.multicallService.executeBatch(deuroContract.runner as ethers.Provider, calls);
 		const [deuroTotalSupply, minterReserve, reserveTotal, savingsBalance, equityShares, equityPrice, depsTotalSupply, currentRatePPM] =
-			results;
-
-		// Calculate equity reserve (total reserve minus minter reserve)
-		const equityReserve = BigInt(reserveTotal) - BigInt(minterReserve);
+			await this.multicallService.executeBatch([
+				multicallDeuro.totalSupply(),
+				multicallDeuro.minterReserve(),
+				multicallDeuro.balanceOf(await equityContract.getAddress()),
+				multicallDeuro.balanceOf(await savingsContract.getAddress()),
+				multicallEquity.totalSupply(),
+				multicallEquity.price(),
+				multicallDeps.totalSupply(),
+				multicallSavings.currentRatePPM(),
+			]);
 
 		// Get 24h metrics from event tables
 		const [
@@ -54,14 +48,14 @@ export class DeuroStatesService {
 			deuroProfitDistributedTotal,
 			totalInterestCollected,
 		] = await Promise.all([
-			this.deuroRepository.getDeuro24hMetrics(),
-			this.deuroRepository.getDeps24hMetrics(),
-			this.deuroRepository.getEquity24hMetrics(),
-			this.deuroRepository.getSavings24hMetrics(),
-			this.deuroRepository.getDeuroLossTotal(),
-			this.deuroRepository.getDeuroProfitTotal(),
-			this.deuroRepository.getDeuroProfitDistributedTotal(),
-			this.deuroRepository.getTotalInterestCollected(),
+			this.deuroStateRepository.getDeuro24hMetrics(),
+			this.deuroStateRepository.getDeps24hMetrics(),
+			this.deuroStateRepository.getEquity24hMetrics(),
+			this.deuroStateRepository.getSavings24hMetrics(),
+			this.deuroStateRepository.getDeuroLossTotal(),
+			this.deuroStateRepository.getDeuroProfitTotal(),
+			this.deuroStateRepository.getDeuroProfitDistributedTotal(),
+			this.deuroStateRepository.getTotalInterestCollected(),
 		]);
 
 		return {
@@ -71,7 +65,7 @@ export class DeuroStatesService {
 			equity_price: equityPrice,
 			reserve_total: reserveTotal,
 			reserve_minter: minterReserve,
-			reserve_equity: equityReserve,
+			reserve_equity: BigInt(reserveTotal) - BigInt(minterReserve),
 			...deuroMetrics24h,
 			...depsMetrics24h,
 			...equityMetrics24h,
@@ -82,6 +76,19 @@ export class DeuroStatesService {
 			savings_rate: currentRatePPM,
 			...savingsMetrics24h,
 			savings_interest_collected: totalInterestCollected,
+			frontend_fees_collected: BigInt(0), // TODO: Placeholder, frontend fees not implemented yet
+			frontends_active: 0, // TODO: Placeholder, frontends not implemented yet
 		};
+	}
+
+	async persistDeuroState(client: any, stateData: DeuroStateData, blockNumber: number): Promise<void> {
+		this.logger.log('Persisting dEURO state...');
+		try {
+			await this.deuroStateRepository.persistDeuroState(stateData, client, blockNumber);
+			this.logger.log('dEURO state persisted successfully');
+		} catch (error) {
+			this.logger.error('Failed to persist dEURO state:', error);
+			throw error;
+		}
 	}
 }

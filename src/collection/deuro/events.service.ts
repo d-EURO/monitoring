@@ -14,6 +14,7 @@ import {
 	SavingsRateProposedEvent,
 	SavingsRateChangedEvent,
 } from '../../common/dto';
+import { ContractSet } from '../../blockchain/types/contracts';
 import { fetchEvents } from '../../blockchain/utils/utils';
 import { EventPersistenceService } from '../../database/event-persistence.service';
 
@@ -39,14 +40,12 @@ export class DeuroEventsService {
 	constructor(private readonly eventPersistenceService: EventPersistenceService) {}
 
 	async getDeuroEvents(
-		deuroContract: ethers.Contract,
-		equityContract: ethers.Contract,
-		depsContract: ethers.Contract,
-		savingsContract: ethers.Contract,
+		contracts: ContractSet,
 		fromBlock: number,
 		toBlock: number
 	): Promise<DeuroEventsData> {
 		this.logger.log(`Fetching dEURO events from block ${fromBlock} to ${toBlock}`);
+		const { deuroContract, equityContract, depsContract, savingsContract } = contracts;
 
 		const [
 			deuroTransferEvents,

@@ -1,19 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { DeuroRepository } from '../../database/repositories';
-import { DeuroStateDto } from './deuro.dto';
+import { DeuroStateRepository } from '../../database/repositories';
+import { DeuroStateData, DeuroStateDto } from 'src/common/dto';
 
 @Injectable()
 export class DeuroService {
-	constructor(private readonly deuroRepository: DeuroRepository) {}
+	constructor(private readonly deuroRepository: DeuroStateRepository) {}
 
 	async getCurrentState(): Promise<DeuroStateDto | null> {
-		const state = await this.deuroRepository.getLatestState();
+		const state = await this.deuroRepository.getDeuroState();
 		if (!state) return null;
 
 		return this.mapToDto(state);
 	}
 
-	private mapToDto(state: any): DeuroStateDto {
+	private mapToDto(state: DeuroStateData): DeuroStateDto {
 		return {
 			deuroTotalSupply: state.deuro_total_supply.toString(),
 			depsTotalSupply: state.deps_total_supply.toString(),
@@ -42,8 +42,6 @@ export class DeuroService {
 			savingsRate: state.savings_rate.toString(),
 			frontendFeesCollected: state.frontend_fees_collected.toString(),
 			frontendsActive: state.frontends_active,
-			blockNumber: state.block_number,
-			timestamp: state.timestamp,
 		};
 	}
 }

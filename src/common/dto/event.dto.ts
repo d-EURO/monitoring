@@ -44,7 +44,7 @@ export interface EquityTradeEvent extends BaseEvent {
 	who: string;
 	amount: bigint;
 	totPrice: bigint;
-	newPrice: bigint;
+	newprice: bigint;
 }
 
 export interface EquityDelegationEvent extends BaseEvent {
@@ -137,4 +137,34 @@ export interface PositionMintingUpdateEvent extends BaseEvent {
 	collateral: bigint;
 	price: bigint;
 	principal: bigint;
+}
+
+export interface SystemEventsData {
+	deuroTransferEvents: DeuroTransferEvent[];
+	deuroLossEvents: DeuroLossEvent[];
+	deuroProfitEvents: DeuroProfitEvent[];
+	deuroMinterAppliedEvents: DeuroMinterAppliedEvent[];
+	deuroMinterDeniedEvents: DeuroMinterDeniedEvent[];
+	deuroProfitDistributedEvents: DeuroProfitDistributedEvent[];
+	equityTradeEvents: EquityTradeEvent[];
+	equityDelegationEvents: EquityDelegationEvent[];
+	depsTransferEvents: DepsTransferEvent[];
+	savingsSavedEvents: SavingsSavedEvent[];
+	savingsInterestCollectedEvents: SavingsInterestCollectedEvent[];
+	savingsWithdrawnEvents: SavingsWithdrawnEvent[];
+	savingsRateProposedEvents: SavingsRateProposedEvent[];
+	savingsRateChangedEvents: SavingsRateChangedEvent[];
+	mintingHubPositionOpenedEvents: MintingHubPositionOpenedEvent[];
+	mintingHubChallengeStartedEvents: MintingHubChallengeStartedEvent[];
+	mintingHubChallengeAvertedEvents: MintingHubChallengeAvertedEvent[];
+	mintingHubChallengeSucceededEvents: MintingHubChallengeSucceededEvent[];
+	mintingHubPostponedReturnEvents: MintingHubPostponedReturnEvent[];
+	mintingHubForcedSaleEvents: MintingHubForcedSaleEvent[];
+	rollerRollEvents: RollerRollEvent[];
+	positionDeniedEvents: PositionDeniedEvent[];
+	positionMintingUpdateEvents: PositionMintingUpdateEvent[];
+
+	// Meta data
+	lastEventFetch: number;
+	blockRange: { from: number; to: number };
 }

@@ -1,19 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database.service';
-import { PositionState, CollateralState, CollateralStateDto } from '../../common/dto';
-import { CollateralStateRecord } from '../types/db-records';
+import { PositionState, CollateralState } from '../../common/dto';
+import { CollateralStateRecord } from '../types/state-records';
 
 @Injectable()
 export class CollateralRepository {
 	constructor(private readonly db: DatabaseService) {}
 
 	// Read operations
-	async getAllCollateralStates(): Promise<CollateralStateDto[]> {
+	async getAllCollateralStates(): Promise<CollateralState[]> {
 		const records = await this.db.fetch<CollateralStateRecord>(`
 			SELECT * FROM collateral_states 
 			ORDER BY token_address
 		`);
-		return records.map(this.mapToDto);
+		return records.map(this.mapToDomain);
 	}
 
 	// Write operations
@@ -92,15 +92,14 @@ export class CollateralRepository {
 	}
 
 	// Mapping function
-	private mapToDto(record: CollateralStateRecord): CollateralStateDto {
+	private mapToDomain(record: CollateralStateRecord): CollateralState {
 		return {
 			tokenAddress: record.token_address,
 			symbol: record.symbol,
 			decimals: record.decimals,
 			totalCollateral: record.total_collateral,
 			positionCount: record.position_count,
-			block_number: parseInt(record.block_number),
-			timestamp: record.timestamp,
+			price: record.price ? record.price.toString() : '0',
 		};
 	}
 }

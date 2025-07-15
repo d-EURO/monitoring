@@ -5,10 +5,9 @@ import {
 	PositionRepository,
 	ChallengeRepository,
 	MinterRepository,
-	SystemStateRepository,
 	CollateralRepository,
 	BridgeRepository,
-	DeuroRepository,
+	DeuroStateRepository,
 } from './repositories';
 
 @Global()
@@ -19,10 +18,9 @@ import {
 		PositionRepository,
 		ChallengeRepository,
 		MinterRepository,
-		SystemStateRepository,
 		CollateralRepository,
 		BridgeRepository,
-		DeuroRepository,
+		DeuroStateRepository,
 	],
 	exports: [
 		DatabaseService,
@@ -30,10 +28,9 @@ import {
 		PositionRepository,
 		ChallengeRepository,
 		MinterRepository,
-		SystemStateRepository,
 		CollateralRepository,
 		BridgeRepository,
-		DeuroRepository,
+		DeuroStateRepository,
 	],
 })
 export class DatabaseModule {}

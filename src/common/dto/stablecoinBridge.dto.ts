@@ -1,16 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export enum Bridge {
-	EURT = 'EURT',
-	EURS = 'EURS',
-	VEUR = 'VEUR',
-	EURC = 'EURC',
-	EURR = 'EURR',
-	EUROP = 'EUROP',
-	EURI = 'EURI',
-	EURE = 'EURE',
-}
-
 export interface StablecoinBridgeState {
 	address: string;
 	eurAddress: string;

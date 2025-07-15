@@ -60,10 +60,4 @@ export class ChallengeStateDto {
 
 	@ApiProperty({ description: 'Current price' })
 	currentPrice: string;
-
-	@ApiProperty({ description: 'Block number for this state snapshot' })
-	block_number: number;
-
-	@ApiProperty({ description: 'Timestamp of the state snapshot' })
-	timestamp: Date;
 }

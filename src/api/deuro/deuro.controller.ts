@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { DeuroService } from './deuro.service';
-import { DeuroStateDto } from './deuro.dto';
+import { DeuroStateDto } from 'src/common/dto';
 
 @ApiTags('dEURO')
 @Controller('deuro')

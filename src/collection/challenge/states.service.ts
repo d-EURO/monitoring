@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { ChallengeState, ChallengeStatus } from '../../common/dto';
+import { ChallengeState, ChallengeStatus, PositionState } from '../../common/dto';
 import { ChallengeRepository, PositionRepository } from '../../database/repositories';
 import { MulticallService } from '../../common/services';
 
@@ -10,47 +10,46 @@ export class ChallengeStatesService {
 
 	constructor(
 		private readonly challengeRepository: ChallengeRepository,
-		private readonly positionRepository: PositionRepository, // Assuming PositionRepository is defined elsewhere
+		private readonly positionRepository: PositionRepository,
 		private readonly multicallService: MulticallService
 	) {}
 
-	async getChallengesState(mintingHub: ethers.Contract): Promise<ChallengeState[]> {
+	async getChallengesState(mintingHub: ethers.Contract, positionStates?: PositionState[]): Promise<ChallengeState[]> {
 		try {
 			this.logger.log('Fetching challenges state...');
 
+			// Get challenge started events
 			const activeChallenges = await this.challengeRepository.getActiveChallengeStartedEvents();
 			if (activeChallenges.length === 0) return [];
 
-			// Get position data
-			const allPositions = await this.positionRepository.getAllPositions();
-			const addressToPosition = new Map(allPositions.map((p) => [p.address, p]));
+			// Get positions
+			const positions = positionStates || await this.positionRepository.getAllPositions();
+			const addressToPosition = new Map<string, PositionState>(positions.map((p) => [p.address.toLowerCase(), p]));
 
 			// Get current prices for all challenges using multicall
-			const priceCalls = activeChallenges.map((s) => ({
-				contract: mintingHub,
-				method: 'price',
-				args: [s.number],
-			}));
-
-			const currentPrices = await this.multicallService.executeBatch(mintingHub.runner as ethers.Provider, priceCalls);
-
-			const currentTimestamp = Math.floor(Date.now() / 1000);
-
+			const provider = mintingHub.runner as ethers.Provider;
+			const multicallMintingHub = this.multicallService.connect(mintingHub, provider);
+			const priceCalls = activeChallenges.map((s) => multicallMintingHub.price(s.number));
+			const currentPrices = await this.multicallService.executeBatch(priceCalls);
+			
 			// Process all challenges in parallel
+			const currentTimestamp = Math.floor(Date.now() / 1000);
 			const challengePromises = activeChallenges.map(async (event, index) => {
-				const initialSize = BigInt(event.size);
-				const avertedAmount = BigInt((await this.challengeRepository.getAvertedAmountByChallengeId(Number(event.number))) || '0');
-				const acquiredCollateral = BigInt(
-					(await this.challengeRepository.getAcquiredCollateralByChallengeId(Number(event.number))) || '0'
-				);
-				const remainingAmount = initialSize - avertedAmount - acquiredCollateral;
-				const position = addressToPosition.get(event.position);
-				const challengePeriod = Number(position?.challengePeriod);
+				const [ avertedAmountFromDb, acquiredCollateralFromDb ] = await Promise.all([
+					this.challengeRepository.getAvertedAmountByChallengeId(Number(event.number)),
+					this.challengeRepository.getAcquiredCollateralByChallengeId(Number(event.number))
+				]);
 
+				const initialSize = BigInt(event.size);
+				const avertedAmount = BigInt(avertedAmountFromDb || '0');
+				const acquiredCollateral = BigInt(acquiredCollateralFromDb || '0');
+				const remainingAmount = initialSize - avertedAmount - acquiredCollateral;
+				const position = addressToPosition.get(event.position.toLowerCase());
+				const challengePeriod = position ? Number(position.challengePeriod) : 0;
 				const challengeStartTime = Number(event.timestamp);
 				const auctionStart = challengeStartTime + challengePeriod;
+				
 				let status = ChallengeStatus.OPENED;
-
 				if (remainingAmount === 0n) {
 					status = acquiredCollateral > 0n ? ChallengeStatus.SUCCEEDED : ChallengeStatus.AVERTED;
 				} else if (currentTimestamp < auctionStart) {
@@ -68,7 +67,7 @@ export class ChallengeStatesService {
 					initialSize: initialSize,
 					size: remainingAmount.toString(),
 					collateralAddress: position?.collateralAddress || '',
-					liqPrice: position?.virtualPrice || '0',
+					liqPrice: position?.virtualPrice ? position.virtualPrice.toString() : '0',
 					phase: challengePeriod,
 					status,
 					currentPrice: currentPrices[index]?.toString() || '0',
@@ -85,6 +84,13 @@ export class ChallengeStatesService {
 	}
 
 	async persistChallengesState(client: any, challenges: ChallengeState[], blockNumber: number): Promise<void> {
-		await this.challengeRepository.saveChallenges(client, challenges, blockNumber);
+		this.logger.log(`Persisting ${challenges.length} challenge states...`);
+		try {
+			await this.challengeRepository.saveChallenges(client, challenges, blockNumber);
+			this.logger.log('Challenge states persisted successfully');
+		} catch (error) {
+			this.logger.error('Failed to persist challenge states:', error);
+			throw error;
+		}
 	}
 }

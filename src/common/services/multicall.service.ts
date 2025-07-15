@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
+import { Injectable, Logger } from '@nestjs/common';
 import { MulticallWrapper, MulticallProvider } from 'ethers-multicall-provider';
 
 @Injectable()
@@ -19,156 +19,25 @@ export class MulticallService {
 	}
 
 	/**
-	 * Execute multiple contract calls in a single RPC request
-	 * @param calls Array of contract call configurations
-	 * @returns Array of results in the same order as calls
+	 * Connect a contract to the multicall provider while preserving its type
 	 */
-	async executeBatch(
-		provider: ethers.Provider,
-		calls: Array<{
-			contract: ethers.Contract;
-			method: string;
-			args?: any[];
-		}>
-	): Promise<any[]> {
+	connect<T extends ethers.Contract>(contract: T, provider: ethers.Provider): T {
 		const multicallProvider = this.getMulticallProvider(provider);
-
-		try {
-			// Create multicall-wrapped contracts
-			const promises = calls.map(({ contract, method, args = [] }) => {
-				const multicallContract = contract.connect(multicallProvider) as ethers.Contract;
-				return multicallContract[method](...args);
-			});
-
-			// Execute all calls in a single RPC request
-			const results = await Promise.all(promises);
-
-			this.logger.debug(`Executed ${calls.length} calls in a single multicall`);
-			return results;
-		} catch (error) {
-			this.logger.error('Multicall batch execution failed:', error);
-			throw error;
-		}
+		return contract.connect(multicallProvider) as T;
 	}
 
 	/**
-	 * Execute position data fetching with multicall
-	 * Specifically optimized for position contract calls
+	 * Execute multiple contract calls in a single RPC request
+	 * @param calls Array of promises from contract calls connected to multicall provider
+	 * @returns Array of results in the same order as calls
 	 */
-	async getPositionData(
-		provider: ethers.Provider,
-		positionContracts: ethers.Contract[],
-		collateralAddresses: string[]
-	): Promise<
-		Array<{
-			positionData: any[];
-			collateralBalance: bigint;
-		}>
-	> {
-		const multicallProvider = this.getMulticallProvider(provider);
-
+	async executeBatch<T extends any[]>(calls: Promise<any>[]): Promise<T> {
 		try {
-			const results = await Promise.all(
-				positionContracts.map(async (positionContract, index) => {
-					// Connect position contract to multicall provider
-					const multicallPosition = positionContract.connect(multicallProvider) as ethers.Contract;
-
-					// Create collateral contract for balance check
-					const collateralContract = new ethers.Contract(
-						collateralAddresses[index],
-						['function balanceOf(address) view returns (uint256)'],
-						multicallProvider
-					);
-
-					// Execute all calls for this position in parallel
-					// This will be batched by the multicall provider
-					const [
-						positionAddress,
-						owner,
-						start,
-						expiration,
-						price,
-						collateral,
-						principal,
-						interest,
-						original,
-						challengePeriod,
-						riskPremiumPPM,
-						reserveContribution,
-						fixedAnnualRatePPM,
-						lastAccrual,
-						cooldownEnd,
-						availableForMinting,
-						availableForClones,
-						virtualUnpaidInterest,
-						challengeData,
-						status,
-						recentCollateral,
-						expiredPurchasePrice,
-						minimumRequiredCollateral,
-						collateralBalance,
-					] = await Promise.all([
-						multicallPosition.getAddress(),
-						multicallPosition.owner(),
-						multicallPosition.start(),
-						multicallPosition.expiration(),
-						multicallPosition.price(),
-						multicallPosition.collateral(),
-						multicallPosition.principal(),
-						multicallPosition.interest(),
-						multicallPosition.original(),
-						multicallPosition.challengePeriod(),
-						multicallPosition.riskPremiumPPM(),
-						multicallPosition.reserveContribution(),
-						multicallPosition.fixedAnnualRatePPM(),
-						multicallPosition.lastAccrual(),
-						multicallPosition.cooldownEnd(),
-						multicallPosition.availableForMinting(),
-						multicallPosition.availableForClones(),
-						multicallPosition.virtualUnpaidInterest(),
-						multicallPosition.challengeData(),
-						multicallPosition.status(),
-						multicallPosition.recentCollateral(),
-						multicallPosition.expiredPurchasePrice(),
-						multicallPosition.minimumRequiredCollateral(),
-						collateralContract.balanceOf(await positionContract.getAddress()),
-					]);
-
-					return {
-						positionData: [
-							positionAddress,
-							owner,
-							start,
-							expiration,
-							price,
-							collateral,
-							principal,
-							interest,
-							original,
-							challengePeriod,
-							riskPremiumPPM,
-							reserveContribution,
-							fixedAnnualRatePPM,
-							lastAccrual,
-							cooldownEnd,
-							availableForMinting,
-							availableForClones,
-							virtualUnpaidInterest,
-							challengeData,
-							status,
-							recentCollateral,
-							expiredPurchasePrice,
-							minimumRequiredCollateral,
-						],
-						collateralBalance,
-					};
-				})
-			);
-
-			this.logger.log(`Fetched data for ${positionContracts.length} positions using multicall`);
-			return results;
+			const results = await Promise.all(calls);
+			this.logger.debug(`Executed ${calls.length} calls in a single multicall`);
+			return results as T;
 		} catch (error) {
-			this.logger.error('Failed to fetch position data with multicall:', error);
+			this.logger.error('Multicall batch execution failed:', error);
 			throw error;
 		}
 	}

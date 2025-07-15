@@ -35,16 +35,34 @@ interface PersistConfig<T> {
 }
 
 async function persistEvents<T>(client: any, events: T[], { table, columns, mapEvent }: PersistConfig<T>): Promise<void> {
-	const values = events.map(mapEvent);
-	const query = pgFormat(
-		`
-		INSERT INTO ${table} (${columns.join(',')})
-		VALUES %L
-		ON CONFLICT (${columns[0]}, ${columns[2]}) DO NOTHING
-		`,
-		values
-	);
-	await client.query(query);
+	const logger = new Logger('persistEvents');
+	
+	try {
+		const values = events.map((event, index) => {
+			try {
+				return mapEvent(event);
+			} catch (error) {
+				logger.error(`Error mapping event in table ${table} at index ${index}:`);
+				logger.error(`Event:`, JSON.stringify(event, (key, value) => 
+					typeof value === 'bigint' ? value.toString() : value
+				));
+				throw error;
+			}
+		});
+		
+		const query = pgFormat(
+			`
+			INSERT INTO ${table} (${columns.join(',')})
+			VALUES %L
+			ON CONFLICT (${columns[0]}, ${columns[2]}) DO NOTHING
+			`,
+			values
+		);
+		await client.query(query);
+	} catch (error) {
+		logger.error(`Failed to persist to ${table}:`, error);
+		throw error;
+	}
 }
 
 @Injectable()
@@ -111,7 +129,7 @@ export class EventPersistenceService {
 				e.who,
 				e.amount.toString(),
 				e.totPrice.toString(),
-				e.newPrice.toString(),
+				e.newprice.toString(),
 			],
 		},
 		equityDelegationEvents: {
@@ -275,7 +293,8 @@ export class EventPersistenceService {
 			await this.databaseService.withTransaction(async (client) => {
 				for (const [eventType, config] of Object.entries(EventPersistenceService.eventConfigs)) {
 					const events = eventsData[eventType as keyof SystemEventsData];
-					if (Array.isArray(events) && events.length > 0) {
+					// Only process if the event type exists in the data and has events
+					if (events !== undefined && Array.isArray(events) && events.length > 0) {
 						await persistEvents(client, events as any[], config as PersistConfig<any>);
 					}
 				}

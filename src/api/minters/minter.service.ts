@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { MinterRepository, BridgeRepository } from '../../database/repositories';
-import { MinterStateDto } from '../../common/dto/minter.dto';
-import { BridgeStateDto } from '../../common/dto/stablecoinBridge.dto';
+import { MinterState, MinterStateDto } from '../../common/dto/minter.dto';
+import { StablecoinBridgeState, BridgeStateDto } from '../../common/dto/stablecoinBridge.dto';
 
 @Injectable()
 export class MinterService {
@@ -11,26 +11,48 @@ export class MinterService {
 	) {}
 
 	async getAllMinters(): Promise<MinterStateDto[]> {
-		return this.minterRepository.getAllMinterStates();
+		const minters = await this.minterRepository.getAllMinterStates();
+		return minters.map(this.mapToDto);
 	}
 
 	async getActiveBridges(): Promise<BridgeStateDto[]> {
-		const allBridges = await this.getAllBridges();
-		const currentTime = Math.floor(Date.now() / 1000);
-		return allBridges.filter((bridge) => {
-			const horizonTime = parseInt(bridge.horizon);
-			return currentTime <= horizonTime;
-		});
+		const allBridges = await this.bridgeRepository.getAllBridgeStates();
+		const currentTime = BigInt(Math.floor(Date.now() / 1000));
+		return allBridges
+			.filter((bridge) => bridge.horizon > currentTime)
+			.map(this.mapBridgeToDto);
 	}
 
 	async getAllBridges(): Promise<BridgeStateDto[]> {
 		const bridgeStates = await this.bridgeRepository.getAllBridgeStates();
+		return bridgeStates.map(this.mapBridgeToDto);
+	}
 
-		return bridgeStates.map((state) => ({
-			...state,
-			limit: state.limit.toString(),
-			minted: state.minted.toString(),
-			horizon: state.horizon.toString(),
-		}));
+	private mapToDto(minter: MinterState): MinterStateDto {
+		return {
+			minter: minter.minter,
+			status: minter.status,
+			applicationDate: minter.applicationDate,
+			applicationPeriod: minter.applicationPeriod,
+			applicationFee: minter.applicationFee,
+			message: minter.message,
+			denialDate: minter.denialDate,
+			denialMessage: minter.denialMessage,
+			deuroMinted: minter.deuroMinted,
+			deuroBurned: minter.deuroBurned,
+		};
+	}
+
+	private mapBridgeToDto(bridge: StablecoinBridgeState): BridgeStateDto {
+		return {
+			address: bridge.address,
+			eurAddress: bridge.eurAddress,
+			eurSymbol: bridge.eurSymbol,
+			eurDecimals: bridge.eurDecimals,
+			dEuroAddress: bridge.dEuroAddress,
+			limit: bridge.limit.toString(),
+			minted: bridge.minted.toString(),
+			horizon: bridge.horizon.toString(),
+		};
 	}
 }

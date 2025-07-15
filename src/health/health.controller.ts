@@ -49,7 +49,6 @@ export class HealthController {
 				timestamp: new Date(),
 			};
 		} catch (error) {
-			// If we can't check status, we're unhealthy
 			return {
 				status: HealthStatusEnum.UNHEALTHY,
 				lastProcessedBlock: null,

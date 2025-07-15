@@ -254,8 +254,8 @@ CREATE TABLE IF NOT EXISTS position_minting_update_events (
 -- STATE TABLES
 -- =============================================================================
 
--- Single row for system state
-CREATE TABLE IF NOT EXISTS system_state (
+-- Single row for deuro state
+CREATE TABLE IF NOT EXISTS deuro_state (
     id INTEGER DEFAULT 1,
     deuro_total_supply NUMERIC(78, 0) NOT NULL,
     deps_total_supply NUMERIC(78, 0) NOT NULL,
@@ -342,7 +342,7 @@ CREATE TABLE IF NOT EXISTS challenge_states (
     challenger_address VARCHAR(42) NOT NULL,
     position_address VARCHAR(42) NOT NULL,
     position_owner_address VARCHAR(42) NOT NULL,
-    start_timestamp INTEGER NOT NULL,
+    start_timestamp BIGINT NOT NULL,
     initial_size NUMERIC(78, 0) NOT NULL,
     size NUMERIC(78, 0) NOT NULL,
     collateral_address VARCHAR(42) NOT NULL,
@@ -379,7 +379,7 @@ CREATE TABLE IF NOT EXISTS bridge_states (
     eur_decimals INTEGER NOT NULL,
     deuro_address VARCHAR(42) NOT NULL,
     horizon NUMERIC(78, 0) NOT NULL,
-    limit NUMERIC(78, 0) NOT NULL,
+    "limit" NUMERIC(78, 0) NOT NULL,
     minted NUMERIC(78, 0) NOT NULL,
     
     -- metadata

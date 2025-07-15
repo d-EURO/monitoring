@@ -30,18 +30,14 @@ export async function fetchEvents<T extends BaseEvent>(
 	const missingBlocks = uniqueBlockNumbers.filter((blockNum) => !blockCache.has(blockNum));
 
 	if (missingBlocks.length > 0) {
-		// Batch block fetching to reduce RPC calls
-		const BATCH_SIZE = 50; // Fetch 50 blocks at a time
+		const BATCH_SIZE = 50;
 		const provider = events[0].provider;
 
 		for (let i = 0; i < missingBlocks.length; i += BATCH_SIZE) {
 			const batch = missingBlocks.slice(i, i + BATCH_SIZE);
 			const newBlocks = await Promise.all(batch.map((blockNum) => provider.getBlock(blockNum)));
-
 			newBlocks.forEach((block) => {
-				if (block && block.number !== undefined) {
-					blockCache.set(block.number, block);
-				}
+				if (block && block.number !== undefined) blockCache.set(block.number, block);
 			});
 		}
 	}

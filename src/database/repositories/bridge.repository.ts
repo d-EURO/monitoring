@@ -1,22 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database.service';
-import { BridgeStateDto, StablecoinBridgeState } from '../../common/dto/stablecoinBridge.dto';
-import { BridgeStateRecord } from '../types/db-records';
+import { StablecoinBridgeState } from '../../common/dto/stablecoinBridge.dto';
+import { BridgeStateRecord } from '../types/state-records';
 
 @Injectable()
 export class BridgeRepository {
 	constructor(private readonly db: DatabaseService) {}
 
 	// Read operations
-	async getAllBridgeStates(): Promise<BridgeStateDto[]> {
+	async getAllBridgeStates(): Promise<StablecoinBridgeState[]> {
 		const records = await this.db.fetch<BridgeStateRecord>(`
 			SELECT * FROM bridge_states 
 			ORDER BY bridge_address
 		`);
-		return records.map(this.mapToDto);
+		return records.map(this.mapToDomain);
 	}
 
-	async getActiveBridgeStates(): Promise<BridgeStateDto[]> {
+	async getActiveBridgeStates(): Promise<StablecoinBridgeState[]> {
 		const currentTime = Math.floor(Date.now() / 1000);
 		const records = await this.db.fetch<BridgeStateRecord>(
 			`
@@ -26,7 +26,7 @@ export class BridgeRepository {
 		`,
 			[currentTime]
 		);
-		return records.map(this.mapToDto);
+		return records.map(this.mapToDomain);
 	}
 
 	// Write operations
@@ -61,24 +61,24 @@ export class BridgeRepository {
 				bridge.eurSymbol,
 				bridge.eurDecimals,
 				bridge.dEuroAddress,
-				bridge.horizon,
-				bridge.limit,
-				bridge.minted,
+				bridge.horizon.toString(),
+				bridge.limit.toString(),
+				bridge.minted.toString(),
 			]);
 		}
 	}
 
 	// Mapping function
-	private mapToDto(record: BridgeStateRecord): BridgeStateDto {
+	private mapToDomain(record: BridgeStateRecord): StablecoinBridgeState {
 		return {
 			address: record.bridge_address,
 			eurAddress: record.eur_address,
 			eurSymbol: record.eur_symbol,
 			eurDecimals: record.eur_decimals,
 			dEuroAddress: record.deuro_address,
-			horizon: record.horizon,
-			limit: record.limit,
-			minted: record.minted,
+			horizon: BigInt(record.horizon),
+			limit: BigInt(record.limit),
+			minted: BigInt(record.minted),
 		};
 	}
 }

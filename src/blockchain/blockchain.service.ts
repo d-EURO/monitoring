@@ -11,7 +11,7 @@ import {
 	MintingHubGatewayABI,
 	PositionRollerABI,
 } from '@deuro/eurocoin';
-import { ContractSet } from '../common/dto';
+import { ContractSet } from './types/contracts';
 
 @Injectable()
 export class BlockchainService {

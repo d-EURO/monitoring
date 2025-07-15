@@ -1,6 +1,3 @@
-// Database record types that match actual table schemas
-// These represent the raw data returned from database queries
-
 export interface PositionStateRecord {
 	block_number: string;
 	timestamp: Date;
@@ -54,24 +51,6 @@ export interface ChallengeRecord {
 	current_price: string;
 }
 
-export interface MinterApplicationRecord {
-	tx_hash: string;
-	timestamp: Date;
-	log_index: number;
-	minter: string;
-	application_period: string;
-	application_fee: string;
-	message: string;
-}
-
-export interface MinterDenialRecord {
-	tx_hash: string;
-	timestamp: Date;
-	log_index: number;
-	minter: string;
-	message: string;
-}
-
 export interface MinterStateRecord {
 	minter: string;
 	status: string;
@@ -98,7 +77,7 @@ export interface BridgeStateRecord {
 	minted: string;
 }
 
-export interface SystemStateRecord {
+export interface DeuroStateRecord {
 	deuro_total_supply: string;
 	deps_total_supply: string;
 	equity_shares: string;
@@ -138,4 +117,5 @@ export interface CollateralStateRecord {
 	decimals: number;
 	total_collateral: string;
 	position_count: number;
+	price: string;
 }

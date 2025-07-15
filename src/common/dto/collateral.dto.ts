@@ -4,8 +4,9 @@ export interface CollateralState {
 	tokenAddress: string;
 	symbol: string;
 	decimals: number;
-	totalCollateral: bigint;
+	totalCollateral: string;
 	positionCount: number;
+	price: string;
 }
 
 export class CollateralStateDto {
@@ -24,9 +25,6 @@ export class CollateralStateDto {
 	@ApiProperty({ description: 'Number of positions using this collateral' })
 	positionCount: number;
 
-	@ApiProperty({ description: 'Block number for this state snapshot' })
-	block_number: number;
-
-	@ApiProperty({ description: 'Timestamp of the state snapshot' })
-	timestamp: Date;
+	@ApiProperty({ description: 'Current price of the collateral token in smallest unit' })
+	price: string;
 }

@@ -1,6 +1,3 @@
-// Database record types that match PostgreSQL column names exactly
-
-// Transfer Events
 export interface DeuroTransferEventRecord {
 	tx_hash: string;
 	timestamp: Date;
@@ -19,18 +16,21 @@ export interface DepsTransferEventRecord {
 	value: string;
 }
 
-// dEURO Events
-export interface DeuroMinterAppliedRecord {
-	minter: string;
+export interface DeuroMinterAppliedEventRecord {
+	tx_hash: string;
 	timestamp: Date;
+	log_index: number;
+	minter: string;
 	application_period: string;
 	application_fee: string;
 	message: string;
 }
 
-export interface DeuroMinterDeniedRecord {
-	minter: string;
+export interface DeuroMinterDeniedEventRecord {
+	tx_hash: string;
 	timestamp: Date;
+	log_index: number;
+	minter: string;
 	message: string;
 }
 
@@ -58,7 +58,6 @@ export interface DeuroProfitDistributedEventRecord {
 	amount: string;
 }
 
-// Equity Events
 export interface EquityTradeEventRecord {
 	tx_hash: string;
 	timestamp: Date;
@@ -77,7 +76,6 @@ export interface EquityDelegationEventRecord {
 	to_address: string;
 }
 
-// Savings Events
 export interface SavingsSavedEventRecord {
 	tx_hash: string;
 	timestamp: Date;
@@ -118,7 +116,6 @@ export interface SavingsRateChangedEventRecord {
 	new_rate: string;
 }
 
-// MintingHub Events
 export interface MintingHubPositionOpenedEventRecord {
 	tx_hash: string;
 	timestamp: Date;
@@ -177,7 +174,6 @@ export interface MintingHubForcedSaleEventRecord {
 	price_e36_minus_decimals: string;
 }
 
-// Roller Events
 export interface RollerRollEventRecord {
 	tx_hash: string;
 	timestamp: Date;
@@ -190,7 +186,6 @@ export interface RollerRollEventRecord {
 	mint: string;
 }
 
-// Position Events
 export interface PositionDeniedEventRecord {
 	tx_hash: string;
 	timestamp: Date;

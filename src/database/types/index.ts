@@ -1,2 +1,2 @@
-export * from './db-records';
+export * from './state-records';
 export * from './event-records';

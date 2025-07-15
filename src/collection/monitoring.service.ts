@@ -2,7 +2,6 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DatabaseService } from '../database/database.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
-import { PositionRepository, SystemStateRepository } from '../database/repositories';
 
 // Domain services
 import { DeuroEventsService } from './deuro/events.service';
@@ -13,6 +12,7 @@ import { ChallengeEventsService } from './challenge/events.service';
 import { ChallengeStatesService } from './challenge/states.service';
 import { MinterEventsService } from './minter/events.service';
 import { MinterStatesService } from './minter/states.service';
+import { CollateralStatesService } from './collateral/states.service';
 
 @Injectable()
 export class MonitoringService implements OnModuleInit {
@@ -24,13 +24,11 @@ export class MonitoringService implements OnModuleInit {
 	constructor(
 		private readonly databaseService: DatabaseService,
 		private readonly blockchainService: BlockchainService,
-		private readonly systemStateRepository: SystemStateRepository,
-		private readonly positionRepository: PositionRepository,
-		// Domain services
 		private readonly deuroEventsService: DeuroEventsService,
-		private readonly deuroStatesService: DeuroStatesService,
+		private readonly deuroStateService: DeuroStatesService,
 		private readonly positionEventsService: PositionEventsService,
 		private readonly positionStatesService: PositionStatesService,
+		private readonly collateralStatesService: CollateralStatesService,
 		private readonly challengeEventsService: ChallengeEventsService,
 		private readonly challengeStatesService: ChallengeStatesService,
 		private readonly minterEventsService: MinterEventsService,
@@ -74,72 +72,38 @@ export class MonitoringService implements OnModuleInit {
 				this.logger.log(`[${timestamp}] Fetching system state from block ${fromBlock} to ${currentBlock}`);
 				const contracts = this.blockchainService.getContracts();
 
-				// Fetch all event in parallel
+				// Fetch all events in parallel
 				const [_deuroEvents, positionsEvents, _challengeEvents, _minterEvents] = await Promise.all([
-					this.deuroEventsService.getDeuroEvents(
-						contracts.deuroContract,
-						contracts.equityContract,
-						contracts.depsContract,
-						contracts.savingsContract,
-						fromBlock,
-						currentBlock
-					),
-					this.positionEventsService.getPositionsEvents(
-						contracts.mintingHubContract,
-						contracts.rollerContract,
-						provider,
-						fromBlock,
-						currentBlock
-					),
+					this.deuroEventsService.getDeuroEvents(contracts, fromBlock, currentBlock),
+					this.positionEventsService.getPositionsEvents(contracts, provider, fromBlock, currentBlock),
 					this.challengeEventsService.getChallengesEvents(contracts.mintingHubContract, fromBlock, currentBlock),
 					this.minterEventsService.getMintersEvents(contracts.deuroContract, fromBlock, currentBlock),
 				]);
 
-				// Fetch states from all domains
-				const [deuroState, positionsState, challengesState, mintersState] = await Promise.all([
-					this.deuroStatesService.getDeuroState(
-						contracts.deuroContract,
-						contracts.equityContract,
-						contracts.depsContract,
-						contracts.savingsContract
-					),
-					this.positionStatesService.getPositionsState(await this.positionRepository.getActivePositionAddresses(), provider),
-					this.challengeStatesService.getChallengesState(contracts.mintingHubContract),
+				// Fetch position state first as it's needed by challenge state
+				const positionsState = await this.positionStatesService.getPositionsState(provider);
+				
+				// Fetch remaining states in parallel
+				const [deuroState, collateralState, challengesState, mintersState] = await Promise.all([
+					this.deuroStateService.getDeuroState(contracts),
+					this.collateralStatesService.getCollateralState(positionsEvents.mintingHubPositionOpenedEvents, provider),
+					this.challengeStatesService.getChallengesState(contracts.mintingHubContract, positionsState),
 					this.minterStatesService.getMintersState(provider),
 				]);
 
-				// Get collateral state
-				const collateralState = await this.positionStatesService.getCollateralState(
-					positionsEvents.mintingHubPositionOpenedEvents,
-					provider
-				);
-
-				// TODO: Implement later
-				const frontendFeesCollected = 0n;
-				const frontendsActive = 0;
-
 				// Persist everything in a single atomic transaction
 				await this.databaseService.withTransaction(async (client) => {
-					const systemState = {
-						...deuroState,
-						frontend_fees_collected: frontendFeesCollected,
-						frontends_active: frontendsActive,
-						block_number: currentBlock,
-						timestamp: new Date(),
-					};
-					await this.systemStateRepository.persistSystemState(client, systemState);
+					await this.deuroStateService.persistDeuroState(client, deuroState, currentBlock);
 					await this.positionStatesService.persistPositionsState(client, positionsState, currentBlock);
-					await this.positionStatesService.persistCollateralState(client, collateralState, currentBlock);
+					await this.collateralStatesService.persistCollateralState(client, collateralState, currentBlock);
 					await this.challengeStatesService.persistChallengesState(client, challengesState, currentBlock);
-					await this.minterStatesService.persistMintersState(client, mintersState.minters, currentBlock);
-					await this.minterStatesService.persistBridgesState(client, mintersState.bridges, currentBlock);
+					await this.minterStatesService.persistFullMintersState(client, mintersState, currentBlock);
 
 					// Only update last processed block after all states are successfully saved
 					await this.databaseService.updateLastProcessedBlock(client, currentBlock);
 				});
 
-				const duration = Date.now() - startTime;
-				await this.recordMonitoringCycle(fromBlock, currentBlock, duration);
+				await this.recordMonitoringCycle(fromBlock, currentBlock, Date.now() - startTime);
 			} else {
 				const timestamp = new Date().toISOString();
 				this.logger.log(`[${timestamp}] No new blocks to process (${fromBlock}/${currentBlock})`);
@@ -152,7 +116,7 @@ export class MonitoringService implements OnModuleInit {
 	}
 
 	private async recordMonitoringCycle(fromBlock: number, toBlock: number, duration: number): Promise<void> {
-		const eventsProcessed = toBlock - fromBlock + 1; // Simplified count
+		const eventsProcessed = toBlock - fromBlock + 1;
 		await this.databaseService.query(
 			`INSERT INTO monitoring_metadata (last_processed_block, events_processed, processing_duration_ms)
 			 VALUES ($1, $2, $3)`,

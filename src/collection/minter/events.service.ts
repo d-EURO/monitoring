@@ -24,15 +24,8 @@ export class MinterEventsService {
 		]);
 
 		// Persist events
-		await this.persistEvents({
-			deuroMinterAppliedEvents,
-			deuroMinterDeniedEvents,
-		});
-
-		return {
-			deuroMinterAppliedEvents,
-			deuroMinterDeniedEvents,
-		};
+		await this.persistEvents({ deuroMinterAppliedEvents, deuroMinterDeniedEvents });
+		return { deuroMinterAppliedEvents, deuroMinterDeniedEvents };
 	}
 
 	private async persistEvents(eventsData: MinterEventsData): Promise<void> {

@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database.service';
-import { DeuroMinterAppliedRecord, DeuroMinterDeniedRecord } from '../types/event-records';
-import { MinterState, MinterStateDto, MinterStatus } from 'src/common/dto';
+import { DeuroMinterAppliedEventRecord, DeuroMinterDeniedEventRecord } from '../types/event-records';
+import { MinterState, MinterStatus } from 'src/common/dto';
 import { MinterStateRecord } from '../types';
 
 @Injectable()
 export class MinterRepository {
 	constructor(private readonly db: DatabaseService) {}
 
-	async getLatestApplications(): Promise<DeuroMinterAppliedRecord[]> {
-		return this.db.fetch<DeuroMinterAppliedRecord>(`
+	async getLatestApplications(): Promise<DeuroMinterAppliedEventRecord[]> {
+		return this.db.fetch<DeuroMinterAppliedEventRecord>(`
 			SELECT minter, timestamp, application_period, application_fee, message
 			FROM deuro_minter_applied_events e1
 			WHERE timestamp = (
@@ -21,8 +21,8 @@ export class MinterRepository {
 		`);
 	}
 
-	async getLatestDenials(): Promise<DeuroMinterDeniedRecord[]> {
-		return this.db.fetch<DeuroMinterDeniedRecord>(`
+	async getLatestDenials(): Promise<DeuroMinterDeniedEventRecord[]> {
+		return this.db.fetch<DeuroMinterDeniedEventRecord>(`
 			SELECT minter, timestamp, message
 			FROM deuro_minter_denied_events d1
 			WHERE timestamp = (
@@ -57,12 +57,12 @@ export class MinterRepository {
 		return BigInt(results[0].total_burned);
 	}
 
-	async getAllMinterStates(): Promise<MinterStateDto[]> {
+	async getAllMinterStates(): Promise<MinterState[]> {
 		const records = await this.db.fetch<MinterStateRecord>(`
 			SELECT * FROM minter_states 
 			ORDER BY minter
 		`);
-		return records.map(this.mapToDto);
+		return records.map(this.mapToDomain);
 	}
 
 	async saveMinterStates(client: any, minters: MinterState[], blockNumber: number): Promise<void> {
@@ -107,7 +107,7 @@ export class MinterRepository {
 		}
 	}
 
-	private mapToDto(record: MinterStateRecord): MinterStateDto {
+	private mapToDomain(record: MinterStateRecord): MinterState {
 		return {
 			minter: record.minter,
 			status: record.status as MinterStatus,

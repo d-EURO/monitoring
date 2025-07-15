@@ -7,6 +7,7 @@ import {
 	PositionMintingUpdateEvent,
 	BaseEvent,
 } from '../../common/dto';
+import { ContractSet } from '../../blockchain/types/contracts';
 import { PositionV2ABI } from '@deuro/eurocoin';
 import { fetchEvents } from '../../blockchain/utils/utils';
 import { EventPersistenceService } from '../../database/event-persistence.service';
@@ -29,20 +30,20 @@ export class PositionEventsService {
 	) {}
 
 	async getPositionsEvents(
-		mintingHubContract: ethers.Contract,
-		rollerContract: ethers.Contract,
+		contracts: ContractSet,
 		provider: ethers.Provider,
 		fromBlock: number,
 		toBlock: number
 	): Promise<PositionEventsData> {
 		this.logger.log(`Fetching positions events from block ${fromBlock} to ${toBlock}`);
+		const { mintingHubContract, rollerContract } = contracts;
 
 		// Fetch MintingHub and Roller events
 		const [mintingHubPositionOpenedEvents, rollerRollEvents] = await Promise.all([
 			fetchEvents<MintingHubPositionOpenedEvent>(
 				mintingHubContract,
 				mintingHubContract.filters.PositionOpened(),
-				fromBlock,
+				22300000, // TODO: Revert to fromBlock for production
 				toBlock,
 				this.logger
 			),

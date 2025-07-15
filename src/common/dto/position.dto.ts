@@ -138,10 +138,4 @@ export class PositionStateDto {
 
 	@ApiProperty({ description: 'Collateralization ratio (market price / virtual price)', required: false })
 	collateralizationRatio?: number;
-
-	@ApiProperty({ description: 'Block number for this state snapshot' })
-	block_number: number;
-
-	@ApiProperty({ description: 'Timestamp of the state snapshot' })
-	timestamp: Date;
 }

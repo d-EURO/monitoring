@@ -1,31 +1,31 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database.service';
-import { ChallengeState, ChallengeStateDto, ChallengeStatus } from '../../common/dto/challenge.dto';
+import { ChallengeState, ChallengeStatus } from '../../common/dto/challenge.dto';
 import { ChallengeRecord, MintingHubChallengeStartedEventRecord, MintingHubChallengeSucceededEventRecord } from '../types';
 
 @Injectable()
 export class ChallengeRepository {
 	constructor(private readonly db: DatabaseService) {}
 
-	async getAllChallenges(): Promise<ChallengeStateDto[]> {
+	async getAllChallenges(): Promise<ChallengeState[]> {
 		const records = await this.db.fetch<ChallengeRecord>(`
 			SELECT * FROM challenge_states 
 			ORDER BY challenge_id
 		`);
-		return records.map(this.mapToChallengeStateDto);
+		return records.map(this.mapToDomain);
 	}
 
-	async getOpenChallenges(): Promise<ChallengeStateDto[]> {
+	async getOpenChallenges(): Promise<ChallengeState[]> {
 		const records = await this.db.fetch<ChallengeRecord>(`
 			SELECT * FROM challenge_states 
 			WHERE status NOT IN ('AVERTED', 'SUCCEEDED')
 			ORDER BY challenge_id
 		`);
-		return records.map(this.mapToChallengeStateDto);
+		return records.map(this.mapToDomain);
 	}
 
 	// Helper methods for updating challenges
-	async getChallengeById(challengeId: number): Promise<ChallengeStateDto | null> {
+	async getChallengeById(challengeId: number): Promise<ChallengeState | null> {
 		const records = await this.db.fetch<ChallengeRecord>(
 			`
           SELECT * FROM challenge_states 
@@ -33,7 +33,7 @@ export class ChallengeRepository {
           LIMIT 1`,
 			[challengeId]
 		);
-		return records.length > 0 ? this.mapToChallengeStateDto(records[0]) : null;
+		return records.length > 0 ? this.mapToDomain(records[0]) : null;
 	}
 
 	async getMaxChallengeId(): Promise<number> {
@@ -125,22 +125,20 @@ export class ChallengeRepository {
 	}
 
 	// Mapping function
-	private mapToChallengeStateDto(record: ChallengeRecord): ChallengeStateDto {
+	private mapToDomain(record: ChallengeRecord): ChallengeState {
 		return {
 			id: record.challenge_id,
 			challenger: record.challenger_address,
 			position: record.position_address,
 			positionOwner: record.position_owner_address,
 			start: record.start_timestamp,
-			initialSize: record.initial_size,
+			initialSize: BigInt(record.initial_size),
 			size: record.size,
 			collateralAddress: record.collateral_address,
 			liqPrice: record.liq_price,
 			phase: record.phase,
 			status: record.status as ChallengeStatus,
 			currentPrice: record.current_price,
-			block_number: parseInt(record.block_number),
-			timestamp: record.timestamp,
 		};
 	}
 
@@ -153,19 +151,6 @@ export class ChallengeRepository {
 			position: record.position,
 			size: record.size.toString(),
 			number: record.number.toString(),
-		};
-	}
-
-	private mapToBidDto(record: MintingHubChallengeSucceededEventRecord): MintingHubChallengeSucceededEventRecord {
-		return {
-			tx_hash: record.tx_hash,
-			timestamp: record.timestamp,
-			log_index: record.log_index,
-			position: record.position,
-			number: record.number.toString(),
-			bid: record.bid.toString(),
-			acquired_collateral: record.acquired_collateral.toString(),
-			challenge_size: record.challenge_size.toString(),
 		};
 	}
 }

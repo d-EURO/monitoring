@@ -8,9 +8,10 @@ import { DeuroModule } from './deuro/deuro.module';
 import { PositionModule } from './position/position.module';
 import { ChallengeModule } from './challenge/challenge.module';
 import { MinterModule } from './minter/minter.module';
+import { CollateralModule } from './collateral/collateral.module';
 
 @Module({
-	imports: [DatabaseModule, BlockchainModule, DeuroModule, PositionModule, ChallengeModule, MinterModule],
+	imports: [DatabaseModule, BlockchainModule, DeuroModule, PositionModule, ChallengeModule, MinterModule, CollateralModule],
 	providers: [MonitoringService],
 	exports: [MonitoringService],
 })
