@@ -17,7 +17,6 @@ import { PositionsTable } from './components/PositionsTable';
 import { CollateralTable } from './components/CollateralTable';
 import { ChallengesTable } from './components/ChallengesTable';
 import { MintersTable } from './components/MintersTable';
-import { BridgesTable } from './components/BridgesTable';
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
 
@@ -90,7 +89,7 @@ function App() {
 
   const fetchBridges = async () => {
     try {
-      const data = await api.bridges();
+      const data = await api.bridges(true);
       setBridges({ data, loading: false, error: null });
     } catch (error) {
       setBridges({ data: null, loading: false, error: error instanceof Error ? error.message : 'Unknown error' });
@@ -142,13 +141,10 @@ function App() {
         <CollateralTable {...collateral} />
 
         {/* Challenges Table */}
-        <ChallengesTable {...challenges} positionData={positions.data} collateralData={collateral.data}/>
+        <ChallengesTable {...challenges} positionData={positions.data} collateralData={collateral.data} />
 
-        {/* Minters Table */}
-        <MintersTable {...minters} />
-
-        {/* Bridges Table */}
-        <BridgesTable {...bridges} />
+        {/* Minters (incl. Bridges) Table */}
+        <MintersTable {...minters} bridgeData={bridges.data} />
 
         {/* Footer */}
         <div className="text-center text-xs text-gray-600 py-4">

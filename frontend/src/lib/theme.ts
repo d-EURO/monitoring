@@ -11,10 +11,10 @@ export const colors = {
   },
   
   // Semantic colors
-  highlight: 'text-yellow-200',    // Yellow for highlighting
+  highlight: 'text-[#FFFF00]',     // Bright yellow for highlighting
   critical: 'text-red-400',        // Red for important/critical
   success: 'text-green-400',       // Green for positive
-  link: 'text-yellow-200',         // Yellow for links/addresses
+  link: 'text-[#FFFF00]',          // Bright yellow for links/addresses
 
   // Table specific
   table: {
