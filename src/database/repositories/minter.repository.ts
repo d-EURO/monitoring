@@ -33,30 +33,6 @@ export class MinterRepository {
 		`);
 	}
 
-	async getTotalMintedByMinter(minter: string): Promise<bigint> {
-		const results = await this.db.fetch<{ total_minted: string }>(
-			`
-			SELECT COALESCE(SUM(value), '0') as total_minted
-			FROM deuro_transfer_events
-			WHERE LOWER(to_address) = LOWER($1) AND from_address = '0x0000000000000000000000000000000000000000'
-		`,
-			[minter]
-		);
-		return BigInt(results[0].total_minted);
-	}
-
-	async getTotalBurnedByMinter(minter: string): Promise<bigint> {
-		const results = await this.db.fetch<{ total_burned: string }>(
-			`
-			SELECT COALESCE(SUM(value), '0') as total_burned
-			FROM deuro_transfer_events
-			WHERE LOWER(from_address) = LOWER($1) AND to_address = '0x0000000000000000000000000000000000000000'
-		`,
-			[minter]
-		);
-		return BigInt(results[0].total_burned);
-	}
-
 	async getAllMinterStates(): Promise<MinterState[]> {
 		const records = await this.db.fetch<MinterStateRecord>(`
 			SELECT * FROM minter_states 
@@ -73,9 +49,9 @@ export class MinterRepository {
 			const query = `
 				INSERT INTO minter_states (
 					block_number, timestamp, minter, status, application_date, application_period,
-					application_fee, message, denial_date, denial_message, deuro_minted, deuro_burned
+					application_fee, message, denial_date, denial_message
 				)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 				ON CONFLICT (minter) DO UPDATE SET
 					block_number = EXCLUDED.block_number,
 					timestamp = EXCLUDED.timestamp,
@@ -85,9 +61,7 @@ export class MinterRepository {
 					application_fee = EXCLUDED.application_fee,
 					message = EXCLUDED.message,
 					denial_date = EXCLUDED.denial_date,
-					denial_message = EXCLUDED.denial_message,
-					deuro_minted = EXCLUDED.deuro_minted,
-					deuro_burned = EXCLUDED.deuro_burned
+					denial_message = EXCLUDED.denial_message
 			`;
 
 			await client.query(query, [
@@ -101,8 +75,6 @@ export class MinterRepository {
 				minter.message || null,
 				minter.denialDate || null,
 				minter.denialMessage || null,
-				minter.deuroMinted?.toString() || '0',
-				minter.deuroBurned?.toString() || '0',
 			]);
 		}
 	}
@@ -117,8 +89,6 @@ export class MinterRepository {
 			message: record.message,
 			denialDate: record.denial_date ? new Date(record.denial_date) : null,
 			denialMessage: record.denial_message,
-			deuroMinted: record.deuro_minted,
-			deuroBurned: record.deuro_burned,
 		};
 	}
 }

@@ -60,8 +60,6 @@ export interface MinterStateRecord {
 	message?: string;
 	denial_date?: Date;
 	denial_message?: string;
-	deuro_minted: string;
-	deuro_burned: string;
 }
 
 export interface BridgeStateRecord {
@@ -97,6 +95,8 @@ export interface DeuroStateRecord {
 	savings_added_24h: string;
 	savings_withdrawn_24h: string;
 	savings_interest_collected_24h: string;
+	deuro_minted_24h: string;
+	deuro_burned_24h: string;
 	deuro_loss: string;
 	deuro_profit: string;
 	deuro_profit_distributed: string;

@@ -278,6 +278,8 @@ CREATE TABLE IF NOT EXISTS deuro_state (
     savings_added_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
     savings_withdrawn_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
     savings_interest_collected_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    deuro_minted_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
+    deuro_burned_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
 
     -- global metrics
     deuro_loss NUMERIC(78, 0) DEFAULT 0 NOT NULL,
@@ -403,8 +405,6 @@ CREATE TABLE IF NOT EXISTS minter_states (
     message TEXT,
     denial_date TIMESTAMP WITH TIME ZONE,
     denial_message TEXT,
-    deuro_minted NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    deuro_burned NUMERIC(78, 0) DEFAULT 0 NOT NULL,
 
     -- metadata
     block_number BIGINT NOT NULL,

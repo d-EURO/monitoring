@@ -195,6 +195,31 @@ export class DeuroStateRepository {
 		return BigInt(results[0].total);
 	}
 
+	async getDeuroMintBurn24hMetrics(): Promise<{
+		deuro_minted_24h: bigint;
+		deuro_burned_24h: bigint;
+	}> {
+		const [mintedResults, burnedResults] = await Promise.all([
+			this.db.fetch(`
+				SELECT COALESCE(SUM(value), 0) as total
+				FROM deuro_transfer_events 
+				WHERE from_address = '0x0000000000000000000000000000000000000000'
+					AND timestamp > NOW() - INTERVAL '24 hours'
+			`),
+			this.db.fetch(`
+				SELECT COALESCE(SUM(value), 0) as total
+				FROM deuro_transfer_events 
+				WHERE to_address = '0x0000000000000000000000000000000000000000'
+					AND timestamp > NOW() - INTERVAL '24 hours'
+			`),
+		]);
+
+		return {
+			deuro_minted_24h: BigInt(mintedResults[0].total),
+			deuro_burned_24h: BigInt(burnedResults[0].total),
+		};
+	}
+
 	// Write operations
 	async persistDeuroState(stateData: DeuroStateData, client: any, blockNumber: number): Promise<void> {
 		const query = `
@@ -208,6 +233,7 @@ export class DeuroStateRepository {
 					deps_volume_24h, deps_transfer_count_24h, deps_unique_addresses_24h,
 					equity_trade_volume_24h, equity_trade_count_24h, equity_delegations_24h,
 					savings_added_24h, savings_withdrawn_24h, savings_interest_collected_24h,
+					deuro_minted_24h, deuro_burned_24h,
 					-- Global metrics
 					deuro_loss, deuro_profit, deuro_profit_distributed,
 					savings_total, savings_interest_collected, savings_rate,
@@ -218,7 +244,7 @@ export class DeuroStateRepository {
 					block_number, timestamp
 				) VALUES (
 					1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-					$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, NOW()
+					$16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, NOW()
 				)
 				ON CONFLICT (id) DO UPDATE SET
 					deuro_total_supply = EXCLUDED.deuro_total_supply,
@@ -240,6 +266,8 @@ export class DeuroStateRepository {
 					savings_added_24h = EXCLUDED.savings_added_24h,
 					savings_withdrawn_24h = EXCLUDED.savings_withdrawn_24h,
 					savings_interest_collected_24h = EXCLUDED.savings_interest_collected_24h,
+					deuro_minted_24h = EXCLUDED.deuro_minted_24h,
+					deuro_burned_24h = EXCLUDED.deuro_burned_24h,
 					deuro_loss = EXCLUDED.deuro_loss,
 					deuro_profit = EXCLUDED.deuro_profit,
 					deuro_profit_distributed = EXCLUDED.deuro_profit_distributed,
@@ -274,6 +302,8 @@ export class DeuroStateRepository {
 			stateData.savings_added_24h.toString(),
 			stateData.savings_withdrawn_24h.toString(),
 			stateData.savings_interest_collected_24h.toString(),
+			stateData.deuro_minted_24h.toString(),
+			stateData.deuro_burned_24h.toString(),
 			stateData.deuro_loss.toString(),
 			stateData.deuro_profit.toString(),
 			stateData.deuro_profit_distributed.toString(),
@@ -315,6 +345,8 @@ export class DeuroStateRepository {
 			savings_added_24h: BigInt(record.savings_added_24h),
 			savings_withdrawn_24h: BigInt(record.savings_withdrawn_24h),
 			savings_interest_collected_24h: BigInt(record.savings_interest_collected_24h),
+			deuro_minted_24h: BigInt(record.deuro_minted_24h),
+			deuro_burned_24h: BigInt(record.deuro_burned_24h),
 			savings_interest_collected: BigInt(record.savings_interest_collected),
 			frontend_fees_collected: BigInt(record.frontend_fees_collected),
 			frontends_active: record.frontends_active,

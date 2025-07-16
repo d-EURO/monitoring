@@ -45,11 +45,9 @@ export class MinterStatesService {
 		const denialMap = new Map(denials.map((d) => [d.minter, { date: d.timestamp, message: d.message }]));
 
 		return Promise.all(
-			applications.map(async (a) => {
+			applications.map((a) => {
 				const denial = denialMap.get(a.minter);
 				const status = this.calculateMinterStatus(a.timestamp, a.application_period, denial?.date);
-				const deuroMinted = await this.minterRepository.getTotalMintedByMinter(a.minter.toLowerCase());
-				const deuroBurned = await this.minterRepository.getTotalBurnedByMinter(a.minter.toLowerCase());
 
 				return {
 					minter: a.minter,
@@ -60,8 +58,6 @@ export class MinterStatesService {
 					message: a.message,
 					denialDate: denial?.date,
 					denialMessage: denial?.message,
-					deuroMinted: deuroMinted.toString(),
-					deuroBurned: deuroBurned.toString(),
 				};
 			})
 		);

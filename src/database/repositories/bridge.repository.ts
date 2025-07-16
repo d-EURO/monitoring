@@ -38,7 +38,7 @@ export class BridgeRepository {
 			const query = `
 				INSERT INTO bridge_states (
 					block_number, timestamp, bridge_address, eur_address, eur_symbol, eur_decimals,
-					deuro_address, horizon, limit, minted
+					deuro_address, horizon, "limit", minted
 				)
 				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 				ON CONFLICT (bridge_address) DO UPDATE SET
@@ -49,7 +49,7 @@ export class BridgeRepository {
 					eur_decimals = EXCLUDED.eur_decimals,
 					deuro_address = EXCLUDED.deuro_address,
 					horizon = EXCLUDED.horizon,
-					limit = EXCLUDED.limit,
+					"limit" = EXCLUDED."limit",
 					minted = EXCLUDED.minted
 			`;
 

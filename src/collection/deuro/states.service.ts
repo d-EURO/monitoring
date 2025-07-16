@@ -44,6 +44,7 @@ export class DeuroStatesService {
 			depsMetrics24h,
 			equityMetrics24h,
 			savingsMetrics24h,
+			deuroMintBurn24h,
 			deuroLossTotal,
 			deuroProfitTotal,
 			deuroProfitDistributedTotal,
@@ -53,6 +54,7 @@ export class DeuroStatesService {
 			this.deuroStateRepository.getDeps24hMetrics(),
 			this.deuroStateRepository.getEquity24hMetrics(),
 			this.deuroStateRepository.getSavings24hMetrics(),
+			this.deuroStateRepository.getDeuroMintBurn24hMetrics(),
 			this.deuroStateRepository.getDeuroLossTotal(),
 			this.deuroStateRepository.getDeuroProfitTotal(),
 			this.deuroStateRepository.getDeuroProfitDistributedTotal(),
@@ -82,6 +84,7 @@ export class DeuroStatesService {
 			savings_total: savingsBalance,
 			savings_rate: currentRatePPM,
 			...savingsMetrics24h,
+			...deuroMintBurn24h,
 			savings_interest_collected: totalInterestCollected,
 			frontend_fees_collected: BigInt(0), // TODO: Placeholder, frontend fees not implemented yet
 			frontends_active: 0, // TODO: Placeholder, frontends not implemented yet

@@ -25,6 +25,8 @@ export interface DeuroStateData {
 	savings_added_24h: bigint;
 	savings_withdrawn_24h: bigint;
 	savings_interest_collected_24h: bigint;
+	deuro_minted_24h: bigint;
+	deuro_burned_24h: bigint;
 	savings_interest_collected: bigint;
 	frontend_fees_collected: bigint;
 	frontends_active: number;
@@ -89,6 +91,12 @@ export class DeuroStateDto {
 
 	@ApiProperty({ description: '24-hour savings interest collected' })
 	savingsInterestCollected24h: string;
+
+	@ApiProperty({ description: '24-hour dEURO minted' })
+	deuroMinted24h: string;
+
+	@ApiProperty({ description: '24-hour dEURO burned' })
+	deuroBurned24h: string;
 
 	@ApiProperty({ description: 'Total dEURO losses' })
 	deuroLoss: string;
