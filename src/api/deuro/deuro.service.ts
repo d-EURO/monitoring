@@ -44,6 +44,8 @@ export class DeuroService {
 			frontendsActive: state.frontends_active,
 			usdToEurRate: state.usd_to_eur_rate,
 			usdToChfRate: state.usd_to_chf_rate,
+			deuroMinted24h: state.deuro_minted_24h.toString(),
+			deuroBurned24h: state.deuro_burned_24h.toString(),
 		};
 	}
 }

@@ -17,7 +17,7 @@ export class CollateralStatesService {
 	) {}
 
 	async getCollateralState(
-		positionEvents: MintingHubPositionOpenedEvent[], 
+		positionEvents: MintingHubPositionOpenedEvent[],
 		provider: ethers.Provider,
 		positionStates?: PositionState[]
 	): Promise<CollateralState[]> {
@@ -46,6 +46,8 @@ export class CollateralStatesService {
 						decimals: Number(results[i * 2 + 1]),
 						totalCollateral: '0',
 						positionCount: 0,
+						totalLimit: '0',
+						totalAvailableForMinting: '0',
 						price: '0',
 					});
 				}
@@ -59,11 +61,14 @@ export class CollateralStatesService {
 
 		// Update dynamic properties
 		for (const c of collaterals) {
-			const { totalCollateral, positionCount } = positionStates 
-				? this.calculateTotalsFromStates(c.tokenAddress, positionStates)
-				: await this.getTotalCollateralForToken(c.tokenAddress);
-			c.totalCollateral = totalCollateral.toString();
-			c.positionCount = positionCount;
+			const relevantPositions = positionStates
+				? positionStates
+				: await this.positionRepository.getPositionsByCollateral(c.tokenAddress);
+			const totals = this.calculateTotalsFromStates(c.tokenAddress, relevantPositions);
+			c.totalCollateral = totals.totalCollateral.toString();
+			c.positionCount = totals.positionCount;
+			c.totalLimit = totals.totalLimit.toString();
+			c.totalAvailableForMinting = totals.totalAvailableForMinting.toString();
 			c.price = collateralPrices[c.tokenAddress] || '0';
 		}
 
@@ -71,24 +76,37 @@ export class CollateralStatesService {
 		return collaterals;
 	}
 
-	private async getTotalCollateralForToken(tokenAddress: string): Promise<{ totalCollateral: bigint; positionCount: number }> {
-		const positions = await this.positionRepository.getPositionsByCollateral(tokenAddress);
-		const totalCollateral = positions.reduce((sum, pos) => sum + BigInt(pos.collateralBalance), 0n);
-		return { totalCollateral, positionCount: positions.length };
-	}
-
 	private calculateTotalsFromStates(
-		tokenAddress: string, 
+		collateralAddress: string,
 		positions: PositionState[]
-	): { totalCollateral: bigint; positionCount: number } {
-		const tokenPositions = positions.filter(
-			p => p.collateralAddress.toLowerCase() === tokenAddress.toLowerCase() && !p.isClosed
-		);
-		const totalCollateral = tokenPositions.reduce(
-			(sum, pos) => sum + BigInt(pos.collateralBalance), 
-			0n
-		);
-		return { totalCollateral, positionCount: tokenPositions.length };
+	): {
+		totalCollateral: bigint;
+		positionCount: number;
+		totalLimit: bigint;
+		totalAvailableForMinting: bigint;
+	} {
+		const colPositions = positions.filter((p) => p.collateralAddress.toLowerCase() === collateralAddress.toLowerCase() && !p.isClosed);
+		const totalCollateral = colPositions.reduce((sum, pos) => sum + BigInt(pos.collateralBalance), 0n);
+
+		const uniqueOriginals = new Map<string, PositionState>();
+		colPositions.forEach((pos) => {
+			const original = pos.original.toLowerCase();
+			if (!uniqueOriginals.has(original)) uniqueOriginals.set(original, pos);
+		});
+
+		let totalLimit = 0n;
+		let totalAvailableForMinting = 0n;
+		uniqueOriginals.forEach((pos) => {
+			totalLimit += BigInt(pos.limit);
+			totalAvailableForMinting += BigInt(pos.availableForMinting);
+		});
+
+		return {
+			totalCollateral,
+			positionCount: colPositions.length,
+			totalLimit,
+			totalAvailableForMinting,
+		};
 	}
 
 	async persistCollateralState(client: any, collaterals: CollateralState[], blockNumber: number): Promise<void> {

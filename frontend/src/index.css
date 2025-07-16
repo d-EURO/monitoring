@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* Monospace font stack */
+body {
+  font-family: 'JetBrains Mono', 'Fira Code', Monaco, Consolas, monospace;
+}

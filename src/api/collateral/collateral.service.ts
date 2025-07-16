@@ -18,6 +18,8 @@ export class CollateralService {
 			decimals: collateral.decimals,
 			totalCollateral: collateral.totalCollateral,
 			positionCount: collateral.positionCount,
+			totalLimit: collateral.totalLimit,
+			totalAvailableForMinting: collateral.totalAvailableForMinting,
 			price: collateral.price,
 		};
 	}

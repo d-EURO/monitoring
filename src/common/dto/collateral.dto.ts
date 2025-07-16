@@ -6,6 +6,8 @@ export interface CollateralState {
 	decimals: number;
 	totalCollateral: string;
 	positionCount: number;
+	totalLimit: string;
+	totalAvailableForMinting: string;
 	price: string;
 }
 
@@ -24,6 +26,12 @@ export class CollateralStateDto {
 
 	@ApiProperty({ description: 'Number of positions using this collateral' })
 	positionCount: number;
+
+	@ApiProperty({ description: 'Total limit across all unique original positions' })
+	totalLimit: string;
+
+	@ApiProperty({ description: 'Total available for minting across all unique original positions' })
+	totalAvailableForMinting: string;
 
 	@ApiProperty({ description: 'Current price of the collateral token in smallest unit' })
 	price: string;

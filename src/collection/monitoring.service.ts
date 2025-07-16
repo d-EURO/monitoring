@@ -65,7 +65,7 @@ export class MonitoringService implements OnModuleInit {
 			const provider = this.blockchainService.getProvider();
 			const currentBlock = await provider.getBlockNumber();
 			const lastProcessedBlock = await this.databaseService.getLastProcessedBlock();
-			const fromBlock = lastProcessedBlock ? lastProcessedBlock + 1 : this.blockchainService.getDeploymentBlock();
+			const fromBlock = lastProcessedBlock ? Number(lastProcessedBlock) + 1 : this.blockchainService.getDeploymentBlock();
 
 			if (fromBlock <= currentBlock) {
 				const timestamp = new Date().toISOString();

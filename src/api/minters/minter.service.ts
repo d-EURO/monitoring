@@ -38,8 +38,6 @@ export class MinterService {
 			message: minter.message,
 			denialDate: minter.denialDate,
 			denialMessage: minter.denialMessage,
-			deuroMinted: minter.deuroMinted,
-			deuroBurned: minter.deuroBurned,
 		};
 	}
 

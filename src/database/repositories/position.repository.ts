@@ -198,7 +198,7 @@ export class PositionRepository {
 			isClosed: record.is_closed,
 			availableForMinting: BigInt(record.available_for_minting),
 			availableForClones: BigInt(record.available_for_clones),
-			created: parseInt(record.block_number),
+			created: record.created,
 			marketPrice: record.market_price ? BigInt(record.market_price) : undefined,
 			collateralizationRatio: record.collateralization_ratio ? parseFloat(record.collateralization_ratio) : undefined,
 		};

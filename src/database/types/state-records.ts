@@ -119,5 +119,7 @@ export interface CollateralStateRecord {
 	decimals: number;
 	total_collateral: string;
 	position_count: number;
+	total_limit: string;
+	total_available_for_minting: string;
 	price: string;
 }

@@ -370,6 +370,8 @@ CREATE TABLE IF NOT EXISTS collateral_states (
     decimals INTEGER NOT NULL,
     total_collateral NUMERIC(78, 0) NOT NULL,
     position_count INTEGER NOT NULL,
+    total_limit NUMERIC(78, 0) NOT NULL DEFAULT 0,
+    total_available_for_minting NUMERIC(78, 0) NOT NULL DEFAULT 0,
     price NUMERIC(30, 18) DEFAULT 0,
     
     -- metadata

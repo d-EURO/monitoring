@@ -5,7 +5,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 interface BlockRow extends QueryResultRow {
-	last_processed_block: number;
+	last_processed_block: string | number;
 }
 
 @Injectable()
@@ -134,7 +134,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       LIMIT 1
     `;
 		const rows = await this.fetch<BlockRow>(query);
-		return rows.length > 0 ? rows[0].last_processed_block : null;
+		return rows.length > 0 ? Number(rows[0].last_processed_block) : null;
 	}
 
 	async updateLastProcessedBlock(client: any, blockNumber: number): Promise<void> {
