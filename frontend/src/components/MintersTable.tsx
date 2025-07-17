@@ -9,25 +9,25 @@ interface Props {
 	data: Minter[] | null;
 	loading: boolean;
 	error: string | null;
-  bridgeData: Bridge[] | null;
+	bridgeData: Bridge[] | null;
 }
 
 function isActive(horizon?: string): boolean {
-  if (!horizon) return true;
-  const horizonTime = BigInt(horizon);
-  const currentTime = BigInt(Math.floor(Date.now() / 1000));
-  return horizonTime > currentTime;
+	if (!horizon) return true;
+	const horizonTime = BigInt(horizon);
+	const currentTime = BigInt(Math.floor(Date.now() / 1000));
+	return horizonTime > currentTime;
 }
 
 function getUtilizationColor(utilization: number): string {
-  if (utilization > 90) return colors.critical;
-  if (utilization > 70) return colors.highlight;
-  return colors.success;
+	if (utilization > 90) return colors.critical;
+	if (utilization > 70) return colors.highlight;
+	return colors.success;
 }
 
 export function MintersTable({ data, loading, error, bridgeData }: Props) {
-  const bridgeMap = new Map<string, Bridge>();
-  bridgeData?.forEach((b) => bridgeMap.set(b.address.toLowerCase(), b));
+	const bridgeMap = new Map<string, Bridge>();
+	bridgeData?.forEach((b) => bridgeMap.set(b.address.toLowerCase(), b));
 
 	const columns: Column<Minter>[] = [
 		{
@@ -44,53 +44,54 @@ export function MintersTable({ data, loading, error, bridgeData }: Props) {
 			width: '150px',
 			format: (minter): CellContent => {
 				const startDate = new Date(minter.applicationDate).getTime() / 1000 + Number(minter.applicationPeriod);
-        const hasStarted = startDate <= Date.now() / 1000;
+				const hasStarted = startDate <= Date.now() / 1000;
 				return {
 					primary: hasStarted ? formatDateTime(startDate) : formatCountdown(startDate),
 					secondary: minter.message ? minter.message.slice(0, 40) + (minter.message.length > 40 ? '...' : '') : '-',
+          primaryClass: hasStarted ? undefined : colors.critical,
+				};
+			},
+		},
+		{
+			header: { primary: 'MINTED', secondary: 'LIMIT' },
+			width: '150px',
+			align: 'right',
+			format: (minter): CellContent => {
+				const bridge = bridgeMap.get(minter.minter.toLowerCase());
+				return {
+					primary: bridge ? formatCurrency(bigintToNumber(bridge.minted, 18)) : '-',
+					secondary: bridge ? formatCurrency(bigintToNumber(bridge.limit, 18)) : '-',
+				};
+			},
+		},
+		{
+			header: 'UTIL. %',
+			width: '120px',
+			align: 'right',
+			format: (minter) => {
+				const bridge = bridgeMap.get(minter.minter.toLowerCase());
+				const minted = bridge && Number(bigintToNumber(bridge?.minted, 18));
+				const limit = bridge && Number(bigintToNumber(bridge?.limit, 18));
+				const utilization = limit && minted ? (limit > 0 ? (minted * 10000) / (limit * 100) : 0) : undefined;
+				return {
+					primary: utilization !== undefined ? formatPercent(utilization) : '-',
+					secondary: '-',
+					primaryClass: utilization !== undefined ? getUtilizationColor(utilization) : undefined,
 				};
 			},
 		},
     {
-          header: { primary: 'STATUS', secondary: 'EXPIRY' },
-          width: '150px',
-          align: 'right',
-          format: (minter): CellContent => {
-            const bridge = bridgeMap.get(minter.minter.toLowerCase());
-            return {
-              primary: isActive(bridge?.horizon) ? 'ACTIVE' : 'EXPIRED',
-              secondary: bridge?.horizon ? formatCountdown(bridge?.horizon) : '-',
-            };
-          },
-        },
-        {
-          header: { primary: 'MINTED', secondary: 'LIMIT' },
-          width: '150px',
-          align: 'right',
-          format: (minter): CellContent => {
-            const bridge = bridgeMap.get(minter.minter.toLowerCase());
-            return {
-              primary: bridge ? formatCurrency(bigintToNumber(bridge.minted, 18)) : '-',
-              secondary: bridge ? formatCurrency(bigintToNumber(bridge.limit, 18)) : '-',
-            };
-          },
-        },
-        {
-          header: 'UTIL. %',
-          width: '120px',
-          align: 'right',
-          format: (minter) => {
-            const bridge = bridgeMap.get(minter.minter.toLowerCase());
-            const minted = bridge && Number(bigintToNumber(bridge?.minted, 18));
-            const limit = bridge && Number(bigintToNumber(bridge?.limit, 18));
-            const utilization = (limit && minted) ? (limit > 0 ? (minted * 10000) / (limit * 100) : 0) : undefined;
-            return {
-              primary: utilization !== undefined ? formatPercent(utilization) : '-',
-              secondary: '-',
-              primaryClass: utilization !== undefined ? getUtilizationColor(utilization) : undefined,
-            };
-          },
-        },
+			header: { primary: 'EXPIRY', secondary: 'COUNTDOWN' },
+			width: '150px',
+			align: 'right',
+			format: (minter): CellContent => {
+				const bridge = bridgeMap.get(minter.minter.toLowerCase());
+				return {
+					primary: bridge?.horizon ? formatDateTime(Number(bridge?.horizon)) : '-',
+					secondary: bridge?.horizon ? formatCountdown(bridge?.horizon) : '-',
+				};
+			},
+		},
 	];
 
 	return (
@@ -101,7 +102,7 @@ export function MintersTable({ data, loading, error, bridgeData }: Props) {
 			error={error}
 			columns={columns}
 			getRowKey={(minter) => minter.minter}
-      shouldDimRow={(minter) => !isActive(bridgeMap.get(minter.minter.toLowerCase())?.horizon)}
+			shouldDimRow={(minter) => !isActive(bridgeMap.get(minter.minter.toLowerCase())?.horizon)}
 			emptyMessage="No minters found"
 		/>
 	);

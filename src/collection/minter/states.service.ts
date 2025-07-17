@@ -25,11 +25,10 @@ export class MinterStatesService {
 		this.logger.log('Fetching minters and bridges state...');
 
 		const minters = await this.getAllMinterStates();
-		const approvedMinters = minters.filter((m) => m.status === MinterStatus.APPROVED);
-		if (approvedMinters.length === 0) return { minters, bridges: [] };
+		if (minters.length === 0) return { minters, bridges: [] };
 
 		const bridges = await this.retrieveBridgeStates(
-			approvedMinters.map((m) => m.minter),
+			minters.map((m) => m.minter),
 			provider
 		);
 
