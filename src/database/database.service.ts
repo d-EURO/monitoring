@@ -106,6 +106,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 				.filter((stmt) => stmt.length > 0);
 
 			await this.withTransaction(async (client) => {
+				await client.query('SET statement_timeout = 300000'); // 5 minutes for schema initialization
+				
 				for (const statement of statements) {
 					await client.query(statement);
 				}

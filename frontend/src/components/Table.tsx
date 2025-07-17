@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { colors, spacing, typography } from '../lib/theme';
 
@@ -75,6 +76,17 @@ export function Table<T>({
   shouldDimRow,
   emptyMessage = 'No data found'
 }: TableProps<T>) {
+  const [showDimmed, setShowDimmed] = useState(false);
+  
+  // Filter data based on showDimmed state
+  const filteredData = data && shouldDimRow
+    ? (showDimmed ? data : data.filter(row => !shouldDimRow(row)))
+    : data;
+  
+  // Count dimmed rows
+  const dimmedCount = data && shouldDimRow
+    ? data.filter(row => shouldDimRow(row)).length
+    : 0;
   // Loading state
   if (loading) {
     return (
@@ -103,11 +115,34 @@ export function Table<T>({
     );
   }
 
-  // Empty state
-  if (!data || data.length === 0) {
+  // Empty state - but check if we have dimmed items that are hidden
+  if (!filteredData || filteredData.length === 0) {
+    // If we have dimmed items that are hidden, show the table with toggle button
+    if (dimmedCount > 0 && !showDimmed) {
+      return (
+        <div className={`${colors.background} ${colors.table.border} border rounded-xl`}>
+          <div className={`${spacing.cellPadding} ${colors.table.border} border-b rounded-t-xl ${colors.table.headerBg} flex items-center justify-between`}>
+            <h2 className={`text-sm ${typography.tableHeader} ${colors.text.primary}`}>
+              {title} (0)
+            </h2>
+            <button
+              onClick={() => setShowDimmed(!showDimmed)}
+              className={`text-xs ${colors.text.secondary} hover:text-gray-300 transition-colors cursor-pointer`}
+            >
+              Show {dimmedCount} more
+            </button>
+          </div>
+          <div className={`${spacing.cellPadding} ${colors.text.secondary}`}>
+            No active items
+          </div>
+        </div>
+      );
+    }
+    
+    // Otherwise show regular empty state
     return (
-      <div className={`${colors.background} ${colors.table.border} border`}>
-        <div className={`${spacing.cellPadding} ${colors.table.border} border-b`}>
+      <div className={`${colors.background} ${colors.table.border} border rounded-xl`}>
+        <div className={`${spacing.cellPadding} ${colors.table.border} border-b rounded-t-xl`}>
           <h2 className={`text-sm ${typography.tableHeader} ${colors.text.primary}`}>{title}</h2>
         </div>
         <div className={`${spacing.cellPadding} ${colors.text.secondary}`}>
@@ -118,12 +153,20 @@ export function Table<T>({
   }
 
   return (
-    <div className={`${colors.background} ${colors.table.border} border`}>
+    <div className={`${colors.background} ${colors.table.border} border rounded-xl`}>
       {/* Header */}
-      <div className={`${spacing.cellPadding} ${colors.table.border} border-b ${colors.table.headerBg}`}>
+      <div className={`${spacing.cellPadding} ${colors.table.border} border-b rounded-t-xl ${colors.table.headerBg} flex items-center justify-between`}>
         <h2 className={`text-sm ${typography.tableHeader} ${colors.text.primary}`}>
-          {title} ({data.length})
+          {title} ({filteredData.length})
         </h2>
+        {dimmedCount > 0 && (
+          <button
+            onClick={() => setShowDimmed(!showDimmed)}
+            className={`text-xs ${colors.text.secondary} hover:text-gray-300 transition-colors cursor-pointer`}
+          >
+            {showDimmed ? `Hide ${dimmedCount}` : `Show ${dimmedCount} more`}
+          </button>
+        )}
       </div>
       
       {/* Table */}
@@ -166,7 +209,7 @@ export function Table<T>({
             </tr>
           </thead>
           <tbody>
-            {data.map((row) => {
+            {filteredData.map((row) => {
               const isDimmed = shouldDimRow?.(row) || false;
               const rowClass = isDimmed ? colors.table.rowDim : '';
               

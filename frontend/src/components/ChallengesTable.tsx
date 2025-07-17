@@ -105,14 +105,14 @@ export function ChallengesTable({ data, loading, error, positionData, collateral
 
 	return (
 		<Table
-			title="ACTIVE CHALLENGES"
+			title="CHALLENGES"
 			data={data}
 			loading={loading}
 			error={error}
 			columns={columns}
 			getRowKey={(challenge) => challenge.id.toString()}
 			shouldDimRow={(challenge) => ['AVERTED', 'SUCCEEDED'].includes(challenge.status)}
-			emptyMessage="No active challenges"
+			emptyMessage="No challenges found"
 		/>
 	);
 }
