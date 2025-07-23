@@ -12,7 +12,7 @@ node reset_database.js
 npm run build
 
 # 3. Start monitoring in the background
-npm run start:prod > monitoring.log 2>&1 &
+nohup npm run start:prod > monitoring.log 2>&1 &
 
 # 4. (Optional) Monitor the log file in real-time
 tail -f monitoring.log
@@ -22,7 +22,7 @@ node reset_database.js && npm run build && npm run start:prod > monitoring.log 2
 
 # To check if it's running:
 # Check the process
-ps aux | grep "node dist/main.js"
+ps aux | grep "node.*monitoring" | grep -v grep
 
 # Check the latest logs
 tail -n 50 monitoring.log

@@ -1,5 +1,4 @@
 // API Response Types
-
 export interface HealthStatus {
   status: 'healthy' | 'unhealthy';
   lastProcessedBlock: number | null;
