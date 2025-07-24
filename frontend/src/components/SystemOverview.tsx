@@ -7,11 +7,15 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 	if (error) return <div className={colors.critical}>{error}</div>;
 	if (!data) return null;
 
+	// 300'000 dEURO manually added to Equity contract during liquidiation of WFPS postions (26.06.2025-29.06.2025)
+	const deuroProfit = BigInt(data.deuroProfit) + 300_000n * 10n ** 18n;
+	const netProfit = deuroProfit - BigInt(data.deuroLoss);
+
 	return (
 		<div className={`${colors.background} ${colors.table.border} border rounded-xl p-4`}>
 			<h2 className={`text-sm uppercase tracking-wider ${colors.text.primary} mb-4`}>SYSTEM OVERVIEW</h2>
 
-			<div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
 				<Section title="SUPPLY">
 					<Metric label="dEURO" value={formatNumber(data.deuroTotalSupply, 18, 2)} valueClass={colors.text.primary} />
 					<Metric label="nDEPS" value={formatNumber(data.equityShares, 18, 2)} />
@@ -51,16 +55,15 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 					<Metric label="24h Trades" value={data.equityTradeCount24h.toLocaleString()} />
 				</Section>
 
-				<Section title="PROFIT & LOSS">
-					<Metric label="Profit" value={formatNumber(data.deuroProfit, 18, 2)} valueClass={colors.success} />
-					<Metric label="Loss" value={formatNumber(data.deuroLoss, 18, 2)} />
+				<Section title="PROFIT">
+					<Metric label="Net Profit" value={formatNumber(netProfit, 18, 2)} valueClass={colors.success}/>
 					<Metric label="Distributed" value={formatNumber(data.deuroProfitDistributed, 18, 2)} />
 				</Section>
 
-				{data.usdToEurRate && (
+				{(data.usdToEurRate || data.usdToChfRate) && (
 					<Section title="CURRENCY RATES">
-						<Metric label="USD/EUR" value={formatNumber(data.usdToEurRate, 0, 4)} />
-						<Metric label="USD/CHF" value={formatNumber(data.usdToChfRate || 0, 0, 4)} />
+						{data.usdToEurRate && <Metric label="USD/EUR" value={formatNumber(1/ data.usdToEurRate, 0, 4)} />}
+						{data.usdToChfRate && <Metric label="USD/CHF" value={formatNumber(1 /data.usdToChfRate, 0, 4)} />}
 					</Section>
 				)}
 			</div>

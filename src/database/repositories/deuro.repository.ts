@@ -142,11 +142,28 @@ export class DeuroStateRepository {
 	}
 
 	async getDeuroProfitTotal(): Promise<bigint> {
-		const results = await this.db.fetch(`
-			SELECT COALESCE(SUM(amount), 0) as total
-			FROM deuro_profit_events
-		`);
-		return BigInt(results[0].total);
+		const [realized, unrealized, tradeProfits] = await Promise.all([
+			this.db.fetch(`
+				SELECT COALESCE(SUM(amount), 0) as total
+				FROM deuro_profit_events
+			`),
+			this.db.fetch(`
+				SELECT COALESCE(SUM(interest), 0) as total
+				FROM position_states
+			`),
+			this.db.fetch(`
+				SELECT COALESCE(SUM(
+					CASE 
+						WHEN amount > 0 THEN tot_price * 0.02::numeric  -- Invest: 2% of amount paid
+						WHEN amount < 0 THEN tot_price::numeric / 49    -- Redeem: approximation for 2% fee
+						ELSE 0
+					END
+				)::numeric(78,0), 0) as total
+				FROM equity_trade_events
+			`),
+		]);
+
+		return BigInt(realized[0].total) + BigInt(unrealized[0].total) + BigInt(tradeProfits[0].total);
 	}
 
 	async getDeuroProfitDistributedTotal(): Promise<bigint> {

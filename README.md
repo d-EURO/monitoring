@@ -36,3 +36,11 @@ kill <PID>
 ```
 
 The 2>&1 redirects both stdout and stderr to the log file, and & runs it in the background.
+
+
+# TODO
+
+- Make sure leadrate change proposal is captured in dashboard
+- Make sure position status are colored correctly
+- Sort tables in a logical order
+- Check ready-to-deploy state

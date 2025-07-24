@@ -437,6 +437,7 @@ CREATE INDEX IF NOT EXISTS idx_deuro_minter_denied_events_minter ON deuro_minter
 
 CREATE INDEX IF NOT EXISTS idx_equity_trade_events_timestamp ON equity_trade_events (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_equity_trade_events_who ON equity_trade_events (who);
+CREATE INDEX IF NOT EXISTS idx_equity_trade_events_amount ON equity_trade_events (amount) WHERE amount != 0;
 
 CREATE INDEX IF NOT EXISTS idx_savings_saved_events_timestamp ON savings_saved_events (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_savings_saved_events_account ON savings_saved_events (account);

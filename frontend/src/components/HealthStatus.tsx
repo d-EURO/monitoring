@@ -13,11 +13,11 @@ export function HealthStatus({ data, error }: DataState<HealthStatus>) {
 
 	const isHealthy = (!error && !data) || data?.status === 'healthy';
 	const header = data
-		? `dEURO Protocol Monitor - ${data.blockLag} block${data.blockLag === 1 ? '' : 's'} behind |`
-		: 'dEURO Protocol Monitor |';
+		? `dEURO Protocol Monitor | ${data.blockLag} block${data.blockLag === 1 ? '' : 's'} behind`
+		: 'dEURO Protocol Monitor';
 
 	return (
-		<div className="pt-4 px-4 flex items-center gap-2 justify-end">
+		<div className="pt-4 px-4 flex flex-row items-center gap-2 justify-between">
 			<div className=" text-gray-500">{header}</div>
 			{isHealthy ? (
 				<div className={`text-xs ${colors.success} font-bold`}>{data ? 'ONLINE' : 'LOADING...'}</div>
