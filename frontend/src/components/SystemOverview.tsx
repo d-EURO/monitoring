@@ -28,13 +28,25 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 					<Metric label="Equity" value={formatNumber(data.reserveEquity, 18, 2)} valueClass={colors.success} />
 				</Section>
 
-				<Section title="24H ACTIVITY">
-					<Metric label="dEURO Vol" value={formatNumber(data.deuroVolume24h, 18, 2)} />
+				<Section title="24H ACTIVITY (dEURO)">
+					<Metric label="Volume" value={formatNumber(data.deuroVolume24h, 18, 2)} />
 					<Metric label="Transfers" value={data.deuroTransferCount24h.toLocaleString()} />
-					<Metric label="Unique Addr" value={data.deuroUniqueAddresses24h.toLocaleString()} />
+					<Metric label="Addresses" value={data.deuroUniqueAddresses24h.toLocaleString()} />
 				</Section>
 
-				<Section title="24H MINT/BURN">
+				<Section title="EQUITY">
+					<Metric label="Price" value={`${formatNumber(data.equityPrice, 18, 4)}`} valueClass={colors.text.primary} />
+					<Metric label="Profit" value={formatNumber(netProfit, 18, 2)} valueClass={colors.success} />
+					<Metric label="24h Vol" value={formatNumber(data.equityTradeVolume24h, 18, 2) + ` (${data.equityTradeCount24h.toLocaleString()})`} />
+				</Section>
+
+				<Section title="SAVINGS">
+					<Metric label="Total" value={formatNumber(data.savingsTotal, 18, 2)} valueClass={colors.text.primary} />
+					<Metric label="Interest" value={formatNumber(data.savingsInterestCollected, 18, 2)} />
+					<Metric label="Rate" value={formatPercent(Number(data.savingsRate) / 10_000, 2)} />
+				</Section>
+
+				<Section title="24H MINT/BURN (dEURO)">
 					<Metric label="Minted" value={formatNumber(data.deuroMinted24h || '0', 18, 2)} />
 					<Metric label="Burned" value={formatNumber(data.deuroBurned24h || '0', 18, 2)} />
 					<Metric
@@ -43,27 +55,10 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 					/>
 				</Section>
 
-				<Section title="SAVINGS">
-					<Metric label="Total" value={formatNumber(data.savingsTotal, 18, 2)} valueClass={colors.text.primary} />
-					<Metric label="Rate" value={formatPercent(Number(data.savingsRate) / 10_000, 2)} />
-					<Metric label="Interest" value={formatNumber(data.savingsInterestCollected, 18, 2)} />
-				</Section>
-
-				<Section title="EQUITY">
-					<Metric label="Price" value={`${formatNumber(data.equityPrice, 18, 4)}`} valueClass={colors.text.primary} />
-					<Metric label="24h Volume" value={formatNumber(data.equityTradeVolume24h, 18, 2)} />
-					<Metric label="24h Trades" value={data.equityTradeCount24h.toLocaleString()} />
-				</Section>
-
-				<Section title="PROFIT">
-					<Metric label="Net Profit" value={formatNumber(netProfit, 18, 2)} valueClass={colors.success}/>
-					<Metric label="Distributed" value={formatNumber(data.deuroProfitDistributed, 18, 2)} />
-				</Section>
-
 				{(data.usdToEurRate || data.usdToChfRate) && (
 					<Section title="CURRENCY RATES">
-						{data.usdToEurRate && <Metric label="USD/EUR" value={formatNumber(1/ data.usdToEurRate, 0, 4)} />}
-						{data.usdToChfRate && <Metric label="USD/CHF" value={formatNumber(1 /data.usdToChfRate, 0, 4)} />}
+						{data.usdToEurRate && <Metric label="USD/EUR" value={formatNumber(1 / data.usdToEurRate, 0, 4)} />}
+						{data.usdToChfRate && <Metric label="USD/CHF" value={formatNumber(1 / data.usdToChfRate, 0, 4)} />}
 					</Section>
 				)}
 			</div>
@@ -74,7 +69,7 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 function Metric({ label, value, valueClass = colors.text.secondary }: { label: string; value: string | number; valueClass?: string }) {
 	return (
 		<div className="flex justify-between">
-			<span className={colors.text.secondary}>{label}:</span>
+			<span className={colors.text.secondary}>{label}</span>
 			<span className={valueClass}>{value}</span>
 		</div>
 	);
