@@ -83,7 +83,8 @@ export class PositionEventsService {
 		const eventPromises = positionAddresses.map(async (address) => {
 			const positionContract = new ethers.Contract(address, PositionV2ABI, provider);
 			const filter = positionContract.filters[eventName]();
-			return fetchEvents<T>(positionContract, filter, fromBlock, toBlock, this.logger);
+			const events = await fetchEvents<T>(positionContract, filter, fromBlock, toBlock, this.logger);
+			return events.map((event) => ({ ...event, position: address.toLowerCase() }));
 		});
 		const events = await Promise.all(eventPromises);
 		return events.flat();

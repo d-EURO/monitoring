@@ -20,6 +20,7 @@ export class MonitoringService implements OnModuleInit {
 	private isMonitoring = false;
 	private monitoringTimeoutCount = 0;
 	private readonly INDEXING_TIMEOUT_COUNT = 3;
+	private readonly MAX_BLOCKS_PER_BATCH = 500; // Process max 500 blocks at a time
 
 	constructor(
 		private readonly databaseService: DatabaseService,
@@ -68,40 +69,66 @@ export class MonitoringService implements OnModuleInit {
 			const fromBlock = lastProcessedBlock ? Number(lastProcessedBlock) + 1 : this.blockchainService.getDeploymentBlock();
 
 			if (fromBlock <= currentBlock) {
-				const timestamp = new Date().toISOString();
-				this.logger.log(`[${timestamp}] Fetching system state from block ${fromBlock} to ${currentBlock}`);
-				const contracts = this.blockchainService.getContracts();
+				// Process blocks in smaller batches
+				let batchStart = fromBlock;
+				const totalBlocks = currentBlock - fromBlock + 1;
+				let processedBlocks = 0;
 
-				// Fetch all events in parallel
-				const [_deuroEvents, positionsEvents, _challengeEvents, _minterEvents] = await Promise.all([
-					this.deuroEventsService.getDeuroEvents(contracts, fromBlock, currentBlock),
-					this.positionEventsService.getPositionsEvents(contracts, provider, fromBlock, currentBlock),
-					this.challengeEventsService.getChallengesEvents(contracts.mintingHubContract, fromBlock, currentBlock),
-					this.minterEventsService.getMintersEvents(contracts.deuroContract, fromBlock, currentBlock),
-				]);
+				while (batchStart <= currentBlock) {
+					const batchEnd = Math.min(batchStart + this.MAX_BLOCKS_PER_BATCH - 1, currentBlock);
+					const timestamp = new Date().toISOString();
+					
+					this.logger.log(
+						`[${timestamp}] Processing batch: blocks ${batchStart}-${batchEnd} ` +
+						`(${processedBlocks}/${totalBlocks} blocks processed)`
+					);
 
-				// Fetch position state first as it's needed by challenge state
-				const positionsState = await this.positionStatesService.getPositionsState(provider);
-				
-				// Fetch remaining states in parallel
-				const [deuroState, collateralState, challengesState, mintersState] = await Promise.all([
-					this.deuroStateService.getDeuroState(contracts),
-					this.collateralStatesService.getCollateralState(positionsEvents.mintingHubPositionOpenedEvents, provider, positionsState),
-					this.challengeStatesService.getChallengesState(contracts.mintingHubContract, positionsState),
-					this.minterStatesService.getMintersState(provider),
-				]);
+					try {
+						const contracts = this.blockchainService.getContracts();
 
-				// Persist everything in a single atomic transaction
-				await this.databaseService.withTransaction(async (client) => {
-					await this.deuroStateService.persistDeuroState(client, deuroState, currentBlock);
-					await this.positionStatesService.persistPositionsState(client, positionsState, currentBlock);
-					await this.collateralStatesService.persistCollateralState(client, collateralState, currentBlock);
-					await this.challengeStatesService.persistChallengesState(client, challengesState, currentBlock);
-					await this.minterStatesService.persistFullMintersState(client, mintersState, currentBlock);
+						// Fetch all events in parallel for this batch
+						const [_deuroEvents, positionsEvents, _challengeEvents, _minterEvents] = await Promise.all([
+							this.deuroEventsService.getDeuroEvents(contracts, batchStart, batchEnd),
+							this.positionEventsService.getPositionsEvents(contracts, provider, batchStart, batchEnd),
+							this.challengeEventsService.getChallengesEvents(contracts.mintingHubContract, batchStart, batchEnd),
+							this.minterEventsService.getMintersEvents(contracts.deuroContract, batchStart, batchEnd),
+						]);
 
-					// Only update last processed block after all states are successfully saved
-					await this.databaseService.updateLastProcessedBlock(client, currentBlock);
-				});
+						// Only fetch states at the end of each batch (not for every block)
+						if (batchEnd === currentBlock) {
+							// Fetch current state at the final block
+							const positionsState = await this.positionStatesService.getPositionsState(provider);
+							
+							const [deuroState, collateralState, challengesState, mintersState] = await Promise.all([
+								this.deuroStateService.getDeuroState(contracts),
+								this.collateralStatesService.getCollateralState(positionsEvents.mintingHubPositionOpenedEvents, provider, positionsState),
+								this.challengeStatesService.getChallengesState(contracts.mintingHubContract, positionsState),
+								this.minterStatesService.getMintersState(provider),
+							]);
+
+							// Persist states in a transaction
+							await this.databaseService.withTransaction(async (client) => {
+								await this.deuroStateService.persistDeuroState(client, deuroState, batchEnd);
+								await this.positionStatesService.persistPositionsState(client, positionsState, batchEnd);
+								await this.collateralStatesService.persistCollateralState(client, collateralState, batchEnd);
+								await this.challengeStatesService.persistChallengesState(client, challengesState, batchEnd);
+								await this.minterStatesService.persistFullMintersState(client, mintersState, batchEnd);
+							});
+						}
+
+						// Update last processed block after each successful batch
+						await this.databaseService.updateLastProcessedBlock(null, batchEnd);
+						processedBlocks += (batchEnd - batchStart + 1);
+						
+						this.logger.log(`Successfully processed batch up to block ${batchEnd}`);
+					} catch (error) {
+						this.logger.error(`Failed to process batch ${batchStart}-${batchEnd}:`, error);
+						// Stop processing on error but keep progress
+						break;
+					}
+
+					batchStart = batchEnd + 1;
+				}
 
 				await this.recordMonitoringCycle(fromBlock, currentBlock, Date.now() - startTime);
 			} else {

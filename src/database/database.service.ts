@@ -157,7 +157,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       INSERT INTO monitoring_metadata (last_processed_block, events_processed, processing_duration_ms)
       VALUES ($1, 0, 0)
     `;
-		await client.query(query, [blockNumber]);
+		// If client is provided, use it (for transaction context)
+		// Otherwise, use the pool directly (for incremental updates)
+		if (client) {
+			await client.query(query, [blockNumber]);
+		} else {
+			await this.query(query, [blockNumber]);
+		}
 	}
 
 	async close(): Promise<void> {
