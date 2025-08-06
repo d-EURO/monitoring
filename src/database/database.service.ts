@@ -95,6 +95,19 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
 	async initializeSchema(): Promise<void> {
 		try {
+			// Check if schema already exists by checking for core tables
+			const tablesExist = await this.fetch(`
+				SELECT COUNT(*) as count 
+				FROM information_schema.tables 
+				WHERE table_schema = 'public' 
+				AND table_name IN ('deuro_state', 'position_states', 'monitoring_metadata')
+			`);
+			
+			if (tablesExist[0].count === '3') {
+				this.logger.log('Database schema already exists, skipping initialization');
+				return;
+			}
+
 			const schemaPath = process.env.DB_SCHEMA_PATH || join(__dirname, '../../database/schema.sql');
 			const schemaSql = readFileSync(schemaPath, 'utf8');
 
@@ -106,7 +119,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 				.filter((stmt) => stmt.length > 0);
 
 			await this.withTransaction(async (client) => {
-				await client.query('SET statement_timeout = 300000'); // 5 minutes for schema initialization
+				await client.query('SET statement_timeout = 900000'); // 15 minutes for schema initialization
 				
 				for (const statement of statements) {
 					await client.query(statement);
