@@ -47,7 +47,7 @@ export interface DeuroState {
 
 export interface Position {
   address: string;
-  status: 'ACTIVE' | 'CLOSED' | 'CHALLENGED';
+  status: 'ACTIVE' | 'CLOSED' | 'CHALLENGED' | 'COOLDOWN' | 'EXPIRED';
   owner: string;
   original: string;
   collateralAddress: string;

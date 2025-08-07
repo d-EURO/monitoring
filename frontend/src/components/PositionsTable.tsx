@@ -2,7 +2,7 @@ import type { Position, Collateral } from '../types/index';
 import { Alignment, Table } from './Table';
 import type { Column, MultiLineCell } from './Table';
 import { colors } from '../lib/theme';
-import { formatNumber, formatPercent, formatDateTime, bigintToNumber, formatCountdown } from '../lib/formatters';
+import { formatNumber, formatPercent, formatDateTime, bigintToNumber, formatCountdown, getStatusColor } from '../lib/formatters';
 import { AddressLink } from './AddressLink';
 import type { DataState } from '../lib/api.hook';
 
@@ -18,10 +18,20 @@ export function PositionsTable({ data, collateralData }: PositionsTableProps) {
 	const columns: Column<Position>[] = [
 		{
 			header: { primary: 'CREATED', secondary: 'STATUS' },
-			format: (position): MultiLineCell => ({
-				primary: position.created ? formatDateTime(position.created) : '-',
-				secondary: position.status,
-			}),
+			format: (position): MultiLineCell => {
+				const inCooldown = position.status === 'COOLDOWN';
+				const primaryContent = inCooldown
+					? formatCountdown(position.cooldown)
+					: position.created
+						? formatDateTime(position.created)
+						: '-';
+				return {
+					primary: primaryContent,
+					secondary: position.status,
+					primaryClass: inCooldown ? colors.critical : undefined,
+					secondaryClass: getStatusColor(position.status),
+				};
+			},
 		},
 		{
 			header: { primary: 'POSITION', secondary: 'OWNER' },

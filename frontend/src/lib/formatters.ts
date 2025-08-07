@@ -112,9 +112,9 @@ export function getStatusColor(status: string): string {
 		case 'CRITICAL':
 		case 'DENIED':
 		case 'PENDING':
+		case 'COOLDOWN':
 			return colors.critical;
 		case 'WARNING':
-		case 'COOLDOWN':
 			return colors.highlight;
 		case 'CLOSED':
 		case 'INACTIVE':
