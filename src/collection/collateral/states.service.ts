@@ -22,8 +22,7 @@ export class CollateralStatesService {
 		positionStates?: PositionState[]
 	): Promise<CollateralState[]> {
 		this.logger.log('Calculating collateral state...');
-		if (positionEvents.length === 0) return [];
-
+		
 		const collaterals = await this.collateralRepository.getAllCollateralStates();
 		const collateralSet = [...new Set(positionEvents.map((event) => event.collateral))];
 		const newCollateralAddresses = collateralSet.filter((u) => !collaterals.some((c) => c.tokenAddress === u));
@@ -91,14 +90,21 @@ export class CollateralStatesService {
 		const uniqueOriginals = new Map<string, PositionState>();
 		colPositions.forEach((pos) => {
 			const original = pos.original.toLowerCase();
-			if (!uniqueOriginals.has(original)) uniqueOriginals.set(original, pos);
+			if (!uniqueOriginals.has(original)) {
+				const originalPos = positions.find((p) => p.address.toLowerCase() === original);
+				uniqueOriginals.set(original, originalPos);
+			}
 		});
 
 		let totalLimit = 0n;
 		let totalAvailableForMinting = 0n;
-		uniqueOriginals.forEach((pos) => {
-			totalLimit += BigInt(pos.limit);
-			totalAvailableForMinting += BigInt(pos.availableForMinting);
+		uniqueOriginals.forEach((orig, originalAddress) => {
+			if (orig) {
+				totalLimit += BigInt(orig.limit);
+				totalAvailableForMinting += BigInt(orig.availableForMinting);
+			} else {
+				this.logger.warn(`[WARNING] Original position ${originalAddress} not found in positions array!`);
+			}
 		});
 
 		return {
