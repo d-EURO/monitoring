@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DatabaseService } from '../database/database.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
+import { MonitoringStatus } from '../common/enums/monitoring-status.enum';
 
 // Domain services
 import { DeuroEventsService } from './deuro/events.service';
@@ -21,6 +22,10 @@ export class MonitoringService implements OnModuleInit {
 	private monitoringTimeoutCount = 0;
 	private readonly INDEXING_TIMEOUT_COUNT = 3;
 	private readonly MAX_BLOCKS_PER_BATCH = 500; // Process max 500 blocks at a time
+	
+	// Status tracking for health endpoint
+	private monitoringStatus: MonitoringStatus = MonitoringStatus.IDLE;
+	private lastError: string | null = null;
 
 	constructor(
 		private readonly databaseService: DatabaseService,
@@ -53,12 +58,16 @@ export class MonitoringService implements OnModuleInit {
 				this.logger.warn('Monitoring cycle timeout detected, resetting...');
 				this.isMonitoring = false;
 				this.monitoringTimeoutCount = 0;
+				this.monitoringStatus = MonitoringStatus.ERROR;
+				this.lastError = 'Monitoring cycle timeout';
 			}
 			return;
 		}
 
 		this.isMonitoring = true;
 		this.monitoringTimeoutCount = 0;
+		this.monitoringStatus = MonitoringStatus.PROCESSING;
+		this.lastError = null;
 
 		const startTime = Date.now();
 
@@ -131,15 +140,26 @@ export class MonitoringService implements OnModuleInit {
 				}
 
 				await this.recordMonitoringCycle(fromBlock, currentBlock, Date.now() - startTime);
+				this.monitoringStatus = MonitoringStatus.IDLE;
 			} else {
 				const timestamp = new Date().toISOString();
 				this.logger.log(`[${timestamp}] No new blocks to process (${fromBlock}/${currentBlock})`);
+				this.monitoringStatus = MonitoringStatus.IDLE;
 			}
 		} catch (error) {
 			this.logger.error('Error during monitoring cycle:', error);
+			this.monitoringStatus = MonitoringStatus.ERROR;
+			this.lastError = error instanceof Error ? error.message : String(error);
 		} finally {
 			this.isMonitoring = false;
 		}
+	}
+
+	getStatus(): { status: MonitoringStatus; lastError: string | null } {
+		return {
+			status: this.monitoringStatus,
+			lastError: this.lastError
+		};
 	}
 
 	private async recordMonitoringCycle(fromBlock: number, toBlock: number, duration: number): Promise<void> {

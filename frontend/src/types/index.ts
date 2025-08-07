@@ -1,9 +1,13 @@
+import { MonitoringStatus } from './monitoring';
+
 // API Response Types
 export interface HealthStatus {
-  status: 'healthy' | 'unhealthy';
   lastProcessedBlock: number | null;
   currentBlock: number;
   blockLag: number;
+  monitoringStatus: MonitoringStatus;
+  syncProgress: number;
+  lastError?: string;
   timestamp: string;
 }
 
