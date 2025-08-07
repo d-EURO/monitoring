@@ -12,6 +12,10 @@ export class MinterService {
 
 	async getAllMinters(): Promise<MinterStateDto[]> {
 		const minters = await this.minterRepository.getAllMinterStates();
+		
+		// Sort by applicationDate - descending
+		minters.sort((a, b) => Number(b.applicationDate) - Number(a.applicationDate));
+		
 		return minters.map(this.mapToDto);
 	}
 

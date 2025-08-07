@@ -17,6 +17,9 @@ export class PositionService {
 			positions = await this.positionRepository.getAllPositions();
 		}
 
+		// Sort by created date - descending
+		positions.sort((a, b) => (b.created || 0) - (a.created || 0));
+
 		return positions.map(this.mapToDto);
 	}
 

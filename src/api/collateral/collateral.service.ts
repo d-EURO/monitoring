@@ -8,6 +8,17 @@ export class CollateralService {
 
 	async getAllCollateral(): Promise<CollateralStateDto[]> {
 		const collaterals = await this.collateralRepository.getAllCollateralStates();
+		
+		// Sort by totalLimit, then TVL - descending
+		collaterals.sort((a, b) => {
+			const limitDiff = BigInt(b.totalLimit) - BigInt(a.totalLimit);
+			if (limitDiff !== 0n) return limitDiff > 0n ? 1 : -1;
+	
+			const tvlA = Number(a.totalCollateral) * Number(a.price);
+			const tvlB = Number(b.totalCollateral) * Number(b.price);
+			return tvlB - tvlA;
+		});
+		
 		return collaterals.map(this.mapToDto);
 	}
 

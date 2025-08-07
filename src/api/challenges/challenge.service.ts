@@ -15,6 +15,9 @@ export class ChallengeService {
 			challenges = await this.challengeRepository.getAllChallenges();
 		}
 		
+		// Sort by start - descending
+		challenges.sort((a, b) => Number(b.start) - Number(a.start));
+		
 		return challenges.map(this.mapToDto);
 	}
 
