@@ -6,7 +6,6 @@ WORKDIR /app
 USER node
 
 COPY --chown=node . .
-RUN npm install --frozen-lockfile
-RUN npm run build
+RUN npm install --frozen-lockfile && npm run build
 
 CMD ["npm", "run", "start:prod"]

@@ -10,7 +10,7 @@ dist
 
 # Environment files
 .env*
-!.env.monitoring.example
+!.env.example
 
 # IDE and editor files
 .vscode
@@ -31,23 +31,24 @@ Thumbs.db
 # Logs
 logs
 *.log
+monitoring.log
 
 # Git
 .git
 .gitignore
+.github
 
 # Documentation
 README.md
 *.md
-!database/schema.sql
 
 # Docker files
 Dockerfile
 docker-compose.yml
 .dockerignore
 
-# Azure deployment files (removed)
-# azure/
+# Frontend (not needed in backend container)
+frontend/
 
 # Test files
 test/
@@ -64,3 +65,6 @@ coverage/
 # Temporary files
 tmp/
 temp/
+
+# Scripts (not needed in production)
+scripts/

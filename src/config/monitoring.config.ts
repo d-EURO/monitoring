@@ -16,11 +16,6 @@ export class MonitoringConfig {
 	@Min(1)
 	deploymentBlock: number;
 
-	@Transform(({ value }) => parseInt(value))
-	@IsNumber()
-	@Min(10000)
-	@IsOptional()
-	monitorIntervalMs?: number = 300000; // 5min
 
 	@IsOptional()
 	@IsString()
@@ -80,7 +75,6 @@ export default registerAs('monitoring', () => {
 	config.rpcUrl = process.env.RPC_URL;
 	config.blockchainId = parseInt(process.env.BLOCKCHAIN_ID || '1');
 	config.deploymentBlock = parseInt(process.env.DEPLOYMENT_BLOCK);
-	config.monitorIntervalMs = parseInt(process.env.MONITOR_INTERVAL_MS || '300000');
 
 	config.databaseUrl = process.env.DATABASE_URL;
 	config.dbHost = process.env.DB_HOST;

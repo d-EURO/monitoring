@@ -86,8 +86,8 @@ export class DeuroStatesService {
 			...savingsMetrics24h,
 			...deuroMintBurn24h,
 			savings_interest_collected: totalInterestCollected,
-			frontend_fees_collected: BigInt(0), // TODO: Placeholder, frontend fees not implemented yet
-			frontends_active: 0, // TODO: Placeholder, frontends not implemented yet
+			frontend_fees_collected: BigInt(0), // Frontend fees tracking not yet implemented
+			frontends_active: 0, // Frontend tracking not yet implemented
 			usd_to_eur_rate: usdToEur,
 			usd_to_chf_rate: usdToChf,
 		};
