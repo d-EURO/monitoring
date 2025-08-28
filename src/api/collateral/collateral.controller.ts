@@ -11,6 +11,6 @@ export class CollateralController {
 	@Get()
 	@ApiOkResponse({ type: [CollateralStateDto] })
 	async getCollateral(): Promise<CollateralStateDto[]> {
-		return this.collateralService.getAllCollateral();
+		return this.collateralService.getCollateralStates();
 	}
 }

@@ -4,7 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import monitoringConfig from './config/monitoring.config';
 import { DatabaseModule } from './database/database.module';
 import { BlockchainModule } from './blockchain/blockchain.module';
-import { CollectionModule } from './collection/collection.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
 import { PositionModule } from './api/positions/position.module';
 import { ChallengeModule } from './api/challenges/challenge.module';
 import { MinterModule } from './api/minters/minter.module';
@@ -22,7 +22,7 @@ import { HealthController } from './health/health.controller';
 		ScheduleModule.forRoot(),
 		DatabaseModule,
 		BlockchainModule,
-		CollectionModule,
+		MonitoringModule,
 		PositionModule,
 		ChallengeModule,
 		MinterModule,

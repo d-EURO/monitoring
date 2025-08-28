@@ -1,60 +1,55 @@
 import { Injectable } from '@nestjs/common';
-import { MinterRepository, BridgeRepository } from '../../database/repositories';
-import { MinterState, MinterStateDto } from '../../common/dto/minter.dto';
-import { StablecoinBridgeState, BridgeStateDto } from '../../common/dto/stablecoinBridge.dto';
+import { DatabaseService } from '../../database/database.service';
+import { MinterStateDto } from '../../common/dto';
+import { BridgeStateDto } from '../../common/dto/stablecoinBridge.dto';
 
 @Injectable()
 export class MinterService {
-	constructor(
-		private readonly minterRepository: MinterRepository,
-		private readonly bridgeRepository: BridgeRepository
-	) {}
+	constructor(private readonly databaseService: DatabaseService) {}
 
-	async getAllMinters(): Promise<MinterStateDto[]> {
-		const minters = await this.minterRepository.getAllMinterStates();
+	async getMinters(): Promise<MinterStateDto[]> {
+		const result = await this.databaseService.query(
+			`SELECT * FROM minter_states 
+			 WHERE minter_type = 'REGULAR' 
+			 ORDER BY application_date DESC`
+		);
 		
-		// Sort by applicationDate - descending
-		minters.sort((a, b) => Number(b.applicationDate) - Number(a.applicationDate));
+		return result.rows.map(this.mapMinterToDto);
+	}
+
+	async getBridges(): Promise<BridgeStateDto[]> {
+		const result = await this.databaseService.query(
+			`SELECT * FROM minter_states 
+			 WHERE minter_type = 'BRIDGE' 
+			 ORDER BY bridge_token_symbol`
+		);
 		
-		return minters.map(this.mapToDto);
+		return result.rows.map(this.mapBridgeToDto);
 	}
 
-	async getActiveBridges(): Promise<BridgeStateDto[]> {
-		const allBridges = await this.bridgeRepository.getAllBridgeStates();
-		const currentTime = BigInt(Math.floor(Date.now() / 1000));
-		return allBridges
-			.filter((bridge) => bridge.horizon > currentTime)
-			.map(this.mapBridgeToDto);
-	}
-
-	async getAllBridges(): Promise<BridgeStateDto[]> {
-		const bridgeStates = await this.bridgeRepository.getAllBridgeStates();
-		return bridgeStates.map(this.mapBridgeToDto);
-	}
-
-	private mapToDto(minter: MinterState): MinterStateDto {
+	private mapMinterToDto(minter: any): MinterStateDto {
 		return {
-			minter: minter.minter,
+			minter: minter.minter_address,
 			status: minter.status,
-			applicationDate: minter.applicationDate,
-			applicationPeriod: minter.applicationPeriod,
-			applicationFee: minter.applicationFee,
+			applicationDate: minter.application_date,
+			applicationPeriod: minter.application_period,
+			applicationFee: minter.application_fee,
 			message: minter.message,
-			denialDate: minter.denialDate,
-			denialMessage: minter.denialMessage,
+			denialDate: minter.denial_date,
+			denialMessage: minter.denial_message,
 		};
 	}
 
-	private mapBridgeToDto(bridge: StablecoinBridgeState): BridgeStateDto {
+	private mapBridgeToDto(bridge: any): BridgeStateDto {
 		return {
-			address: bridge.address,
-			eurAddress: bridge.eurAddress,
-			eurSymbol: bridge.eurSymbol,
-			eurDecimals: bridge.eurDecimals,
-			dEuroAddress: bridge.dEuroAddress,
-			limit: bridge.limit.toString(),
-			minted: bridge.minted.toString(),
-			horizon: bridge.horizon.toString(),
+			address: bridge.minter_address,
+			eurAddress: bridge.bridge_token_address,
+			eurSymbol: bridge.bridge_token_symbol,
+			eurDecimals: bridge.bridge_token_decimals,
+			dEuroAddress: '', // Not stored in new schema, could be added if needed
+			horizon: bridge.bridge_horizon?.toString() || '0',
+			limit: bridge.bridge_limit?.toString() || '0',
+			minted: bridge.bridge_minted?.toString() || '0',
 		};
 	}
 }

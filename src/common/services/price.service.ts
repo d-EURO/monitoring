@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { ethers } from 'ethers';
-import { BlockchainService } from 'src/blockchain/blockchain.service';
+import { ProviderService } from 'src/blockchain/provider.service';
 
 const nDEPS = '0xc71104001A3CCDA1BEf1177d765831Bd1bfE8eE6';
 const DEPS = '0x103747924E74708139a9400e4Ab4BEA79FFFA380';
@@ -41,9 +41,22 @@ export class PriceService {
 
 	constructor(
 		private readonly configService: ConfigService,
-		private readonly blockchainService: BlockchainService
+		private readonly providerService: ProviderService
 	) {
 		this.CACHE_TTL_MS = this.configService.get<number>('monitoring.priceCacheTtlMs', 120000); // Default 2 minutes
+	}
+
+	/**
+	 * Get exchange rate between two currencies
+	 * @param from Source currency (e.g., 'USD')
+	 * @param to Target currency (e.g., 'EUR')
+	 * @returns Exchange rate
+	 */
+	async getExchangeRate(from: string, to: string): Promise<number> {
+		// Simplified - in production use a real forex API
+		if (from === 'USD' && to === 'EUR') return 0.92;
+		if (from === 'USD' && to === 'CHF') return 0.88;
+		return 1.0;
 	}
 
 	async getTokenPricesInEur(addresses: string[]): Promise<{ [key: string]: string }> {
@@ -113,7 +126,7 @@ export class PriceService {
 
 		const prices: { [key: string]: string } = {};
 		for (const [token, underlying] of specialTokens) {
-			const provider = this.blockchainService.getProvider();
+			const provider = this.providerService.getProvider();
 			const equityContract = new ethers.Contract(underlying, EquityABI, provider);
 			const nativePrice = await equityContract.price();
 			let formattedPrice = ethers.formatUnits(nativePrice, 18);

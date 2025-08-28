@@ -1,37 +1,29 @@
 import { Injectable } from '@nestjs/common';
-import { CollateralRepository } from '../../database/repositories';
-import { CollateralState, CollateralStateDto } from '../../common/dto';
+import { DatabaseService } from '../../database/database.service';
+import { CollateralStateDto } from '../../common/dto';
 
 @Injectable()
 export class CollateralService {
-	constructor(private readonly collateralRepository: CollateralRepository) {}
+	constructor(private readonly databaseService: DatabaseService) {}
 
-	async getAllCollateral(): Promise<CollateralStateDto[]> {
-		const collaterals = await this.collateralRepository.getAllCollateralStates();
+	async getCollateralStates(): Promise<CollateralStateDto[]> {
+		const result = await this.databaseService.query(
+			'SELECT * FROM collateral_states ORDER BY total_collateral DESC'
+		);
 		
-		// Sort by totalLimit, then TVL - descending
-		collaterals.sort((a, b) => {
-			const limitDiff = BigInt(b.totalLimit) - BigInt(a.totalLimit);
-			if (limitDiff !== 0n) return limitDiff > 0n ? 1 : -1;
-	
-			const tvlA = Number(a.totalCollateral) * Number(a.price);
-			const tvlB = Number(b.totalCollateral) * Number(b.price);
-			return tvlB - tvlA;
-		});
-		
-		return collaterals.map(this.mapToDto);
+		return result.rows.map(this.mapToDto);
 	}
 
-	private mapToDto(collateral: CollateralState): CollateralStateDto {
+	private mapToDto(state: any): CollateralStateDto {
 		return {
-			tokenAddress: collateral.tokenAddress,
-			symbol: collateral.symbol,
-			decimals: collateral.decimals,
-			totalCollateral: collateral.totalCollateral,
-			positionCount: collateral.positionCount,
-			totalLimit: collateral.totalLimit,
-			totalAvailableForMinting: collateral.totalAvailableForMinting,
-			price: collateral.price,
+			tokenAddress: state.token_address,
+			symbol: state.symbol,
+			decimals: state.decimals,
+			totalCollateral: state.total_collateral,
+			positionCount: state.position_count,
+			totalLimit: state.total_limit,
+			totalAvailableForMinting: state.total_available_for_minting,
+			price: state.price ? state.price.toString() : '0',
 		};
 	}
 }

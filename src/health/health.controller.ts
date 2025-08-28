@@ -1,8 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOkResponse, ApiProperty } from '@nestjs/swagger';
 import { DatabaseService } from '../database/database.service';
-import { BlockchainService } from '../blockchain/blockchain.service';
-import { MonitoringService } from '../collection/monitoring.service';
+import { ProviderService } from '../blockchain/provider.service';
+import { MonitoringService } from '../monitoring/monitoring.service';
 
 export class HealthStatusDto {
 	@ApiProperty({ description: 'Last block number processed by the monitoring service', nullable: true })
@@ -32,7 +32,7 @@ export class HealthStatusDto {
 export class HealthController {
 	constructor(
 		private readonly databaseService: DatabaseService,
-		private readonly blockchainService: BlockchainService,
+		private readonly providerService: ProviderService,
 		private readonly monitoringService: MonitoringService
 	) {}
 
@@ -40,8 +40,11 @@ export class HealthController {
 	@ApiOkResponse({ type: HealthStatusDto })
 	async health(): Promise<HealthStatusDto> {
 		try {
-			const lastBlock = await this.databaseService.getLastProcessedBlock();
-			const currentBlock = await this.blockchainService.getProvider().getBlockNumber();
+			// Get last processed block from sync_state table
+			const result = await this.databaseService.query('SELECT last_processed_block FROM sync_state WHERE id = 1');
+			const lastBlock = result.rows.length > 0 ? parseInt(result.rows[0].last_processed_block) : null;
+			
+			const currentBlock = await this.providerService.getProvider().getBlockNumber();
 			const lag = currentBlock - (lastBlock || 0);
 			const monitoringStatus = this.monitoringService.getStatus();
 			
@@ -50,11 +53,19 @@ export class HealthController {
 				? Math.round((lastBlock / currentBlock) * 10000) / 100 
 				: 0;
 
+			// Map MonitoringStatus enum to the expected string values
+			let statusString: 'idle' | 'processing' | 'error' = 'idle';
+			if (monitoringStatus.status === 'PROCESSING') {
+				statusString = 'processing';
+			} else if (monitoringStatus.status === 'ERROR') {
+				statusString = 'error';
+			}
+
 			const response: HealthStatusDto = {
 				lastProcessedBlock: lastBlock,
 				currentBlock,
 				blockLag: lag,
-				monitoringStatus: monitoringStatus.status,
+				monitoringStatus: statusString,
 				syncProgress,
 				timestamp: new Date(),
 			};

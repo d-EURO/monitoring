@@ -1,40 +1,42 @@
 import { Injectable } from '@nestjs/common';
-import { ChallengeRepository } from '../../database/repositories';
-import { ChallengeState, ChallengeStateDto } from '../../common/dto';
+import { DatabaseService } from '../../database/database.service';
+import { ChallengeStateDto } from '../../common/dto';
 
 @Injectable()
 export class ChallengeService {
-	constructor(private readonly challengeRepository: ChallengeRepository) {}
+	constructor(private readonly databaseService: DatabaseService) {}
 
 	async getChallenges(open?: string): Promise<ChallengeStateDto[]> {
-		let challenges: ChallengeState[];
+		let query = 'SELECT * FROM challenge_states';
+		const params: any[] = [];
 		
 		if (open === 'true') {
-			challenges = await this.challengeRepository.getOpenChallenges();
-		} else {
-			challenges = await this.challengeRepository.getAllChallenges();
+			query += ' WHERE status = $1';
+			params.push('ACTIVE');
 		}
 		
-		// Sort by start - descending
-		challenges.sort((a, b) => Number(b.start) - Number(a.start));
+		query += ' ORDER BY start_timestamp DESC';
+		
+		const result = await this.databaseService.query(query, params);
+		const challenges = result.rows;
 		
 		return challenges.map(this.mapToDto);
 	}
 
-	private mapToDto(challenge: ChallengeState): ChallengeStateDto {
+	private mapToDto(challenge: any): ChallengeStateDto {
 		return {
-			id: challenge.id,
-			challenger: challenge.challenger,
-			position: challenge.position,
-			positionOwner: challenge.positionOwner,
-			start: challenge.start,
-			initialSize: challenge.initialSize.toString(),
+			id: challenge.challenge_id,
+			challenger: challenge.challenger_address,
+			position: challenge.position_address,
+			positionOwner: challenge.position_owner_address,
+			start: challenge.start_timestamp,
+			initialSize: challenge.initial_size,
 			size: challenge.size,
-			collateralAddress: challenge.collateralAddress,
-			liqPrice: challenge.liqPrice,
+			collateralAddress: challenge.collateral_address,
+			liqPrice: challenge.liq_price,
 			phase: challenge.phase,
 			status: challenge.status,
-			currentPrice: challenge.currentPrice,
+			currentPrice: challenge.current_price,
 		};
 	}
 }

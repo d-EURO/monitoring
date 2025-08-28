@@ -95,15 +95,15 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
 	async initializeSchema(): Promise<void> {
 		try {
-			// Check if schema already exists by checking for core tables
+			// Check if schema already exists by checking for new core tables
 			const tablesExist = await this.fetch(`
 				SELECT COUNT(*) as count 
 				FROM information_schema.tables 
 				WHERE table_schema = 'public' 
-				AND table_name IN ('deuro_state', 'position_states', 'monitoring_metadata')
+				AND table_name IN ('raw_events', 'contracts', 'sync_state', 'system_state')
 			`);
 			
-			if (tablesExist[0].count === '3') {
+			if (tablesExist[0].count === '4') {
 				this.logger.log('Database schema already exists, skipping initialization');
 				return;
 			}
@@ -133,38 +133,6 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 		}
 	}
 
-	async recordMonitoringCycle(lastBlock: number, eventsProcessed: number, durationMs: number): Promise<void> {
-		const query = `
-      INSERT INTO monitoring_metadata (last_processed_block, events_processed, processing_duration_ms)
-      VALUES ($1, $2, $3)
-    `;
-		await this.query(query, [lastBlock, eventsProcessed, durationMs]);
-	}
-
-	async getLastProcessedBlock(): Promise<number | null> {
-		const query = `
-      SELECT last_processed_block 
-      FROM monitoring_metadata 
-      ORDER BY cycle_timestamp DESC 
-      LIMIT 1
-    `;
-		const rows = await this.fetch<BlockRow>(query);
-		return rows.length > 0 ? Number(rows[0].last_processed_block) : null;
-	}
-
-	async updateLastProcessedBlock(client: any, blockNumber: number): Promise<void> {
-		const query = `
-      INSERT INTO monitoring_metadata (last_processed_block, events_processed, processing_duration_ms)
-      VALUES ($1, 0, 0)
-    `;
-		// If client is provided, use it (for transaction context)
-		// Otherwise, use the pool directly (for incremental updates)
-		if (client) {
-			await client.query(query, [blockNumber]);
-		} else {
-			await this.query(query, [blockNumber]);
-		}
-	}
 
 	async close(): Promise<void> {
 		if (this.pool) {

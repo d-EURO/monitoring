@@ -1,21 +1,28 @@
 import { Injectable } from '@nestjs/common';
-import { PositionRepository } from '../../database/repositories';
-import { PositionStateDto, PositionState } from '../../common/dto';
+import { DatabaseService } from '../../database/database.service';
+import { PositionStateDto } from '../../common/dto';
 
 @Injectable()
 export class PositionService {
-	constructor(private readonly positionRepository: PositionRepository) {}
+	constructor(private readonly databaseService: DatabaseService) {}
 
 	async getPositions(live?: string, collateral?: string): Promise<PositionStateDto[]> {
-		let positions: PositionState[];
+		let query = 'SELECT * FROM position_states WHERE 1=1';
+		const params: any[] = [];
 
 		if (collateral) {
-			positions = await this.positionRepository.getPositionsByCollateral(collateral);
-		} else if (live === 'true') {
-			positions = await this.positionRepository.getLivePositions();
-		} else {
-			positions = await this.positionRepository.getAllPositions();
+			params.push(collateral);
+			query += ` AND collateral_address = $${params.length}`;
 		}
+		
+		if (live === 'true') {
+			query += ' AND is_closed = false';
+		}
+
+		query += ' ORDER BY created DESC NULLS LAST';
+
+		const result = await this.databaseService.query(query, params);
+		const positions = result.rows;
 
 		// Sort by created date - descending
 		positions.sort((a, b) => (b.created || 0) - (a.created || 0));
@@ -23,7 +30,7 @@ export class PositionService {
 		return positions.map(this.mapToDto);
 	}
 
-	private mapToDto(position: PositionState): PositionStateDto {
+	private mapToDto(position: any): PositionStateDto {
 		return {
 			address: position.address,
 			status: position.status,
