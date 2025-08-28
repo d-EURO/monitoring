@@ -13,7 +13,7 @@ export class MinterService {
 			 WHERE minter_type = 'REGULAR' 
 			 ORDER BY application_date DESC`
 		);
-		
+
 		return result.rows.map(this.mapMinterToDto);
 	}
 
@@ -23,7 +23,7 @@ export class MinterService {
 			 WHERE minter_type = 'BRIDGE' 
 			 ORDER BY bridge_token_symbol`
 		);
-		
+
 		return result.rows.map(this.mapBridgeToDto);
 	}
 

@@ -16,7 +16,6 @@ export class MonitoringConfig {
 	@Min(1)
 	deploymentBlock: number;
 
-
 	@IsOptional()
 	@IsString()
 	databaseUrl?: string;

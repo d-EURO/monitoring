@@ -14,7 +14,7 @@ export class PositionService {
 			params.push(collateral);
 			query += ` AND collateral_address = $${params.length}`;
 		}
-		
+
 		if (live === 'true') {
 			query += ' AND is_closed = false';
 		}

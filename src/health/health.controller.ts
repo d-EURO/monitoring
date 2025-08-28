@@ -43,15 +43,13 @@ export class HealthController {
 			// Get last processed block from sync_state table
 			const result = await this.databaseService.query('SELECT last_processed_block FROM sync_state WHERE id = 1');
 			const lastBlock = result.rows.length > 0 ? parseInt(result.rows[0].last_processed_block) : null;
-			
+
 			const currentBlock = await this.providerService.getProvider().getBlockNumber();
 			const lag = currentBlock - (lastBlock || 0);
 			const monitoringStatus = this.monitoringService.getStatus();
-			
+
 			// Calculate sync progress as percentage (0-100)
-			const syncProgress = lastBlock 
-				? Math.round((lastBlock / currentBlock) * 10000) / 100 
-				: 0;
+			const syncProgress = lastBlock ? Math.round((lastBlock / currentBlock) * 10000) / 100 : 0;
 
 			// Map MonitoringStatus enum to the expected string values
 			let statusString: 'idle' | 'processing' | 'error' = 'idle';

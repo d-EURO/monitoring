@@ -9,17 +9,17 @@ export class ChallengeService {
 	async getChallenges(open?: string): Promise<ChallengeStateDto[]> {
 		let query = 'SELECT * FROM challenge_states';
 		const params: any[] = [];
-		
+
 		if (open === 'true') {
 			query += ' WHERE status = $1';
 			params.push('ACTIVE');
 		}
-		
+
 		query += ' ORDER BY start_timestamp DESC';
-		
+
 		const result = await this.databaseService.query(query, params);
 		const challenges = result.rows;
-		
+
 		return challenges.map(this.mapToDto);
 	}
 

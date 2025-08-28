@@ -8,10 +8,8 @@ export class DeuroService {
 
 	async getCurrentState(): Promise<DeuroStateDto | null> {
 		// Get the base state from the system_state table
-		const stateResult = await this.databaseService.query(
-			'SELECT * FROM system_state WHERE id = 1'
-		);
-		
+		const stateResult = await this.databaseService.query('SELECT * FROM system_state WHERE id = 1');
+
 		if (stateResult.rows.length === 0) {
 			return null;
 		}

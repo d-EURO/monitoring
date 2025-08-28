@@ -7,10 +7,8 @@ export class CollateralService {
 	constructor(private readonly databaseService: DatabaseService) {}
 
 	async getCollateralStates(): Promise<CollateralStateDto[]> {
-		const result = await this.databaseService.query(
-			'SELECT * FROM collateral_states ORDER BY total_collateral DESC'
-		);
-		
+		const result = await this.databaseService.query('SELECT * FROM collateral_states ORDER BY total_collateral DESC');
+
 		return result.rows.map(this.mapToDto);
 	}
 

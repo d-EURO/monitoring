@@ -9,12 +9,7 @@ import { MonitoringService } from './monitoring.service';
 
 @Module({
 	imports: [DatabaseModule, BlockchainModule, CommonModule],
-	providers: [
-		ContractRegistryService,
-		EventCollectorService,
-		StateUpdaterService,
-		MonitoringService
-	],
-	exports: [MonitoringService, ContractRegistryService, EventCollectorService]
+	providers: [ContractRegistryService, EventCollectorService, StateUpdaterService, MonitoringService],
+	exports: [MonitoringService, ContractRegistryService, EventCollectorService],
 })
 export class MonitoringModule {}

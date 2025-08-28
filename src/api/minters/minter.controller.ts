@@ -18,9 +18,8 @@ export class MinterController {
 	}
 
 	@Get('bridges')
-	@ApiQuery({ name: 'all', type: 'boolean', required: false })
 	@ApiOkResponse({ type: [BridgeStateDto] })
-	async getBridges(@Query('all') all?: string): Promise<BridgeStateDto[]> {
+	async getBridges(): Promise<BridgeStateDto[]> {
 		return this.minterService.getBridges();
 	}
 }

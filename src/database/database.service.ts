@@ -4,10 +4,6 @@ import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-interface BlockRow extends QueryResultRow {
-	last_processed_block: string | number;
-}
-
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 	private readonly logger = new Logger(DatabaseService.name);
@@ -102,7 +98,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 				WHERE table_schema = 'public' 
 				AND table_name IN ('raw_events', 'contracts', 'sync_state', 'system_state')
 			`);
-			
+
 			if (tablesExist[0].count === '4') {
 				this.logger.log('Database schema already exists, skipping initialization');
 				return;
@@ -120,7 +116,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
 			await this.withTransaction(async (client) => {
 				await client.query('SET statement_timeout = 900000'); // 15 minutes for schema initialization
-				
+
 				for (const statement of statements) {
 					await client.query(statement);
 				}
@@ -132,7 +128,6 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 			throw error;
 		}
 	}
-
 
 	async close(): Promise<void> {
 		if (this.pool) {

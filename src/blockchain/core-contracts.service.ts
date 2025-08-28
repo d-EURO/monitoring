@@ -28,9 +28,7 @@ export class CoreContractsService {
 		roller: ethers.Contract;
 	};
 
-	constructor(
-		private readonly providerService: ProviderService,
-	) {
+	constructor(private readonly providerService: ProviderService) {
 		const provider = this.providerService.getProvider();
 		const blockchainId = this.providerService.getBlockchainId();
 		const addresses = ADDRESS[blockchainId];

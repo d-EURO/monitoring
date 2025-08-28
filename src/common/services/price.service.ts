@@ -89,10 +89,13 @@ export class PriceService {
 		}
 
 		try {
-			const response = await axios.get<TokenPrice>(`${this.GECKO_TERMINAL_API_URL}/${remaining.map(a => a.toLowerCase()).join(',')}`, {
-				headers: { accept: 'application/json' },
-				timeout: 10000, // 10 second timeout
-			});
+			const response = await axios.get<TokenPrice>(
+				`${this.GECKO_TERMINAL_API_URL}/${remaining.map((a) => a.toLowerCase()).join(',')}`,
+				{
+					headers: { accept: 'application/json' },
+					timeout: 10000, // 10 second timeout
+				}
+			);
 
 			const apiPrices = response.data.data.attributes.token_prices;
 			const normalizedPrices: { [key: string]: string } = {};
@@ -103,7 +106,7 @@ export class PriceService {
 					this.setCache(inputAddress, price);
 				}
 			}
-			
+
 			this.logger.log(`Fetched prices for ${Object.keys(normalizedPrices).length} tokens from GeckoTerminal`);
 			return { ...cached, ...normalizedPrices };
 		} catch (error) {
