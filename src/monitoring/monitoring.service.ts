@@ -87,7 +87,10 @@ export class MonitoringService implements OnModuleInit {
 				try {
 					const events = await this.eventCollector.collectEvents(batchStart, batchEnd);
 
-					if (batchEnd === currentBlock) {
+					// Update states every 10,000 blocks during sync, or when reaching current block
+					const lastUpdateBlock = Math.floor((batchStart - 1) / 10000) * 10000;
+					const currentUpdateBlock = Math.floor(batchEnd / 10000) * 10000;
+					if (currentUpdateBlock > lastUpdateBlock || batchEnd === currentBlock) {
 						await this.stateUpdater.updateStates(batchEnd);
 					}
 

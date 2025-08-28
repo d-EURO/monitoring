@@ -164,16 +164,17 @@ export class StateUpdaterService {
 		const multicallProvider = this.multicallService.getMulticallProvider(provider);
 		for (const position of positions) {
 			const contract = new ethers.Contract(position.address, positionABI, multicallProvider);
+			const collateralContract = new ethers.Contract(position.metadata?.collateral, ERC20ABI, multicallProvider);
 
 			callPromises.push(
 				contract.owner({ blockTag: blockNumber }),
 				contract.original({ blockTag: blockNumber }),
 				contract.collateral({ blockTag: blockNumber }),
-				contract.getCollateralBalance({ blockTag: blockNumber }),
+				collateralContract.balanceOf(position.address, { blockTag: blockNumber }),
 				contract.price({ blockTag: blockNumber }),
 				contract.virtualPrice({ blockTag: blockNumber }),
 				contract.principal({ blockTag: blockNumber }),
-				contract.debt({ blockTag: blockNumber }),
+				contract.getDebt({ blockTag: blockNumber }),
 				contract.interest({ blockTag: blockNumber }),
 				contract.minimumCollateral({ blockTag: blockNumber }),
 				contract.limit({ blockTag: blockNumber }),
@@ -391,7 +392,7 @@ export class StateUpdaterService {
 			try {
 				const bridgeContract = new ethers.Contract(bridge.address, bridgeABI, provider);
 				const [token, horizon, limit, minted] = await Promise.all([
-					bridgeContract.token({ blockTag: blockNumber }),
+					bridgeContract.eur({ blockTag: blockNumber }),
 					bridgeContract.horizon({ blockTag: blockNumber }),
 					bridgeContract.limit({ blockTag: blockNumber }),
 					bridgeContract.minted({ blockTag: blockNumber }),

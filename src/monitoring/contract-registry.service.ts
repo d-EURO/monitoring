@@ -201,7 +201,7 @@ export class ContractRegistryService {
 							const provider = this.providerService.getProvider();
 							const bridgeContract = new ethers.Contract(minterAddress, StablecoinBridgeABI, provider);
 
-							const eurAddress = await bridgeContract.token();
+							const eurAddress = await bridgeContract.eur();
 							const tokenContract = new ethers.Contract(eurAddress, ERC20ABI, provider);
 							metadata.eurAddress = eurAddress;
 							metadata.bridgeSymbol = await tokenContract.symbol();
