@@ -2,40 +2,47 @@
 
 A comprehensive monitoring system for the dEURO protocol built with NestJS, featuring PostgreSQL database persistence, scheduled monitoring tasks, and REST API endpoints for frontend integration.
 
-## Local Development Setup
+## Setup
 
+### Local Development
+
+1. **Environment Configuration:**
 ```bash
-# 1. Reset the database
-node reset_database.js
+# Copy the environment template
+cp .env.example .env
 
-# 2. Build the project
-npm run build
-
-# 3. Start monitoring in the background
-nohup npm run start:prod > monitoring.log 2>&1 &
-
-# 4. (Optional) Monitor the log file in real-time
-tail -f monitoring.log
-
-# Or as a one-liner:
-node reset_database.js && npm run build && npm run start:prod > monitoring.log 2>&1 &
-
-# To check if it's running:
-# Check the process
-ps aux | grep "node.*monitoring" | grep -v grep
-
-# Check the latest logs
-tail -n 50 monitoring.log
-
-# To stop it later:
-# Find the process ID
-ps aux | grep "node dist/main.js"
-
-# Kill it
-kill <PID>
+# Edit .env with your local settings:
+# - DATABASE_URL: Your local PostgreSQL connection
+# - RPC_URL: Your Alchemy/Infura API key
 ```
 
-The 2>&1 redirects both stdout and stderr to the log file, and & runs it in the background.
+2. **Development Server:**
+```bash
+npm install
+npm run build
+npm run start:prod
+```
+
+### Production Deployment (Azure)
+
+1. **Build Docker Image:**
+```bash
+docker build -t deuro-monitoring .
+```
+
+2. **Environment Variables** (Set in Azure App Service):
+```bash
+DATABASE_URL=postgresql://user:pass@your-azure-postgres.postgres.database.azure.com:5432/deuro_monitoring?sslmode=require
+RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR-PRODUCTION-KEY
+ALLOWED_ORIGINS=https://monitoring.deuro.com
+PORT=3001
+DEPLOYMENT_BLOCK=22088283
+BLOCKCHAIN_ID=1
+PRICE_CACHE_TTL_MS=120000
+PG_MAX_CLIENTS=10
+```
+
+3. **API Documentation:** Available at `https://your-domain.com/swagger`
 
 
 # TODO

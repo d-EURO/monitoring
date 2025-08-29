@@ -17,36 +17,8 @@ export class MonitoringConfig {
 	deploymentBlock: number;
 
 
-	@IsOptional()
 	@IsString()
-	databaseUrl?: string;
-
-	@IsOptional()
-	@IsString()
-	dbHost?: string;
-
-	@Transform(({ value }) => parseInt(value))
-	@IsOptional()
-	@IsNumber()
-	@Min(1)
-	@Max(65535)
-	dbPort?: number;
-
-	@IsOptional()
-	@IsString()
-	dbName?: string;
-
-	@IsOptional()
-	@IsString()
-	dbUser?: string;
-
-	@IsOptional()
-	@IsString()
-	dbPassword?: string;
-
-	@Transform(({ value }) => value === 'true')
-	@IsOptional()
-	dbSsl?: boolean;
+	databaseUrl: string;
 
 	@Transform(({ value }) => parseInt(value))
 	@IsOptional()
@@ -77,12 +49,6 @@ export default registerAs('monitoring', () => {
 	config.deploymentBlock = parseInt(process.env.DEPLOYMENT_BLOCK);
 
 	config.databaseUrl = process.env.DATABASE_URL;
-	config.dbHost = process.env.DB_HOST;
-	config.dbPort = process.env.DB_PORT ? parseInt(process.env.DB_PORT) : undefined;
-	config.dbName = process.env.DB_NAME;
-	config.dbUser = process.env.DB_USER;
-	config.dbPassword = process.env.DB_PASSWORD;
-	config.dbSsl = process.env.DB_SSL === 'true';
 	config.pgMaxClients = process.env.PG_MAX_CLIENTS ? parseInt(process.env.PG_MAX_CLIENTS) : 10;
 	config.allowedOrigins = process.env.ALLOWED_ORIGINS;
 	config.priceCacheTtlMs = process.env.PRICE_CACHE_TTL_MS ? parseInt(process.env.PRICE_CACHE_TTL_MS) : 120000;
@@ -93,18 +59,11 @@ export default registerAs('monitoring', () => {
 });
 
 function validateRequiredEnvironmentVariables(): void {
-	const required = ['RPC_URL', 'DEPLOYMENT_BLOCK'];
+	const required = ['RPC_URL', 'DEPLOYMENT_BLOCK', 'DATABASE_URL'];
 	const missing = required.filter((key) => !process.env[key]);
 
 	if (missing.length > 0) {
 		throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-	}
-
-	const hasDatabaseUrl = !!process.env.DATABASE_URL;
-	const hasIndividualDbConfig = !!(process.env.DB_HOST && process.env.DB_NAME);
-
-	if (!hasDatabaseUrl && !hasIndividualDbConfig) {
-		throw new Error('Database configuration required: Either DATABASE_URL or DB_HOST+DB_NAME must be provided');
 	}
 }
 

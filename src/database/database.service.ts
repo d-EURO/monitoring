@@ -27,29 +27,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 	private async connect() {
 		const monitoringConfig = this.configService.get('monitoring');
 
-		let sslConfig: any = false;
-		if (monitoringConfig.dbSsl === true) {
-			sslConfig = { rejectUnauthorized: true };
-		} else if (process.env.NODE_ENV === 'development' && monitoringConfig.dbSsl) {
-			sslConfig = { rejectUnauthorized: false };
-		}
-
-		const poolConfig: any = {
-			ssl: sslConfig,
+		const poolConfig = {
+			connectionString: monitoringConfig.databaseUrl,
 			max: monitoringConfig.pgMaxClients || 10,
 			idleTimeoutMillis: 30000,
 			connectionTimeoutMillis: 2000,
 		};
-
-		if (monitoringConfig.databaseUrl) {
-			poolConfig.connectionString = monitoringConfig.databaseUrl;
-		} else {
-			poolConfig.host = monitoringConfig.dbHost || 'localhost';
-			poolConfig.port = monitoringConfig.dbPort || 5432;
-			poolConfig.database = monitoringConfig.dbName || 'deuro_monitoring';
-			poolConfig.user = monitoringConfig.dbUser || 'postgres';
-			poolConfig.password = monitoringConfig.dbPassword || '';
-		}
 
 		this.pool = new Pool(poolConfig);
 

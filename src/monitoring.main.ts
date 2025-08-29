@@ -8,7 +8,7 @@ async function bootstrap() {
 
 	const allowedOrigins = process.env.ALLOWED_ORIGINS
 		? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
-		: ['http://localhost:3000', 'http://localhost:5173'];
+		: ['http://localhost:3000', 'http://localhost:5173', 'https://monitoring.deuro.com'];
 
 	const app = await NestFactory.create(AppModule, {
 		cors: {
@@ -28,7 +28,7 @@ async function bootstrap() {
 		.build();
 
 	const document = SwaggerModule.createDocument(app, config);
-	SwaggerModule.setup('/', app, document, {
+	SwaggerModule.setup('swagger', app, document, {
 		swaggerOptions: {
 			persistAuthorization: true,
 		},
@@ -38,7 +38,7 @@ async function bootstrap() {
 	await app.listen(port);
 
 	logger.log(`dEURO Monitoring API running on port ${port}`);
-	logger.log(`Swagger documentation available at http://localhost:${port}/`);
+	logger.log(`Swagger documentation available at http://localhost:${port}/swagger`);
 	logger.log(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
 }
 
