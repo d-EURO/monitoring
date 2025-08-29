@@ -23,26 +23,26 @@ npm run build
 npm run start:prod
 ```
 
-### Production Deployment (Azure)
+### Deployment
 
-1. **Build Docker Image:**
-```bash
-docker build -t deuro-monitoring .
-```
+#### Automatic (GitHub Actions)
+- Push to `develop` → Deploys to `dev.monitoring.deuro.com`
+- Push to `main` → Deploys to `monitoring.deuro.com`
 
-2. **Environment Variables** (Set in Azure App Service):
+#### Manual (Azure)
+1. **Build:** `docker build -t deuro-monitoring .`
+2. **Environment Variables:** Set in Azure App Service
 ```bash
-DATABASE_URL=postgresql://user:pass@your-azure-postgres.postgres.database.azure.com:5432/deuro_monitoring?sslmode=require
-RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR-PRODUCTION-KEY
-ALLOWED_ORIGINS=https://monitoring.deuro.com
+DATABASE_URL=postgresql://user:pass@server.postgres.database.azure.com:5432/database?sslmode=require
+RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR-KEY
+ALLOWED_ORIGINS=https://dev.monitoring.deuro.com  # or https://monitoring.deuro.com
 PORT=3001
 DEPLOYMENT_BLOCK=22088283
 BLOCKCHAIN_ID=1
 PRICE_CACHE_TTL_MS=120000
 PG_MAX_CLIENTS=10
 ```
-
-3. **API Documentation:** Available at `https://monitoring.deuro.com/swagger`
+3. **Docs:** Available at `/swagger`
 
 
 # TODO

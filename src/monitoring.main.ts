@@ -8,7 +8,7 @@ async function bootstrap() {
 
 	const allowedOrigins = process.env.ALLOWED_ORIGINS
 		? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
-		: ['http://localhost:3000', 'http://localhost:5173', 'https://monitoring.deuro.com'];
+		: ['http://localhost:3000', 'http://localhost:5173', 'https://dev.monitoring.deuro.com', 'https://monitoring.deuro.com'];
 
 	const app = await NestFactory.create(AppModule, {
 		cors: {
