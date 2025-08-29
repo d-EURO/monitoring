@@ -42,7 +42,7 @@ PRICE_CACHE_TTL_MS=120000
 PG_MAX_CLIENTS=10
 ```
 
-3. **API Documentation:** Available at `https://your-domain.com/swagger`
+3. **API Documentation:** Available at `https://monitoring.deuro.com/swagger`
 
 
 # TODO
