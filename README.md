@@ -1,6 +1,6 @@
-# dEURO Monitoring V2 with NestJS API
+# dEURO Monitoring
 
-A comprehensive monitoring system for the dEURO protocol built with NestJS, featuring PostgreSQL database persistence, scheduled monitoring tasks, and REST API endpoints for frontend integration.
+dEURO protocol monitoring service with PostgreSQL database and REST API endpoints.
 
 ## Setup
 
@@ -50,4 +50,3 @@ PG_MAX_CLIENTS=10
 - Make sure leadrate change proposal is captured in dashboard
 - Make sure position status are colored correctly
 - Sort tables in a logical order
-- Check ready-to-deploy state

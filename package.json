@@ -1,5 +1,5 @@
 {
-  "name": "deuro-monitoring-v2",
+  "name": "deuro-monitoring",
   "version": "1.0.0",
   "description": "dEURO Protocol Monitoring Service with Database Persistence",
   "main": "dist/monitoring.main.js",
