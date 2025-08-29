@@ -6,60 +6,12 @@ export interface BlockRange {
 	toBlock: number;
 }
 
-class EventQueryQueue {
-	private static instance: EventQueryQueue;
-	private queue: Array<() => Promise<any>> = [];
-	private running = false;
-
-	private constructor() {}
-
-	public static getInstance(): EventQueryQueue {
-		if (!EventQueryQueue.instance) {
-			EventQueryQueue.instance = new EventQueryQueue();
-		}
-		return EventQueryQueue.instance;
-	}
-
-	public async enqueue<T>(task: () => Promise<T>): Promise<T> {
-		return new Promise<T>((resolve, reject) => {
-			// Add task to queue
-			this.queue.push(async () => {
-				try {
-					const result = await task();
-					resolve(result);
-					return result;
-				} catch (error) {
-					reject(error);
-					throw error;
-				}
-			});
-
-			this.processQueue();
-		});
-	}
-
-	private async processQueue(): Promise<void> {
-		if (this.running || this.queue.length === 0) return;
-
-		this.running = true;
-
-		try {
-			while (this.queue.length > 0) {
-				const task = this.queue.shift()!;
-				await task();
-			}
-		} finally {
-			this.running = false;
-		}
-	}
-}
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const createTimeout = (ms: number) =>
 	new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms));
 
-const LOG_EVERY_N_BATCHES = 5;
 
 async function executeWithRetry<T>(
 	fn: () => Promise<T>,
@@ -97,11 +49,7 @@ async function processSingleEventQuery<T extends BaseContract>(
 	logger: Logger
 ): Promise<any[]> {
 	let events: any[] = [];
-	const totalBlocks = endBlock - startBlock + 1;
-	const eventName = eventFilter.fragment?.name || 'events';
 	let currentConcurrency = concurrencyLimit;
-
-	logger.log(`Starting ${eventName} event query for ${totalBlocks} blocks (${startBlock}-${endBlock})`);
 
 	let batchNumber = 0;
 	for (let currentBlock = startBlock; currentBlock <= endBlock; currentBlock += chunkSize * currentConcurrency) {
@@ -110,11 +58,6 @@ async function processSingleEventQuery<T extends BaseContract>(
 			const fromBlock = currentBlock + i * chunkSize;
 			const toBlock = Math.min(fromBlock + chunkSize - 1, endBlock);
 			currentBatch.push({ fromBlock, toBlock });
-		}
-
-		if (batchNumber % LOG_EVERY_N_BATCHES === 0) {
-			const processedBlocks = Math.min(currentBlock - startBlock, totalBlocks);
-			logger.debug(`${eventName}: processed ${processedBlocks}/${totalBlocks} blocks (batch ${batchNumber + 1})`);
 		}
 
 		let batchSuccess = false;
@@ -155,7 +98,6 @@ async function processSingleEventQuery<T extends BaseContract>(
 		batchNumber++;
 	}
 
-	logger.log(`Completed ${eventName} event query: found ${events.length} events`);
 
 	return events;
 }
@@ -201,10 +143,6 @@ export async function batchedEventQuery<T extends BaseContract>(
 	};
 
 	const latestBlock = endBlock === 'latest' ? await getLatestBlock() : endBlock;
-
-	// Queue the event query to ensure only one runs at a time
-	const queue = EventQueryQueue.getInstance();
-	return queue.enqueue(() =>
-		processSingleEventQuery(contract, eventFilter, startBlock, latestBlock, chunkSize, concurrencyLimit, logger)
-	);
+	
+	return processSingleEventQuery(contract, eventFilter, startBlock, latestBlock, chunkSize, concurrencyLimit, logger);
 }

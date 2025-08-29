@@ -14,6 +14,8 @@ import { ChallengeStatesService } from './challenge/states.service';
 import { MinterEventsService } from './minter/events.service';
 import { MinterStatesService } from './minter/states.service';
 import { CollateralStatesService } from './collateral/states.service';
+import { PositionRepository } from '../database/repositories';
+import { MintingHubPositionOpenedEvent } from 'src/common/dto';
 
 @Injectable()
 export class MonitoringService implements OnModuleInit {
@@ -22,7 +24,7 @@ export class MonitoringService implements OnModuleInit {
 	private monitoringTimeoutCount = 0;
 	private readonly INDEXING_TIMEOUT_COUNT = 3;
 	private readonly MAX_BLOCKS_PER_BATCH = 500; // Process max 500 blocks at a time
-	
+
 	// Status tracking for health endpoint
 	private monitoringStatus: MonitoringStatus = MonitoringStatus.IDLE;
 	private lastError: string | null = null;
@@ -38,7 +40,8 @@ export class MonitoringService implements OnModuleInit {
 		private readonly challengeEventsService: ChallengeEventsService,
 		private readonly challengeStatesService: ChallengeStatesService,
 		private readonly minterEventsService: MinterEventsService,
-		private readonly minterStatesService: MinterStatesService
+		private readonly minterStatesService: MinterStatesService,
+		private readonly positionRepository: PositionRepository
 	) {}
 
 	async onModuleInit() {
@@ -86,31 +89,45 @@ export class MonitoringService implements OnModuleInit {
 				while (batchStart <= currentBlock) {
 					const batchEnd = Math.min(batchStart + this.MAX_BLOCKS_PER_BATCH - 1, currentBlock);
 					const timestamp = new Date().toISOString();
-					
+
 					this.logger.log(
 						`[${timestamp}] Processing batch: blocks ${batchStart}-${batchEnd} ` +
-						`(${processedBlocks}/${totalBlocks} blocks processed)`
+							`(${processedBlocks}/${totalBlocks} blocks processed)`
 					);
 
 					try {
 						const contracts = this.blockchainService.getContracts();
 
 						// Fetch all events in parallel for this batch
-						const [_deuroEvents, positionsEvents, _challengeEvents, _minterEvents] = await Promise.all([
+						const [deuroEvents, positionsEvents, challengeEvents, minterEvents] = await Promise.all([
 							this.deuroEventsService.getDeuroEvents(contracts, batchStart, batchEnd),
 							this.positionEventsService.getPositionsEvents(contracts, provider, batchStart, batchEnd),
 							this.challengeEventsService.getChallengesEvents(contracts.mintingHubContract, batchStart, batchEnd),
 							this.minterEventsService.getMintersEvents(contracts.deuroContract, batchStart, batchEnd),
 						]);
 
+						// Log batch summary
+						const totalEvents =
+							Object.values(deuroEvents).flat().length +
+							Object.values(positionsEvents).flat().length +
+							Object.values(challengeEvents).flat().length +
+							Object.values(minterEvents).flat().length;
+						const blocksRemaining = currentBlock - batchEnd;
+
+						this.logger.log(`Batch complete: ${totalEvents} events found, ${blocksRemaining} blocks remaining`);
+
 						// Only fetch states at the end of each batch (not for every block)
 						if (batchEnd === currentBlock) {
-							// Fetch current state at the final block
 							const positionsState = await this.positionStatesService.getPositionsState(provider);
-							
+							const allPositionOpenedEvents = await this.positionRepository.getAllPositionOpenedEvents();
+
 							const [deuroState, collateralState, challengesState, mintersState] = await Promise.all([
 								this.deuroStateService.getDeuroState(contracts),
-								this.collateralStatesService.getCollateralState(positionsEvents.mintingHubPositionOpenedEvents, provider, positionsState),
+								this.collateralStatesService.getCollateralState(
+									allPositionOpenedEvents as MintingHubPositionOpenedEvent[],
+									provider,
+									positionsState
+								),
 								this.challengeStatesService.getChallengesState(contracts.mintingHubContract, positionsState),
 								this.minterStatesService.getMintersState(provider),
 							]);
@@ -127,8 +144,8 @@ export class MonitoringService implements OnModuleInit {
 
 						// Update last processed block after each successful batch
 						await this.databaseService.updateLastProcessedBlock(null, batchEnd);
-						processedBlocks += (batchEnd - batchStart + 1);
-						
+						processedBlocks += batchEnd - batchStart + 1;
+
 						this.logger.log(`Successfully processed batch up to block ${batchEnd}`);
 					} catch (error) {
 						this.logger.error(`Failed to process batch ${batchStart}-${batchEnd}:`, error);
@@ -158,7 +175,7 @@ export class MonitoringService implements OnModuleInit {
 	getStatus(): { status: MonitoringStatus; lastError: string | null } {
 		return {
 			status: this.monitoringStatus,
-			lastError: this.lastError
+			lastError: this.lastError,
 		};
 	}
 

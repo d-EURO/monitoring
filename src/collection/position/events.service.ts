@@ -35,7 +35,6 @@ export class PositionEventsService {
 		fromBlock: number,
 		toBlock: number
 	): Promise<PositionEventsData> {
-		this.logger.log(`Fetching positions events from block ${fromBlock} to ${toBlock}`);
 		const { mintingHubContract, rollerContract } = contracts;
 
 		// Fetch MintingHub and Roller events
@@ -91,8 +90,6 @@ export class PositionEventsService {
 	}
 
 	private async persistEvents(eventsData: PositionEventsData): Promise<void> {
-		this.logger.log('Persisting positions events to database...');
 		await this.eventPersistenceService.persistAllEvents(eventsData);
-		this.logger.log('Positions events persisted successfully');
 	}
 }

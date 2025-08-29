@@ -44,7 +44,6 @@ export class DeuroEventsService {
 		fromBlock: number,
 		toBlock: number
 	): Promise<DeuroEventsData> {
-		this.logger.log(`Fetching dEURO events from block ${fromBlock} to ${toBlock}`);
 		const { deuroContract, equityContract, depsContract, savingsContract } = contracts;
 
 		const [
@@ -120,8 +119,6 @@ export class DeuroEventsService {
 	}
 
 	private async persistEvents(eventsData: DeuroEventsData): Promise<void> {
-		this.logger.log('Persisting dEURO events to database...');
 		await this.eventPersistenceService.persistAllEvents(eventsData);
-		this.logger.log('dEURO events persisted successfully');
 	}
 }

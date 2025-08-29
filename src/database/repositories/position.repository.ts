@@ -80,6 +80,12 @@ export class PositionRepository {
 		return records.map(this.mapToDomain);
 	}
 
+	async getAllPositionOpenedEvents(): Promise<{ position: string; collateral: string; owner: string; original: string }[]> {
+		return await this.db.fetch<{ position: string; collateral: string; owner: string; original: string }>(
+			`SELECT position, collateral, owner, original FROM mintinghub_position_opened_events ORDER BY timestamp`
+		);
+	}
+
 	async getPositionOpenedTimestamp(address: string): Promise<number | null> {
 		const records = await this.db.fetch<{ timestamp: Date }>(
 			`

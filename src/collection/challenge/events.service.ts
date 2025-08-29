@@ -25,7 +25,6 @@ export class ChallengeEventsService {
 	constructor(private readonly eventPersistenceService: EventPersistenceService) {}
 
 	async getChallengesEvents(mintingHubContract: ethers.Contract, fromBlock: number, toBlock: number): Promise<ChallengeEventsData> {
-		this.logger.log(`Fetching challenges events from block ${fromBlock} to ${toBlock}`);
 
 		const [
 			mintingHubChallengeStartedEvents,
@@ -90,8 +89,6 @@ export class ChallengeEventsService {
 	}
 
 	private async persistEvents(eventsData: ChallengeEventsData): Promise<void> {
-		this.logger.log('Persisting challenges events to database...');
 		await this.eventPersistenceService.persistAllEvents(eventsData);
-		this.logger.log('Challenges events persisted successfully');
 	}
 }

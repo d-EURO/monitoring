@@ -300,7 +300,6 @@ export class EventPersistenceService {
 				}
 			});
 
-			this.logger.log(`Successfully persisted ${this.getTotalEventCount(eventsData)} events`);
 		} catch (error) {
 			this.logger.error('Failed to persist events:', error);
 			throw error;

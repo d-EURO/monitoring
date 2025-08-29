@@ -16,7 +16,6 @@ export class MinterEventsService {
 	constructor(private readonly eventPersistenceService: EventPersistenceService) {}
 
 	async getMintersEvents(deuroContract: ethers.Contract, fromBlock: number, toBlock: number): Promise<MinterEventsData> {
-		this.logger.log(`Fetching minters events from block ${fromBlock} to ${toBlock}`);
 
 		const [deuroMinterAppliedEvents, deuroMinterDeniedEvents] = await Promise.all([
 			fetchEvents<DeuroMinterAppliedEvent>(deuroContract, deuroContract.filters.MinterApplied(), fromBlock, toBlock, this.logger),
@@ -29,8 +28,6 @@ export class MinterEventsService {
 	}
 
 	private async persistEvents(eventsData: MinterEventsData): Promise<void> {
-		this.logger.log('Persisting minters events to database...');
 		await this.eventPersistenceService.persistAllEvents(eventsData);
-		this.logger.log('Minters events persisted successfully');
 	}
 }
