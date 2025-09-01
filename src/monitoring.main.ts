@@ -19,6 +19,8 @@ async function bootstrap() {
 		},
 	});
 
+	app.setGlobalPrefix('api');
+
 	const config = new DocumentBuilder()
 		.setTitle('dEURO Monitoring API')
 		.setDescription('Comprehensive monitoring API for the dEURO protocol')
