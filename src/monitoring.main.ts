@@ -19,14 +19,13 @@ async function bootstrap() {
 		},
 	});
 
-	app.setGlobalPrefix('api');
-
 	const config = new DocumentBuilder()
 		.setTitle('dEURO Monitoring API')
 		.setDescription('Comprehensive monitoring API for the dEURO protocol')
 		.setVersion('2.0.0')
 		.addTag('Events', 'Historical blockchain events')
 		.addTag('States', 'Protocol state snapshots')
+		.addServer('/api', 'API Base Path')
 		.build();
 
 	const document = SwaggerModule.createDocument(app, config);
