@@ -9,7 +9,7 @@ on:
 
 env:
   DOCKER_TAGS: dfxswiss/deuro-monitoring:latest
-  AZURE_RESOURCE_GROUP: rg-dfx-monitoring-prd
+  AZURE_RESOURCE_GROUP: rg-dfx-api-prd
   AZURE_CONTAINER_APP: ca-dfx-dem-prd
   DEPLOY_INFO: ${{ github.ref_name }}-${{ github.sha }}
 
