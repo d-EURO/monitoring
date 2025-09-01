@@ -10,7 +10,7 @@ on:
 env:
   DOCKER_TAGS: dfxswiss/deuro-monitoring:beta
   AZURE_RESOURCE_GROUP: rg-dfx-monitoring-dev
-  AZURE_CONTAINER_APP: ca-deuro-monitoring-dev
+  AZURE_CONTAINER_APP: ca-dfx-dem-dev
   DEPLOY_INFO: ${{ github.ref_name }}-${{ github.sha }}
 
 jobs:
