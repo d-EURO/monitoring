@@ -3,6 +3,8 @@ name: dEURO Monitoring PRD CI/CD
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'frontend/**'
   workflow_dispatch:
 
 env:
