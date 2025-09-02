@@ -7,6 +7,12 @@ on:
       - 'frontend/**'
   workflow_dispatch:
 
+env:
+  AZURE_ACCOUNT_NAME: stdfxdemprd
+  AZURE_CDN_PROFILE: afd-dfx-api-prd
+  AZURE_CDN_ENDPOINT: fde-dfx-dem-prd
+  AZURE_RESOURCE_GROUP: rg-dfx-api-prd
+
 jobs:
   build-and-deploy:
     name: Build and deploy Frontend to PRD
@@ -30,13 +36,26 @@ jobs:
         run: npm run build
         working-directory: frontend
         env:
-          VITE_API_URL: ${{ secrets.PRD_API_URL }}
+          VITE_API_BASE_URL: ${{ secrets.PRD_API_URL }}
 
-      - name: Deploy to Azure Static Web Apps
-        uses: Azure/static-web-apps-deploy@v1
+      - name: Log in to Azure
+        uses: azure/login@v2
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PRD }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: "upload"
-          app_location: "frontend"
-          output_location: "dist"
+          creds: ${{ secrets.AZURE_PRD_CREDENTIALS }}
+
+      - name: Upload to Azure Storage
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az storage blob upload-batch --account-name ${{ env.AZURE_ACCOUNT_NAME }} -d '$web' -s ./dist --overwrite
+        working-directory: frontend
+
+      - name: Purge CDN endpoint
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az afd endpoint purge --content-paths "/*" --profile-name ${{ env.AZURE_CDN_PROFILE }} --endpoint-name ${{ env.AZURE_CDN_ENDPOINT }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+
+      - name: Logout from Azure
+        run: az logout
+        if: always()
