@@ -47,8 +47,7 @@ jobs:
         uses: azure/CLI@v2
         with:
           inlineScript: |
-            az storage blob upload-batch --account-name ${{ env.AZURE_ACCOUNT_NAME }} -d '$web' -s ./dist --overwrite
-        working-directory: frontend
+            az storage blob upload-batch --account-name ${{ env.AZURE_ACCOUNT_NAME }} -d '$web' -s ./frontend/dist --overwrite
 
       - name: Purge CDN endpoint
         uses: azure/CLI@v2
