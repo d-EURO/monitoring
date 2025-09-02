@@ -36,7 +36,7 @@ jobs:
         run: npm run build
         working-directory: frontend
         env:
-          VITE_API_BASE_URL: ${{ secrets.DEV_API_URL }}
+          VITE_API_BASE_URL: https://dev.monitoring.deuro.com/api
 
       - name: Log in to Azure
         uses: azure/login@v2
