@@ -2,8 +2,46 @@ import type { DeuroState } from '../types/index';
 import { colors, spacing } from '../lib/theme';
 import { formatNumber, formatPercent } from '../lib/formatters';
 import type { DataState } from '../lib/api.hook';
+import { useEffect, useState } from 'react';
 
-export function SystemOverview({ data, error }: DataState<DeuroState>) {
+interface SystemOverviewProps extends DataState<DeuroState> {}
+
+export function SystemOverview({ data, error }: SystemOverviewProps) {
+	const [totalMinters, setTotalMinters] = useState<number>(0);
+	const [dbMinters, setDbMinters] = useState<number>(0);
+
+	useEffect(() => {
+		const apiUrl = import.meta.env.VITE_API_BASE_URL;
+		if (!apiUrl) return;
+
+		const fetchMinterCounts = async () => {
+			try {
+				// Fetch both counts in parallel
+				const [totalResponse, dbResponse] = await Promise.all([
+					fetch(`${apiUrl}/minters/total-count`),
+					fetch(`${apiUrl}/minters`)
+				]);
+
+				if (totalResponse.ok) {
+					const result = await totalResponse.json();
+					setTotalMinters(result.count);
+				}
+
+				if (dbResponse.ok) {
+					const result = await dbResponse.json();
+					setDbMinters(result.length);
+				}
+			} catch (err) {
+				console.error('Failed to fetch minter counts:', err);
+			}
+		};
+
+		fetchMinterCounts();
+		// Refresh every minute
+		const interval = setInterval(fetchMinterCounts, 60000);
+		return () => clearInterval(interval);
+	}, []);
+
 	if (error) return <div className={colors.critical}>{error}</div>;
 	if (!data) return null;
 
@@ -11,15 +49,29 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 	const deuroProfit = BigInt(data.deuroProfit) + 300_000n * 10n ** 18n;
 	const netProfit = deuroProfit - BigInt(data.deuroLoss);
 
+	// Check for minter discrepancy
+	const hasMinterDiscrepancy = totalMinters > 0 && dbMinters > 0 && totalMinters !== dbMinters;
+
 	return (
-		<div className={`${colors.background} ${colors.table.border} border rounded-xl p-4`}>
-			<h2 className={`text-sm uppercase tracking-wider ${colors.text.primary} mb-4`}>SYSTEM OVERVIEW</h2>
+		<>
+			{hasMinterDiscrepancy && (
+				<div className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold text-center animate-pulse">
+					⚠️ WARNING: Minter database capture incomplete! Blockchain: {totalMinters} | Database: {dbMinters}
+				</div>
+			)}
+			<div className={`${colors.background} ${colors.table.border} border rounded-xl p-4`}>
+				<h2 className={`text-sm uppercase tracking-wider ${colors.text.primary} mb-4`}>SYSTEM OVERVIEW</h2>
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
 				<Section title="SUPPLY">
 					<Metric label="dEURO" value={formatNumber(data.deuroTotalSupply, 18, 2)} valueClass={colors.text.primary} />
 					<Metric label="nDEPS" value={formatNumber(data.equityShares, 18, 2)} />
 					<Metric label="DEPS" value={formatNumber(data.depsTotalSupply, 18, 2)} />
+				</Section>
+
+				<Section title="MINTERS">
+					<Metric label="Total Applications (Blockchain)" value={totalMinters.toString()} valueClass={colors.text.primary} />
+					<Metric label="Captured in Database" value={dbMinters.toString()} valueClass={colors.text.secondary} />
 				</Section>
 
 				<Section title="RESERVES">
@@ -63,6 +115,7 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 				)}
 			</div>
 		</div>
+		</>
 	);
 }
 

@@ -1,13 +1,17 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
 import { MinterService } from './minter.service';
+import { BlockchainMintersService } from './blockchain-minters.service';
 import { MinterStateDto, MinterStatus } from '../../common/dto/minter.dto';
 import { BridgeStateDto } from '../../common/dto/stablecoinBridge.dto';
 
 @ApiTags('Minters')
 @Controller('minters')
 export class MinterController {
-	constructor(private readonly minterService: MinterService) {}
+	constructor(
+		private readonly minterService: MinterService,
+		private readonly blockchainMintersService: BlockchainMintersService
+	) {}
 
 	@Get()
 	@ApiQuery({ name: 'status', enum: MinterStatus, required: false })
@@ -23,5 +27,12 @@ export class MinterController {
 	async getBridges(@Query('all') all?: string): Promise<BridgeStateDto[]> {
 		if (all === 'true') return this.minterService.getAllBridges();
 		return this.minterService.getActiveBridges();
+	}
+
+	@Get('total-count')
+	@ApiOkResponse({ type: Number })
+	async getTotalMintersCount(): Promise<{ count: number }> {
+		const count = await this.blockchainMintersService.getTotalMintersFromBlockchain();
+		return { count };
 	}
 }
