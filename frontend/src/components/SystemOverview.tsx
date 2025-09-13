@@ -9,36 +9,50 @@ interface SystemOverviewProps extends DataState<DeuroState> {}
 export function SystemOverview({ data, error }: SystemOverviewProps) {
 	const [totalMinters, setTotalMinters] = useState<number>(0);
 	const [dbMinters, setDbMinters] = useState<number>(0);
+	const [totalPositions, setTotalPositions] = useState<number>(0);
+	const [dbPositions, setDbPositions] = useState<number>(0);
 
 	useEffect(() => {
 		const apiUrl = import.meta.env.VITE_API_BASE_URL;
 		if (!apiUrl) return;
 
-		const fetchMinterCounts = async () => {
+		const fetchCounts = async () => {
 			try {
-				// Fetch both counts in parallel
-				const [totalResponse, dbResponse] = await Promise.all([
+				// Fetch all counts in parallel
+				const [totalMintersResponse, dbMintersResponse, totalPositionsResponse, dbPositionsResponse] = await Promise.all([
 					fetch(`${apiUrl}/minters/total-count`),
-					fetch(`${apiUrl}/minters`)
+					fetch(`${apiUrl}/minters`),
+					fetch(`${apiUrl}/positions/total-count`),
+					fetch(`${apiUrl}/positions`)
 				]);
 
-				if (totalResponse.ok) {
-					const result = await totalResponse.json();
+				if (totalMintersResponse.ok) {
+					const result = await totalMintersResponse.json();
 					setTotalMinters(result.count);
 				}
 
-				if (dbResponse.ok) {
-					const result = await dbResponse.json();
+				if (dbMintersResponse.ok) {
+					const result = await dbMintersResponse.json();
 					setDbMinters(result.length);
 				}
+
+				if (totalPositionsResponse.ok) {
+					const result = await totalPositionsResponse.json();
+					setTotalPositions(result.count);
+				}
+
+				if (dbPositionsResponse.ok) {
+					const result = await dbPositionsResponse.json();
+					setDbPositions(result.length);
+				}
 			} catch (err) {
-				console.error('Failed to fetch minter counts:', err);
+				console.error('Failed to fetch counts:', err);
 			}
 		};
 
-		fetchMinterCounts();
+		fetchCounts();
 		// Refresh every minute
-		const interval = setInterval(fetchMinterCounts, 60000);
+		const interval = setInterval(fetchCounts, 60000);
 		return () => clearInterval(interval);
 	}, []);
 
@@ -49,14 +63,20 @@ export function SystemOverview({ data, error }: SystemOverviewProps) {
 	const deuroProfit = BigInt(data.deuroProfit) + 300_000n * 10n ** 18n;
 	const netProfit = deuroProfit - BigInt(data.deuroLoss);
 
-	// Check for minter discrepancy
+	// Check for discrepancies
 	const hasMinterDiscrepancy = totalMinters > 0 && dbMinters > 0 && totalMinters !== dbMinters;
+	const hasPositionDiscrepancy = totalPositions > 0 && dbPositions > 0 && totalPositions !== dbPositions;
 
 	return (
 		<>
 			{hasMinterDiscrepancy && (
 				<div className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold text-center animate-pulse">
 					⚠️ WARNING: Minter database capture incomplete! Blockchain: {totalMinters} | Database: {dbMinters}
+				</div>
+			)}
+			{hasPositionDiscrepancy && (
+				<div className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold text-center animate-pulse">
+					⚠️ WARNING: Position database capture incomplete! Blockchain: {totalPositions} | Database: {dbPositions}
 				</div>
 			)}
 			<div className={`${colors.background} ${colors.table.border} border rounded-xl p-4`}>
@@ -72,6 +92,11 @@ export function SystemOverview({ data, error }: SystemOverviewProps) {
 				<Section title="MINTERS">
 					<Metric label="Total Applications (Blockchain)" value={totalMinters.toString()} valueClass={colors.text.primary} />
 					<Metric label="Captured in Database" value={dbMinters.toString()} valueClass={colors.text.secondary} />
+				</Section>
+
+				<Section title="POSITIONS">
+					<Metric label="Total Created (Blockchain)" value={totalPositions.toString()} valueClass={colors.text.primary} />
+					<Metric label="Captured in Database" value={dbPositions.toString()} valueClass={colors.text.secondary} />
 				</Section>
 
 				<Section title="RESERVES">
