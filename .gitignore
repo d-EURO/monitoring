@@ -61,3 +61,4 @@ monitoring_output.json
 
 # Development
 contracts/
+.claude/settings.local.json
