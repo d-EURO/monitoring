@@ -2,15 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import monitoringConfig from './config/monitoring.config';
-import { DatabaseModule } from './database/database.module';
-import { BlockchainModule } from './blockchain/blockchain.module';
-import { MonitoringModule } from './monitoring/monitoring.module';
-import { PositionModule } from './api/positions/position.module';
-import { ChallengeModule } from './api/challenges/challenge.module';
-import { MinterModule } from './api/minters/minter.module';
-import { DeuroModule } from './api/deuro/deuro.module';
-import { CollateralModule } from './api/collateral/collateral.module';
-import { HealthController } from './health/health.controller';
+import { MonitoringV2Module } from './monitoringV2/monitoring-v2.module';
 
 @Module({
 	imports: [
@@ -20,15 +12,8 @@ import { HealthController } from './health/health.controller';
 			envFilePath: ['.env.monitoring', '.env'],
 		}),
 		ScheduleModule.forRoot(),
-		DatabaseModule,
-		BlockchainModule,
-		MonitoringModule,
-		PositionModule,
-		ChallengeModule,
-		MinterModule,
-		DeuroModule,
-		CollateralModule,
+		MonitoringV2Module,
 	],
-	controllers: [HealthController],
+	controllers: [],
 })
 export class AppModule {}

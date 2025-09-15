@@ -1,33 +1,39 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
+import { Injectable } from '@nestjs/common';
+import { AppConfigService } from 'src/config/config.service';
 
 @Injectable()
 export class ProviderService {
-	private readonly logger = new Logger(ProviderService.name);
-	private provider: ethers.Provider;
-	private blockchainId: number;
+	private ethersProvider: ethers.Provider;
+	private blockCache = new Map<number, ethers.Block>();
 
-	constructor(private readonly configService: ConfigService) {
+	constructor(private readonly config: AppConfigService) {
 		this.initializeProvider();
 	}
 
 	private initializeProvider() {
-		const monitoringConfig = this.configService.get('monitoring');
-		this.blockchainId = monitoringConfig.blockchainId;
-		this.provider = new ethers.JsonRpcProvider(monitoringConfig.rpcUrl);
-		this.logger.log(`Connected to blockchain ${this.blockchainId} at ${monitoringConfig.rpcUrl}`);
+		this.ethersProvider = new ethers.JsonRpcProvider(this.config.rpcUrl);
 	}
 
-	getProvider(): ethers.Provider {
-		return this.provider;
+	get provider(): ethers.Provider {
+		return this.ethersProvider;
 	}
 
-	getBlockchainId(): number {
-		return this.blockchainId;
-	}
+	// get block with caching
+	async getBlock(blockNumber: number): Promise<ethers.Block> {
+		if (this.blockCache.has(blockNumber)) {
+			return this.blockCache.get(blockNumber);
+		}
 
-	getDeploymentBlock(): number {
-		return this.configService.get('monitoring').deploymentBlock;
+		const block = await this.ethersProvider.getBlock(blockNumber);
+		this.blockCache.set(blockNumber, block);
+
+		// Limit cache size to last 100 blocks
+		if (this.blockCache.size > 100) {
+			const oldestKey = Math.min(...this.blockCache.keys());
+			this.blockCache.delete(oldestKey);
+		}
+
+		return block;
 	}
 }

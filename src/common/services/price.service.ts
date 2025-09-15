@@ -54,6 +54,7 @@ export class PriceService {
 	 */
 	async getExchangeRate(from: string, to: string): Promise<number> {
 		// Simplified - in production use a real forex API
+		// TODO: Use CoinGecko (see state at commit 4a5950c645520da52ef9eac136ee5ce731f64e8f)
 		if (from === 'USD' && to === 'EUR') return 0.92;
 		if (from === 'USD' && to === 'CHF') return 0.88;
 		return 1.0;
@@ -129,7 +130,7 @@ export class PriceService {
 
 		const prices: { [key: string]: string } = {};
 		for (const [token, underlying] of specialTokens) {
-			const provider = this.providerService.getProvider();
+			const provider = this.providerService.provider;
 			const equityContract = new ethers.Contract(underlying, EquityABI, provider);
 			const nativePrice = await equityContract.price();
 			let formattedPrice = ethers.formatUnits(nativePrice, 18);

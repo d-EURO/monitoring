@@ -4,29 +4,29 @@ CREATE TABLE IF NOT EXISTS raw_events (
     tx_hash VARCHAR(66) NOT NULL,
     log_index INTEGER NOT NULL,
     contract_address VARCHAR(42) NOT NULL,
-    event_name VARCHAR(100) NOT NULL,
-    event_data JSONB NOT NULL,  -- ALL decoded event parameters
+    topic VARCHAR(100) NOT NULL,
+    args JSONB NOT NULL,  -- ALL decoded event parameters
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     PRIMARY KEY (tx_hash, log_index)
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_block ON raw_events(block_number DESC);
-CREATE INDEX IF NOT EXISTS idx_events_name_time ON raw_events(event_name, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_events_name_time ON raw_events(topic, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_events_contract ON raw_events(contract_address, block_number DESC);
-CREATE INDEX IF NOT EXISTS idx_events_data ON raw_events USING GIN(event_data);
+CREATE INDEX IF NOT EXISTS idx_events_data ON raw_events USING GIN(args);
 CREATE INDEX IF NOT EXISTS idx_events_timestamp ON raw_events(timestamp DESC);
 
 -- Dynamic Contract Registry (auto-populated from events)
 CREATE TABLE IF NOT EXISTS contracts (
     address VARCHAR(42) PRIMARY KEY,
-    contract_type VARCHAR(50) NOT NULL, -- e.g. DEURO, EQUITY, POSITION, MINTER, BRIDGE
+    type VARCHAR(50) NOT NULL, -- e.g. DEURO, EQUITY, POSITION, MINTER, BRIDGE
     created_at_block BIGINT NOT NULL,
-    metadata JSONB, -- flexible storage for contract-specific data
     is_active BOOLEAN DEFAULT true,
+    metadata JSONB, -- flexible storage for contract-specific data
     added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_contracts_type ON contracts(contract_type);
+CREATE INDEX IF NOT EXISTS idx_contracts_type ON contracts(type);
 CREATE INDEX IF NOT EXISTS idx_contracts_active ON contracts(is_active) WHERE is_active = true;
 CREATE INDEX IF NOT EXISTS idx_contracts_metadata ON contracts USING GIN(metadata);
 
@@ -40,39 +40,42 @@ CREATE TABLE IF NOT EXISTS sync_state (
 
 -- Position States
 CREATE TABLE IF NOT EXISTS position_states (
-    position_address VARCHAR(42) PRIMARY KEY,
-    status VARCHAR(20) NOT NULL, -- ACTIVE, CHALLENGED, EXPIRED, CLOSED
-    owner_address VARCHAR(42) NOT NULL,
-    original_address VARCHAR(42) NOT NULL,
-    collateral_address VARCHAR(42) NOT NULL,
-    collateral_balance NUMERIC(78, 0) NOT NULL,
-    price NUMERIC(78, 0) NOT NULL,
-    virtual_price NUMERIC(78, 0) NOT NULL,
-    expired_purchase_price NUMERIC(78, 0) NOT NULL,
-    collateral_requirement NUMERIC(78, 0) NOT NULL,
-    debt NUMERIC(78, 0) NOT NULL,
-    interest NUMERIC(78, 0) NOT NULL,
-    minimum_collateral NUMERIC(78, 0) NOT NULL,
-    minimum_challenge_amount NUMERIC(78, 0) NOT NULL,
-    limit_amount NUMERIC(78, 0) NOT NULL,
-    principal NUMERIC(78, 0) NOT NULL,
-    risk_premium_ppm INTEGER NOT NULL,
-    reserve_contribution INTEGER NOT NULL,
-    fixed_annual_rate_ppm INTEGER NOT NULL,
-    last_accrual NUMERIC(78, 0) NOT NULL,
-    start_timestamp NUMERIC(78, 0) NOT NULL,
-    cooldown_period NUMERIC(78, 0) NOT NULL,
-    expiration_timestamp NUMERIC(78, 0) NOT NULL,
-    challenged_amount NUMERIC(78, 0) NOT NULL,
-    challenge_period NUMERIC(78, 0) NOT NULL,
-    is_closed BOOLEAN NOT NULL,
-    available_for_minting NUMERIC(78, 0) NOT NULL,
-    available_for_clones NUMERIC(78, 0) NOT NULL,
-    created INTEGER,
-    market_price NUMERIC(78, 0),
-    collateralization_ratio NUMERIC(10, 4),
-    frontend_code VARCHAR(66),
-    
+    -- Fixed fields
+    position_address VARCHAR(42) PRIMARY KEY, -- Position.address
+    minimum_collateral NUMERIC(78, 0) NOT NULL, -- Position.minimumCollateral
+    risk_premium_ppm INTEGER NOT NULL, -- Position.riskPremiumPPM
+    limit_amount NUMERIC(78, 0) NOT NULL, -- Position.limit
+    owner_address VARCHAR(42) NOT NULL, -- Position.owner
+    original_address VARCHAR(42) NOT NULL, -- Position.original
+    collateral_address VARCHAR(42) NOT NULL, -- Position.collateral
+    collateral_requirement NUMERIC(78, 0) NOT NULL, -- Position.getCollateralRequirement
+    reserve_contribution INTEGER NOT NULL, -- Position.reserveContribution
+    start_timestamp NUMERIC(78, 0) NOT NULL, -- Position.start
+    challenge_period NUMERIC(78, 0) NOT NULL, -- Position.challengePeriod
+    created INTEGER, -- MintingHub.PositionOpened event timestamp
+    frontend_code VARCHAR(66), -- FrontendGateway.NewPositionRegistered event
+
+    -- Dynamic fields
+    status VARCHAR(20) NOT NULL, -- ACTIVE, CHALLENGED, EXPIRED, CLOSED -- derived
+    collateral_balance NUMERIC(78, 0) NOT NULL, -- ERC20(collateral_address).balanceOf
+    price NUMERIC(78, 0) NOT NULL, -- Position.price
+    virtual_price NUMERIC(78, 0) NOT NULL, -- Position.virtualPrice
+    expired_purchase_price NUMERIC(78, 0) NOT NULL, -- MintingHub.expiredPurchasePrice(position_address)
+    debt NUMERIC(78, 0) NOT NULL, -- Position.getDebt
+    interest NUMERIC(78, 0) NOT NULL, -- Position.interest
+    minimum_challenge_amount NUMERIC(78, 0) NOT NULL, -- min(Position.minimumCollateral, Position.collateralBalance) - (remove!)
+    principal NUMERIC(78, 0) NOT NULL, -- Position.principal
+    fixed_annual_rate_ppm INTEGER NOT NULL, -- Position.fixedAnnualRatePPM
+    last_accrual NUMERIC(78, 0) NOT NULL, -- Position.lastAccrual
+    cooldown_period NUMERIC(78, 0) NOT NULL, -- Position.cooldown - (rename to cooldown)
+    expiration_timestamp NUMERIC(78, 0) NOT NULL, -- Position.expiration
+    challenged_amount NUMERIC(78, 0) NOT NULL, -- Position.challengedAmount
+    is_closed BOOLEAN NOT NULL, -- Position.isClosed
+    available_for_minting NUMERIC(78, 0) NOT NULL, -- Position.availableForMinting
+    available_for_clones NUMERIC(78, 0) NOT NULL, -- Position.availableForClones
+    market_price NUMERIC(78, 0), -- price.service.ts:getTokenPricesInEur - (remove? stored in collateral_states)
+    collateralization_ratio NUMERIC(10, 4), -- Position.marketPrice / Position.virtualPrice (remove?)
+
     -- metadata
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
@@ -87,19 +90,22 @@ CREATE INDEX IF NOT EXISTS idx_position_states_frontend_code ON position_states(
 
 -- Challenge States
 CREATE TABLE IF NOT EXISTS challenge_states (
-    challenge_id INTEGER PRIMARY KEY,
-    challenger_address VARCHAR(42) NOT NULL,
-    position_address VARCHAR(42) NOT NULL,
-    position_owner_address VARCHAR(42) NOT NULL,
-    start_timestamp BIGINT NOT NULL,
-    initial_size NUMERIC(78, 0) NOT NULL,
-    size NUMERIC(78, 0) NOT NULL,
-    collateral_address VARCHAR(42) NOT NULL,
-    liq_price NUMERIC(78, 0) NOT NULL,
-    phase INTEGER NOT NULL, -- 0: Bid, 1: Avert, 2: Ended
-    status VARCHAR(20) NOT NULL, -- ACTIVE, AVERTED, SUCCEEDED
-    current_price NUMERIC(78, 0) NOT NULL,
-    
+    -- Fixed fields
+    challenge_id INTEGER PRIMARY KEY, -- MintingHub.ChallengeStarted.number
+    challenger_address VARCHAR(42) NOT NULL, -- MintingHub.ChallengeStarted.challenger
+    position_address VARCHAR(42) NOT NULL, -- MintingHub.ChallengeStarted.position
+    position_owner_address VARCHAR(42) NOT NULL, -- IPosition(MintingHub.ChallengeStarted.position).owner
+    start_timestamp BIGINT NOT NULL, -- MintingHub.ChallengeStarted event timestamp
+    initial_size NUMERIC(78, 0) NOT NULL, -- MintingHub.ChallengeStarted.size
+    collateral_address VARCHAR(42) NOT NULL, -- IPosition(MintingHub.ChallengeStarted.position).collateral
+    liq_price NUMERIC(78, 0) NOT NULL, -- IPosition(MintingHub.ChallengeStarted.position).virtualPrice
+
+    -- Dynamic fields
+    size NUMERIC(78, 0) NOT NULL, -- MintingHub.challenges[challenge_id].size
+    phase INTEGER NOT NULL, -- 0: Bid, 1: Avert, 2: Ended - derived from IPosition(MintingHub.ChallengeStarted.position).challengePeriod
+    status VARCHAR(20) NOT NULL, -- ACTIVE, AVERTED, SUCCEEDED - derived from phase & size
+    current_price NUMERIC(78, 0) NOT NULL, -- MintingHub.price(challenge_id)
+
     -- metadata
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
@@ -112,15 +118,18 @@ CREATE INDEX IF NOT EXISTS idx_challenge_states_phase ON challenge_states(phase)
 
 -- Collateral States
 CREATE TABLE IF NOT EXISTS collateral_states (
-    token_address VARCHAR(42) PRIMARY KEY,
-    symbol VARCHAR(20) NOT NULL,
-    decimals INTEGER NOT NULL,
-    total_collateral NUMERIC(78, 0) NOT NULL,
-    position_count INTEGER NOT NULL,
-    total_limit NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    total_available_for_minting NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    price NUMERIC(20, 8) DEFAULT 0, -- EUR market price from CoinGecko
-    
+    -- Fixed fields
+    token_address VARCHAR(42) PRIMARY KEY, -- MintingHub.PositionOpened.collateral
+    symbol VARCHAR(20) NOT NULL, -- ERC20(<token_address>).symbol
+    decimals INTEGER NOT NULL, -- ERC20(<token_address>).decimals
+
+    -- Dynamic fields
+    total_collateral NUMERIC(78, 0) NOT NULL, -- derived from position_states
+    position_count INTEGER NOT NULL, -- derived from position_states
+    total_limit NUMERIC(78, 0) NOT NULL DEFAULT 0, -- derived from position_states
+    total_available_for_minting NUMERIC(78, 0) NOT NULL DEFAULT 0, -- derived from position_states
+    price NUMERIC(20, 8) DEFAULT 0, -- price.service.ts:getTokenPricesInEur
+
     -- metadata
     block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
@@ -130,23 +139,28 @@ CREATE INDEX IF NOT EXISTS idx_collateral_states_symbol ON collateral_states(sym
 
 -- Minter States
 CREATE TABLE IF NOT EXISTS minter_states (
-    minter_address VARCHAR(42) PRIMARY KEY,
+    -- Fixed fields
+    minter_address VARCHAR(42) PRIMARY KEY, -- DecentralizedEuro.MinterApplied.minter
     minter_type VARCHAR(20) NOT NULL, -- REGULAR, BRIDGE
+    application_date TIMESTAMP WITH TIME ZONE, -- DecentralizedEuro.MinterApplied event timestamp
+    application_period NUMERIC(78, 0), -- DecentralizedEuro.MinterApplied.applicationPeriod
+    application_fee NUMERIC(78, 0), -- DecentralizedEuro.MinterApplied.applicationFee
+    message TEXT, -- DecentralizedEuro.MinterApplied.message
+
+    -- Bridge-specific fixed fields (NULL for regular minters)
+    bridge_token_address VARCHAR(42), -- IStablecoinBridge(<minter_address>).eur
+    bridge_token_symbol VARCHAR(10), -- ERC20(<bridge_token_address>).symbol
+    bridge_token_decimals INTEGER, -- ERC20(<bridge_token_address>).decimals
+    bridge_horizon NUMERIC(78, 0), -- IStablecoinBridge(<minter_address>).horizon
+    bridge_limit NUMERIC(78, 0), -- IStablecoinBridge(<minter_address>).limit
+
+    -- Dynamic fields
     status VARCHAR(20) NOT NULL, -- PENDING, APPROVED, DENIED
-    application_date TIMESTAMP WITH TIME ZONE,
-    application_period NUMERIC(78, 0),
-    application_fee NUMERIC(78, 0),
-    message TEXT,
-    denial_date TIMESTAMP WITH TIME ZONE,
-    denial_message TEXT,
-    
-    -- Bridge-specific fields (NULL for regular minters)
-    bridge_token_address VARCHAR(42),
-    bridge_token_symbol VARCHAR(10),
-    bridge_token_decimals INTEGER,
-    bridge_horizon NUMERIC(78, 0),
-    bridge_limit NUMERIC(78, 0),
-    bridge_minted NUMERIC(78, 0),
+    denial_date TIMESTAMP WITH TIME ZONE, -- DecentralizedEuro.MinterDenied event timestamp
+    denial_message TEXT, -- DecentralizedEuro.MinterDenied.message
+
+    -- Bridge-specific dynamic fields
+    bridge_minted NUMERIC(78, 0), -- IStablecoinBridge(<minter_address>).minted
 
     -- metadata
     block_number BIGINT NOT NULL,
@@ -161,36 +175,36 @@ CREATE INDEX IF NOT EXISTS idx_minter_states_bridge_token ON minter_states(bridg
 CREATE TABLE IF NOT EXISTS system_state (
     id INTEGER PRIMARY KEY DEFAULT 1,
     -- Token supplies
-    deuro_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    deps_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0,
+    deuro_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.totalSupply
+    deps_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DEPSWrapper.totalSupply
     
     -- Equity metrics
-    equity_shares NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    equity_price NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    
+    equity_shares NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: Equity.totalSupply
+    equity_price NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: Equity.price
+
     -- Reserve metrics
-    reserve_total NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    reserve_minter NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    reserve_equity NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    
+    reserve_total NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.reserve
+    reserve_minter NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.minterReserve
+    reserve_equity NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.equity
+
     -- Savings metrics
-    savings_total NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    savings_interest_collected NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    savings_rate NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    
+    savings_total NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.balanceOf(SavingsGateway.address)
+    savings_interest_collected NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: sum over SavingsGateway.InterestCollected events
+    savings_rate NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: SavingsGateway.currentRatePPM
+
     -- Profit/Loss tracking
-    deuro_loss NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    deuro_profit NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    deuro_profit_distributed NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    
+    deuro_loss NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.Loss events
+    deuro_profit NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.Profit events
+    deuro_profit_distributed NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.ProfitDistributed events
+
     -- Frontend metrics
-    frontend_fees_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    frontends_active INTEGER DEFAULT 0 NOT NULL,
-    
+    frontend_fees_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over FrontendGateway.FrontendCodeRewardsWithdrawn
+    frontends_active INTEGER DEFAULT 0 NOT NULL, -- dynamic: count over FrontendCodeRegistered events
+
     -- Currency rates
-    usd_to_eur_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL,
-    usd_to_chf_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL,
-    
+    usd_to_eur_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL, -- dynamic: getExchangeRate('USD', 'EUR')
+    usd_to_chf_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL, -- dynamic: getExchangeRate('USD', 'CHF')
+
     -- metadata
     block_number BIGINT NOT NULL DEFAULT 0,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),

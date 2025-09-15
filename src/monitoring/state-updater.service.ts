@@ -2,11 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { DatabaseService } from '../database/database.service';
 import { ProviderService } from '../blockchain/provider.service';
-import { CoreContractsService } from '../blockchain/core-contracts.service';
-import { ContractRegistryService, ContractType } from './contract-registry.service';
+import { ContractService } from '../monitoringV2/contract.service';
 import { MulticallService } from '../common/services/multicall.service';
 import { PriceService } from '../common/services/price.service';
 import { ERC20ABI, PositionV2ABI, StablecoinBridgeABI } from '@deuro/eurocoin';
+import { ContractType } from './monitoring.dto';
 
 interface PositionState {
 	address: string;
@@ -115,8 +115,8 @@ export class StateUpdaterService {
 	constructor(
 		private readonly databaseService: DatabaseService,
 		private readonly providerService: ProviderService,
-		private readonly coreContracts: CoreContractsService,
-		private readonly contractRegistry: ContractRegistryService,
+		private readonly coreContracts: ContractService,
+		private readonly contractRegistry: ContractService,
 		private readonly multicallService: MulticallService,
 		private readonly priceService: PriceService
 	) {}
@@ -125,7 +125,7 @@ export class StateUpdaterService {
 	 * Update all states at a given block
 	 */
 	async updateStates(blockNumber: number): Promise<void> {
-		const provider = this.providerService.getProvider();
+		const provider = this.providerService.provider;
 		const block = await provider.getBlock(blockNumber);
 		const timestamp = new Date(block.timestamp * 1000);
 
@@ -155,7 +155,7 @@ export class StateUpdaterService {
 	 */
 	private async fetchPositionStates(blockNumber: number): Promise<PositionState[]> {
 		const positions = await this.contractRegistry.getContractsByType(ContractType.POSITION);
-		const provider = this.providerService.getProvider();
+		const provider = this.providerService.provider;
 		const positionABI = new ethers.Interface(PositionV2ABI);
 
 		const states: PositionState[] = [];
@@ -266,36 +266,79 @@ export class StateUpdaterService {
 	 * Fetch challenge states from MintingHub
 	 */
 	private async fetchChallengeStates(blockNumber: number): Promise<ChallengeState[]> {
-		const mintingHub = this.coreContracts.getMintingHubContract();
-
-		// Get active challenges count
-		const challengesCount = await mintingHub.nChallenges({ blockTag: blockNumber });
+		const mintingHub = this.coreContracts.getContractsByType(ContractType.MINTING_HUB)[0];
 		const states: ChallengeState[] = [];
 
-		for (let i = 1; i <= challengesCount; i++) {
+		// Get known challenge IDs from database (from ChallengeStarted events)
+		const knownChallenges = await this.databaseService.query(
+			`
+			SELECT DISTINCT challenge_id 
+			FROM challenge_states 
+			WHERE status NOT IN ('SUCCEEDED', 'AVERTED')
+			ORDER BY challenge_id
+			`
+		);
+
+		if (knownChallenges.rows.length === 0) {
+			return states;
+		}
+
+		// Fetch current state for each known challenge
+		for (const row of knownChallenges.rows) {
+			const challengeId = row.challenge_id;
+
 			try {
-				const challenge = await mintingHub.challenges(i, { blockTag: blockNumber });
+				const challenge = await mintingHub.challenges(challengeId, { blockTag: blockNumber });
 
-				if (challenge.position === ethers.ZeroAddress) continue; // Skip if no position
+				// Skip if challenge doesn't exist or has been cleared
+				if (challenge.challenger === ethers.ZeroAddress) {
+					// Mark as ended in database
+					await this.databaseService.query(`UPDATE challenge_states SET status = 'ENDED' WHERE challenge_id = $1`, [challengeId]);
+					continue;
+				}
 
+				// Skip if no position set
+				if (challenge.position === ethers.ZeroAddress) continue;
+
+				// Get phase for the position
 				const phase = await mintingHub.phase(challenge.position, { blockTag: blockNumber });
 
+				// Determine status based on phase
+				let status = 'ACTIVE';
+				if (Number(phase) === 2) {
+					status = 'ENDED';
+				} else if (Number(phase) === 1) {
+					status = 'AVERT';
+				} else {
+					status = 'BID';
+				}
+
+				// Get current price if in auction phase
+				let currentPrice = challenge.liqPrice;
+				if (status === 'BID') {
+					try {
+						currentPrice = await mintingHub.price(challengeId, { blockTag: blockNumber });
+					} catch (e) {
+						// price() might fail if not in auction phase
+					}
+				}
+
 				states.push({
-					id: i,
+					id: challengeId,
 					challenger: challenge.challenger,
 					position: challenge.position,
-					positionOwner: challenge.positionOwner,
+					positionOwner: challenge.positionOwner || '',
 					startTimestamp: challenge.start,
 					initialSize: challenge.initialSize,
 					size: challenge.size,
 					collateral: challenge.collateral,
 					liqPrice: challenge.liqPrice,
 					phase: Number(phase),
-					status: phase === 2 ? 'ENDED' : phase === 1 ? 'AVERT' : 'BID',
-					currentPrice: challenge.liqPrice, // Would need additional calculation
+					status,
+					currentPrice,
 				});
 			} catch (error) {
-				this.logger.error(`Error fetching challenge ${i}:`, error);
+				this.logger.error(`Error fetching challenge ${challengeId}:`, error);
 			}
 		}
 
@@ -307,7 +350,7 @@ export class StateUpdaterService {
 	 */
 	private async fetchCollateralStates(positions: PositionState[], blockNumber: number): Promise<CollateralState[]> {
 		const collateralMap = new Map<string, CollateralState>();
-		const provider = this.providerService.getProvider();
+		const provider = this.providerService.provider;
 
 		// Aggregate by collateral token
 		for (const position of positions) {
@@ -369,7 +412,7 @@ export class StateUpdaterService {
 		const minters = await this.contractRegistry.getContractsByType(ContractType.MINTER);
 		for (const minter of minters) {
 			// Check minter status from DEURO contract
-			const deuroContract = this.coreContracts.getDeuroContract();
+			const deuroContract = this.coreContracts.getContractsByType(ContractType.DEURO)[0];
 			const isMinter = await deuroContract.isMinter(minter.address, { blockTag: blockNumber });
 
 			states.push({
@@ -386,7 +429,7 @@ export class StateUpdaterService {
 		// Fetch bridges
 		const bridges = await this.contractRegistry.getContractsByType(ContractType.BRIDGE);
 		const bridgeABI = new ethers.Interface(StablecoinBridgeABI);
-		const provider = this.providerService.getProvider();
+		const provider = this.providerService.provider;
 
 		for (const bridge of bridges) {
 			try {
@@ -428,10 +471,10 @@ export class StateUpdaterService {
 	 * Fetch system-wide state
 	 */
 	private async fetchSystemState(blockNumber: number): Promise<SystemState> {
-		const deuroContract = this.coreContracts.getDeuroContract();
-		const depsContract = this.coreContracts.getDepsContract();
-		const equityContract = this.coreContracts.getEquityContract();
-		const savingsContract = this.coreContracts.getSavingsContract();
+		const deuroContract = this.coreContracts.getContractsByType(ContractType.DEURO)[0];
+		const depsContract = this.coreContracts.getContractsByType(ContractType.DEPS)[0];
+		const equityContract = this.coreContracts.getContractsByType(ContractType.EQUITY)[0];
+		const savingsContract = this.coreContracts.getContractsByType(ContractType.SAVINGS)[0];
 
 		const [deuroTotalSupply, depsTotalSupply, equityShares, equityPrice, reserveTotal, savingsTotal, savingsRate] = await Promise.all([
 			deuroContract.totalSupply({ blockTag: blockNumber }),
@@ -453,12 +496,12 @@ export class StateUpdaterService {
 		const metricsResult = await this.databaseService.query(
 			`
 			SELECT 
-				COALESCE(SUM((event_data->>'amount')::NUMERIC) FILTER (WHERE event_name = 'Loss'), 0) as total_loss,
-				COALESCE(SUM((event_data->>'amount')::NUMERIC) FILTER (WHERE event_name = 'Profit'), 0) as total_profit,
-				COALESCE(SUM((event_data->>'amount')::NUMERIC) FILTER (WHERE event_name = 'ProfitDistributed'), 0) as profit_distributed,
-				COALESCE(SUM((event_data->>'interest')::NUMERIC) FILTER (WHERE event_name = 'InterestCollected'), 0) as interest_collected,
-				COALESCE(SUM((event_data->>'reward')::NUMERIC) FILTER (WHERE event_name LIKE '%RewardAdded'), 0) as frontend_fees,
-				COUNT(DISTINCT event_data->>'frontendCode') FILTER (WHERE event_name = 'FrontendCodeRegistered') as frontends_active
+				COALESCE(SUM((args->>'amount')::NUMERIC) FILTER (WHERE topic = 'Loss'), 0) as total_loss,
+				COALESCE(SUM((args->>'amount')::NUMERIC) FILTER (WHERE topic = 'Profit'), 0) as total_profit,
+				COALESCE(SUM((args->>'amount')::NUMERIC) FILTER (WHERE topic = 'ProfitDistributed'), 0) as profit_distributed,
+				COALESCE(SUM((args->>'interest')::NUMERIC) FILTER (WHERE topic = 'InterestCollected'), 0) as interest_collected,
+				COALESCE(SUM((args->>'reward')::NUMERIC) FILTER (WHERE topic LIKE '%RewardAdded'), 0) as frontend_fees,
+				COUNT(DISTINCT args->>'frontendCode') FILTER (WHERE topic = 'FrontendCodeRegistered') as frontends_active
 			FROM raw_events
 			WHERE block_number <= $1
 		`,

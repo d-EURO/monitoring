@@ -61,11 +61,11 @@ export class DeuroService {
 		const deuroTransfersResult = await this.databaseService.query(
 			`SELECT 
 				COUNT(*) as count,
-				COUNT(DISTINCT event_data->>'from') + COUNT(DISTINCT event_data->>'to') as unique_addresses,
-				COALESCE(SUM((event_data->>'amount')::NUMERIC), 0) as volume
+				COUNT(DISTINCT args->>'from') + COUNT(DISTINCT args->>'to') as unique_addresses,
+				COALESCE(SUM((args->>'amount')::NUMERIC), 0) as volume
 			FROM raw_events 
-			WHERE event_name = 'Transfer' 
-				AND contract_address = (SELECT contract_address FROM contracts WHERE contract_type = 'DEURO' LIMIT 1)
+			WHERE topic = 'Transfer' 
+				AND contract_address = (SELECT contract_address FROM contracts WHERE type = 'DEURO' LIMIT 1)
 				AND timestamp >= $1`,
 			[since]
 		);
@@ -74,11 +74,11 @@ export class DeuroService {
 		const depsTransfersResult = await this.databaseService.query(
 			`SELECT 
 				COUNT(*) as count,
-				COUNT(DISTINCT event_data->>'from') + COUNT(DISTINCT event_data->>'to') as unique_addresses,
-				COALESCE(SUM((event_data->>'amount')::NUMERIC), 0) as volume
+				COUNT(DISTINCT args->>'from') + COUNT(DISTINCT args->>'to') as unique_addresses,
+				COALESCE(SUM((args->>'amount')::NUMERIC), 0) as volume
 			FROM raw_events 
-			WHERE event_name = 'Transfer' 
-				AND contract_address = (SELECT contract_address FROM contracts WHERE contract_type = 'DEPS' LIMIT 1)
+			WHERE topic = 'Transfer' 
+				AND contract_address = (SELECT contract_address FROM contracts WHERE type = 'DEPS' LIMIT 1)
 				AND timestamp >= $1`,
 			[since]
 		);
@@ -87,10 +87,10 @@ export class DeuroService {
 		const equityTradesResult = await this.databaseService.query(
 			`SELECT 
 				COUNT(*) as count,
-				COALESCE(SUM((event_data->>'amount')::NUMERIC), 0) as volume
+				COALESCE(SUM((args->>'amount')::NUMERIC), 0) as volume
 			FROM raw_events 
-			WHERE event_name = 'Trade' 
-				AND contract_address = (SELECT contract_address FROM contracts WHERE contract_type = 'EQUITY' LIMIT 1)
+			WHERE topic = 'Trade' 
+				AND contract_address = (SELECT contract_address FROM contracts WHERE type = 'EQUITY' LIMIT 1)
 				AND timestamp >= $1`,
 			[since]
 		);
@@ -99,8 +99,8 @@ export class DeuroService {
 		const delegationsResult = await this.databaseService.query(
 			`SELECT COUNT(*) as count
 			FROM raw_events 
-			WHERE event_name IN ('Delegation', 'Undelegation')
-				AND contract_address = (SELECT contract_address FROM contracts WHERE contract_type = 'EQUITY' LIMIT 1)
+			WHERE topic IN ('Delegation', 'Undelegation')
+				AND contract_address = (SELECT contract_address FROM contracts WHERE type = 'EQUITY' LIMIT 1)
 				AND timestamp >= $1`,
 			[since]
 		);
@@ -108,12 +108,12 @@ export class DeuroService {
 		// Get Savings events
 		const savingsResult = await this.databaseService.query(
 			`SELECT 
-				COALESCE(SUM(CASE WHEN event_name = 'SavingsDeposited' THEN (event_data->>'amount')::NUMERIC ELSE 0 END), 0) as added,
-				COALESCE(SUM(CASE WHEN event_name = 'SavingsWithdrawn' THEN (event_data->>'amount')::NUMERIC ELSE 0 END), 0) as withdrawn,
-				COALESCE(SUM(CASE WHEN event_name = 'InterestCollected' THEN (event_data->>'amount')::NUMERIC ELSE 0 END), 0) as interest_collected
+				COALESCE(SUM(CASE WHEN topic = 'SavingsDeposited' THEN (args->>'amount')::NUMERIC ELSE 0 END), 0) as added,
+				COALESCE(SUM(CASE WHEN topic = 'SavingsWithdrawn' THEN (args->>'amount')::NUMERIC ELSE 0 END), 0) as withdrawn,
+				COALESCE(SUM(CASE WHEN topic = 'InterestCollected' THEN (args->>'amount')::NUMERIC ELSE 0 END), 0) as interest_collected
 			FROM raw_events 
-			WHERE event_name IN ('SavingsDeposited', 'SavingsWithdrawn', 'InterestCollected')
-				AND contract_address = (SELECT contract_address FROM contracts WHERE contract_type = 'SAVINGS' LIMIT 1)
+			WHERE topic IN ('SavingsDeposited', 'SavingsWithdrawn', 'InterestCollected')
+				AND contract_address = (SELECT contract_address FROM contracts WHERE type = 'SAVINGS' LIMIT 1)
 				AND timestamp >= $1`,
 			[since]
 		);
@@ -121,10 +121,10 @@ export class DeuroService {
 		// Get minting and burning events
 		const mintBurnResult = await this.databaseService.query(
 			`SELECT 
-				COALESCE(SUM(CASE WHEN event_name IN ('PositionOpened', 'MintingUpdate') THEN (event_data->>'deuro')::NUMERIC ELSE 0 END), 0) as minted,
-				COALESCE(SUM(CASE WHEN event_name IN ('PositionClosed', 'PositionDenied') THEN (event_data->>'deuro')::NUMERIC ELSE 0 END), 0) as burned
+				COALESCE(SUM(CASE WHEN topic IN ('PositionOpened', 'MintingUpdate') THEN (args->>'deuro')::NUMERIC ELSE 0 END), 0) as minted,
+				COALESCE(SUM(CASE WHEN topic IN ('PositionClosed', 'PositionDenied') THEN (args->>'deuro')::NUMERIC ELSE 0 END), 0) as burned
 			FROM raw_events 
-			WHERE event_name IN ('PositionOpened', 'MintingUpdate', 'PositionClosed', 'PositionDenied')
+			WHERE topic IN ('PositionOpened', 'MintingUpdate', 'PositionClosed', 'PositionDenied')
 				AND timestamp >= $1`,
 			[since]
 		);

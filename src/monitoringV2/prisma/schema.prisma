@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Raw blockchain events - all protocol events across all contracts
+model RawEvent {
+  blockNumber     Int      @map("block_number")
+  txHash          String   @map("tx_hash") @db.VarChar(66)
+  logIndex        Int      @map("log_index")
+  contractAddress String   @map("contract_address") @db.VarChar(42)
+  topic           String   @db.VarChar(100)
+  args            Json     @db.JsonB
+  timestamp       DateTime @db.Timestamptz
+
+  @@id([txHash, logIndex])
+  @@index([blockNumber(sort: Desc)], map: "idx_events_block")
+  @@index([topic, timestamp(sort: Desc)], map: "idx_events_name_time")
+  @@index([contractAddress, blockNumber(sort: Desc)], map: "idx_events_contract")
+  @@index([timestamp(sort: Desc)], map: "idx_events_timestamp")
+  @@map("raw_events")
+}
+
+// Single-row table tracking blockchain sync progress
+model SyncState {
+  id                 Int      @id @default(1)
+  lastProcessedBlock Int      @map("last_processed_block")
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("sync_state")
+}
+
+// Contract registry - tracks all known protocol contracts
+model Contract {
+  address        String   @id @db.VarChar(42)
+  type           String   @db.VarChar(50)
+  createdAtBlock Int      @map("created_at_block")
+  metadata       Json?    @db.JsonB
+  isActive       Boolean  @default(true) @map("is_active")
+  addedAt        DateTime @default(now()) @map("added_at") @db.Timestamptz
+
+  @@index([type], map: "idx_contracts_type")
+  @@index([isActive], map: "idx_contracts_active")
+  @@map("contracts")
+}
