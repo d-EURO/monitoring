@@ -38,12 +38,12 @@ export interface Token {
 	addedAt?: Date; // set by database
 }
 
-export interface PositionEntity {
+export interface PositionOpenedEvent {
 	address: string;
 	owner: string;
 	original: string;
 	collateral: string;
-	openedAtBlock: number;
+	timestamp: Date;
 }
 
 export interface MinterEntity {
@@ -62,21 +62,39 @@ export interface ChallengeEntity {
 }
 
 export interface PositionState {
+	// Fixed fields
 	address: string;
+	limit: bigint;
 	owner: string;
 	original: string;
-	collateralAddress: string;
-	collateralBalance: bigint;
-	debt: bigint;
-	interest: bigint;
-	principal: bigint;
-	price: bigint;
-	expiration: bigint;
-	cooldown: bigint;
-	isClosed: boolean;
-	challengedAmount: bigint;
+	collateral: string;
 	minimumCollateral: bigint;
-	status: 'ACTIVE' | 'CLOSED' | 'EXPIRED' | 'CHALLENGED' | 'COOLDOWN';
+	riskPremiumPpm: number;
+	reserveContribution: number;
+	challengePeriod: bigint;
+	startTimestamp: bigint;
+	expiration: bigint;
+	created?: Date; // When position was opened
+
+	// Dynamic fields
+	price: bigint;
+	virtualPrice: bigint;
+	collateralAmount: bigint;
+	expiredPurchasePrice: bigint;
+	collateralRequirement: bigint;
+	principal: bigint;
+	interest: bigint;
+	debt: bigint;
+	fixedAnnualRatePpm: number;
+	lastAccrual: bigint;
+	cooldown: bigint;
+	challengedAmount: bigint;
+	availableForMinting: bigint;
+	availableForClones: bigint;
+	isClosed: boolean;
+
+	// Metadata
+	timestamp: Date;
 }
 
 export interface MinterState {

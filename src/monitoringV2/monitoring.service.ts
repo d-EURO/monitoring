@@ -6,6 +6,7 @@ import { AppConfigService } from 'src/config/config.service';
 import { SyncStateRepository } from './prisma/repositories/sync-state.repository';
 import { EventService } from './event.service';
 import { TokenService } from './token.service';
+import { PositionService } from './position.service';
 
 @Injectable()
 export class MonitoringServiceV2 implements OnModuleInit {
@@ -20,12 +21,14 @@ export class MonitoringServiceV2 implements OnModuleInit {
 		private readonly contractService: ContractService,
 		private readonly eventCollector: EventService,
 		private readonly tokenService: TokenService,
+		private readonly positionService: PositionService,
 	) {}
 
 	async onModuleInit() {
 		this.logger.log('MonitoringV2 service initialized');
 		await this.contractService.initialize();
 		await this.tokenService.initialize();
+		await this.positionService.initialize();
 		setTimeout(() => this.runMonitoring(), 5000);
 	}
 
@@ -65,7 +68,8 @@ export class MonitoringServiceV2 implements OnModuleInit {
 		}
 
 		// Post-processing after all blocks are handled
-		await this.tokenService.captureNewTokens(); // collateral tokens
+		await this.tokenService.captureNewTokens(); // sync collateral tokens
+		await this.positionService.syncPositions(); // sync position states
 	}
 
 	private async getBlockRangeToProcess(): Promise<{ fromBlock: number; currentBlock: number }> {

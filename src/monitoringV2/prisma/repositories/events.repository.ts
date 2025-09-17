@@ -1,11 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaClientService } from '../client.service';
-import {
-	Event,
-	PositionEntity as PositionOpenedEvent,
-	MinterEntity as MinterAppliedEvent,
-	ChallengeEntity as ChallengeStartedEvent,
-} from '../../types';
+import { Event, PositionOpenedEvent, MinterEntity as MinterAppliedEvent, ChallengeEntity as ChallengeStartedEvent } from '../../types';
 
 @Injectable()
 export class EventsRepository {
@@ -39,9 +34,7 @@ export class EventsRepository {
 				select: { args: true },
 			});
 
-			const collateralAddresses = events
-				.map((e) => (e.args as any)?.collateral?.toLowerCase())
-				.filter(Boolean); // Remove any undefined/null values
+			const collateralAddresses = events.map((e) => (e.args as any)?.collateral?.toLowerCase()).filter(Boolean); // Remove any undefined/null values
 
 			return Array.from(new Set(collateralAddresses));
 		} catch (error) {
@@ -50,12 +43,12 @@ export class EventsRepository {
 		}
 	}
 
-	async getPositionEntities(): Promise<PositionOpenedEvent[]> {
+	async getPositions(): Promise<PositionOpenedEvent[]> {
 		try {
 			const events = await this.prisma.rawEvent.findMany({
 				where: { topic: 'PositionOpened' },
-				select: { args: true, blockNumber: true },
-				orderBy: { blockNumber: 'asc' },
+				select: { args: true, timestamp: true },
+				orderBy: { timestamp: 'asc' },
 			});
 
 			return events.map((e) => {
@@ -65,11 +58,11 @@ export class EventsRepository {
 					owner: data.owner?.toLowerCase(),
 					original: data.original?.toLowerCase(),
 					collateral: data.collateral?.toLowerCase(),
-					openedAtBlock: e.blockNumber,
+					timestamp: e.timestamp,
 				};
 			});
 		} catch (error) {
-			this.logger.error(`Failed to get position entities: ${error.message}`);
+			this.logger.error(`Failed to get positions from PositionOpened events: ${error.message}`);
 			throw error;
 		}
 	}

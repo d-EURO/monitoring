@@ -59,3 +59,46 @@ model Token {
   @@index([symbol], map: "idx_tokens_symbol")
   @@map("tokens")
 }
+
+// Position states - tracks all position contract states
+model PositionState {
+  // Fixed fields
+  address               String    @id @db.VarChar(42)
+  limit                 Decimal   @map("limit") @db.Decimal(78, 0)
+  owner                 String    @db.VarChar(42)
+  original              String    @db.VarChar(42)
+  collateral            String    @db.VarChar(42)
+  minimumCollateral     Decimal   @map("minimum_collateral") @db.Decimal(78, 0)
+  riskPremiumPpm        Int       @map("risk_premium_ppm")
+  reserveContribution   Int       @map("reserve_contribution")
+  challengePeriod       Decimal   @map("challenge_period") @db.Decimal(78, 0)
+  startTimestamp        Decimal   @map("start_timestamp") @db.Decimal(78, 0)
+  expiration            Decimal   @db.Decimal(78, 0)
+  created               DateTime? @db.Timestamptz // When position was opened
+
+  // Dynamic fields
+  price                 Decimal   @db.Decimal(78, 0)
+  virtualPrice          Decimal   @map("virtual_price") @db.Decimal(78, 0)
+  collateralAmount      Decimal   @map("collateral_amount") @db.Decimal(78, 0)
+  expiredPurchasePrice  Decimal   @map("expired_purchase_price") @db.Decimal(78, 0)
+  collateralRequirement Decimal   @map("collateral_requirement") @db.Decimal(78, 0)
+  principal             Decimal   @db.Decimal(78, 0)
+  interest              Decimal   @db.Decimal(78, 0)
+  debt                  Decimal   @db.Decimal(78, 0)
+  fixedAnnualRatePpm    Int       @map("fixed_annual_rate_ppm")
+  lastAccrual           Decimal   @map("last_accrual") @db.Decimal(78, 0)
+  cooldown              Decimal   @db.Decimal(78, 0)
+  challengedAmount      Decimal   @map("challenged_amount") @db.Decimal(78, 0)
+  availableForMinting   Decimal   @map("available_for_minting") @db.Decimal(78, 0)
+  availableForClones    Decimal   @map("available_for_clones") @db.Decimal(78, 0)
+  isClosed              Boolean   @map("is_closed")
+
+  // Metadata
+  timestamp             DateTime @db.Timestamptz
+
+  @@index([owner], map: "idx_position_states_owner")
+  @@index([original], map: "idx_position_states_original")
+  @@index([collateral], map: "idx_position_states_collateral")
+  @@index([isClosed], map: "idx_position_states_is_closed")
+  @@map("position_states")
+}

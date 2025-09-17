@@ -52,52 +52,44 @@ CREATE INDEX IF NOT EXISTS idx_tokens_symbol ON tokens(symbol);
 -- Position States
 CREATE TABLE IF NOT EXISTS position_states (
     -- Fixed fields
-    position_address VARCHAR(42) PRIMARY KEY, -- Position.address
+    address VARCHAR(42) PRIMARY KEY, -- Position.address
+    "limit" NUMERIC(78, 0) NOT NULL, -- Position.limit
+    owner VARCHAR(42) NOT NULL, -- Position.owner
+    original VARCHAR(42) NOT NULL, -- Position.original
+    collateral VARCHAR(42) NOT NULL, -- Position.collateral
     minimum_collateral NUMERIC(78, 0) NOT NULL, -- Position.minimumCollateral
     risk_premium_ppm INTEGER NOT NULL, -- Position.riskPremiumPPM
-    limit_amount NUMERIC(78, 0) NOT NULL, -- Position.limit
-    owner_address VARCHAR(42) NOT NULL, -- Position.owner
-    original_address VARCHAR(42) NOT NULL, -- Position.original
-    collateral_address VARCHAR(42) NOT NULL, -- Position.collateral
-    collateral_requirement NUMERIC(78, 0) NOT NULL, -- Position.getCollateralRequirement
     reserve_contribution INTEGER NOT NULL, -- Position.reserveContribution
-    start_timestamp NUMERIC(78, 0) NOT NULL, -- Position.start
     challenge_period NUMERIC(78, 0) NOT NULL, -- Position.challengePeriod
-    created INTEGER, -- MintingHub.PositionOpened event timestamp
-    frontend_code VARCHAR(66), -- FrontendGateway.NewPositionRegistered event
+    start_timestamp NUMERIC(78, 0) NOT NULL, -- Position.start
+    expiration NUMERIC(78, 0) NOT NULL, -- Position.expiration
+    created TIMESTAMP WITH TIME ZONE, -- PositionOpened event timestamp
 
     -- Dynamic fields
-    status VARCHAR(20) NOT NULL, -- ACTIVE, CHALLENGED, EXPIRED, CLOSED -- derived
-    collateral_balance NUMERIC(78, 0) NOT NULL, -- ERC20(collateral_address).balanceOf
     price NUMERIC(78, 0) NOT NULL, -- Position.price
     virtual_price NUMERIC(78, 0) NOT NULL, -- Position.virtualPrice
+    collateral_amount NUMERIC(78, 0) NOT NULL, -- ERC20(collateral_address).balanceOf
     expired_purchase_price NUMERIC(78, 0) NOT NULL, -- MintingHub.expiredPurchasePrice(position_address)
-    debt NUMERIC(78, 0) NOT NULL, -- Position.getDebt
-    interest NUMERIC(78, 0) NOT NULL, -- Position.interest
-    minimum_challenge_amount NUMERIC(78, 0) NOT NULL, -- min(Position.minimumCollateral, Position.collateralBalance) - (remove!)
+    collateral_requirement NUMERIC(78, 0) NOT NULL, -- Position.getCollateralRequirement
     principal NUMERIC(78, 0) NOT NULL, -- Position.principal
+    interest NUMERIC(78, 0) NOT NULL, -- Position.interest
+    debt NUMERIC(78, 0) NOT NULL, -- Position.getDebt
     fixed_annual_rate_ppm INTEGER NOT NULL, -- Position.fixedAnnualRatePPM
     last_accrual NUMERIC(78, 0) NOT NULL, -- Position.lastAccrual
-    cooldown_period NUMERIC(78, 0) NOT NULL, -- Position.cooldown - (rename to cooldown)
-    expiration_timestamp NUMERIC(78, 0) NOT NULL, -- Position.expiration
+    cooldown NUMERIC(78, 0) NOT NULL, -- Position.cooldown
     challenged_amount NUMERIC(78, 0) NOT NULL, -- Position.challengedAmount
-    is_closed BOOLEAN NOT NULL, -- Position.isClosed
     available_for_minting NUMERIC(78, 0) NOT NULL, -- Position.availableForMinting
     available_for_clones NUMERIC(78, 0) NOT NULL, -- Position.availableForClones
-    market_price NUMERIC(78, 0), -- price.service.ts:getTokenPricesInEur - (remove? stored in collateral_states)
-    collateralization_ratio NUMERIC(10, 4), -- Position.marketPrice / Position.virtualPrice (remove?)
+    is_closed BOOLEAN NOT NULL, -- Position.isClosed
 
     -- metadata
-    block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_position_states_owner ON position_states(owner_address);
-CREATE INDEX IF NOT EXISTS idx_position_states_status ON position_states(status);
-CREATE INDEX IF NOT EXISTS idx_position_states_original ON position_states(original_address);
-CREATE INDEX IF NOT EXISTS idx_position_states_collateral ON position_states(collateral_address);
+CREATE INDEX IF NOT EXISTS idx_position_states_owner ON position_states(owner);
+CREATE INDEX IF NOT EXISTS idx_position_states_original ON position_states(original);
+CREATE INDEX IF NOT EXISTS idx_position_states_collateral ON position_states(collateral);
 CREATE INDEX IF NOT EXISTS idx_position_states_is_closed ON position_states(is_closed);
-CREATE INDEX IF NOT EXISTS idx_position_states_frontend_code ON position_states(frontend_code) WHERE frontend_code IS NOT NULL;
 
 -- Challenge States
 CREATE TABLE IF NOT EXISTS challenge_states (
@@ -163,7 +155,7 @@ CREATE TABLE IF NOT EXISTS minter_states (
     bridge_token_symbol VARCHAR(10), -- ERC20(<bridge_token_address>).symbol
     bridge_token_decimals INTEGER, -- ERC20(<bridge_token_address>).decimals
     bridge_horizon NUMERIC(78, 0), -- IStablecoinBridge(<minter_address>).horizon
-    bridge_limit NUMERIC(78, 0), -- IStablecoinBridge(<minter_address>).limit
+    bridge_limit NUMERIC(78, 0), -- IStablecoinBridge(<minter_address>)."limit"
 
     -- Dynamic fields
     status VARCHAR(20) NOT NULL, -- PENDING, APPROVED, DENIED
