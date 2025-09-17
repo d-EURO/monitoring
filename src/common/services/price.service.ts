@@ -46,20 +46,6 @@ export class PriceService {
 		this.CACHE_TTL_MS = this.configService.get<number>('monitoring.priceCacheTtlMs', 120000); // Default 2 minutes
 	}
 
-	/**
-	 * Get exchange rate between two currencies
-	 * @param from Source currency (e.g., 'USD')
-	 * @param to Target currency (e.g., 'EUR')
-	 * @returns Exchange rate
-	 */
-	async getExchangeRate(from: string, to: string): Promise<number> {
-		// Simplified - in production use a real forex API
-		// TODO: Use CoinGecko (see state at commit 4a5950c645520da52ef9eac136ee5ce731f64e8f)
-		if (from === 'USD' && to === 'EUR') return 0.92;
-		if (from === 'USD' && to === 'CHF') return 0.88;
-		return 1.0;
-	}
-
 	async getTokenPricesInEur(addresses: string[]): Promise<{ [key: string]: string }> {
 		const specialPrices = await this.getSpecialTokenPrices();
 		const standardAddresses = addresses.filter((addr) => !this.isSpecialToken(addr));

@@ -30,6 +30,14 @@ export interface Contract {
 	metadata?: Record<string, any>;
 }
 
+export interface Token {
+	address: string;
+	symbol?: string;
+	name?: string;
+	decimals?: number;
+	addedAt?: Date; // set by database
+}
+
 export interface PositionEntity {
 	address: string;
 	owner: string;

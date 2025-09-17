@@ -47,3 +47,15 @@ model Contract {
   @@index([isActive], map: "idx_contracts_active")
   @@map("contracts")
 }
+
+// Token registry
+model Token {
+  address   String   @id @db.VarChar(42)
+  symbol    String?  @db.VarChar(20)
+  name      String?  @db.VarChar(100)
+  decimals  Int?
+  addedAt   DateTime @default(now()) @map("added_at") @db.Timestamptz
+
+  @@index([symbol], map: "idx_tokens_symbol")
+  @@map("tokens")
+}

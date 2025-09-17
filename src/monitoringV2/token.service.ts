@@ -1,0 +1,127 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { Token } from './types';
+import { AppConfigService } from '../config/config.service';
+import { ADDRESS, ERC20ABI } from '@deuro/eurocoin';
+import { ethers } from 'ethers';
+import { ProviderService } from 'src/blockchain/provider.service';
+import { TokenRepository } from './prisma/repositories/token.repository';
+import { EventsRepository } from './prisma/repositories/events.repository';
+
+@Injectable()
+export class TokenService {
+	private readonly logger = new Logger(TokenService.name);
+	private cache = new Map<string, Token>();
+
+	constructor(
+		private readonly config: AppConfigService,
+		private readonly tokenRepo: TokenRepository,
+		private readonly eventsRepo: EventsRepository,
+		private readonly providerService: ProviderService
+	) {}
+
+	async initialize(): Promise<void> {
+		await this.registerProtocolTokens();
+		await this.initializeCache();
+	}
+
+	private async initializeCache(): Promise<void> {
+		const tokens = await this.tokenRepo.findAll();
+
+		this.cache.clear();
+		for (const token of tokens) {
+			this.cache.set(token.address.toLowerCase(), token);
+		}
+
+		this.logger.log(`Loaded ${this.cache.size} tokens into cache`);
+	}
+
+	private async registerProtocolTokens(): Promise<void> {
+		const chainId = this.config.blockchainId;
+
+		const protocolTokens: Token[] = [
+			{
+				address: ADDRESS[chainId].decentralizedEURO,
+				symbol: 'dEURO',
+				name: 'DecentralizedEURO',
+				decimals: 18,
+			},
+			{
+				address: ADDRESS[chainId].equity,
+				symbol: 'nDEPS',
+				name: 'Native Decentralized Euro Protocol Share',
+				decimals: 18,
+			},
+			{
+				address: ADDRESS[chainId].DEPSwrapper,
+				symbol: 'DEPS',
+				name: 'Decentralized Euro Protocol Share',
+				decimals: 18,
+			},
+		];
+
+		await this.tokenRepo.createMany(protocolTokens);
+		this.logger.log(`Registered core protocol tokens`);
+	}
+
+	async persistTokens(tokens: Token[]): Promise<void> {
+		if (tokens.length === 0) return;
+
+		await this.tokenRepo.createMany(tokens);
+
+		// Update cache
+		for (const c of tokens) {
+			const formattedAddress = c.address.toLowerCase();
+			this.cache.set(formattedAddress, {
+				...c,
+				address: formattedAddress,
+			});
+		}
+	}
+
+	async captureNewTokens(): Promise<void> {
+		const allTokens = await this.eventsRepo.getCollateralTokens();
+		const newTokens = allTokens.filter((t) => !this.cache.has(t.toLowerCase()));
+		if (newTokens.length === 0) return;
+
+		const onChainData = await this.fetchOnChainTokenData(newTokens);
+		const formattedNewTokens = newTokens.map((address) => {
+			const lowerAddress = address.toLowerCase();
+			return {
+				address: lowerAddress,
+				name: onChainData[lowerAddress]?.name,
+				symbol: onChainData[lowerAddress]?.symbol,
+				decimals: onChainData[lowerAddress]?.decimals,
+			};
+		});
+
+		// Persist and update cache
+		await this.persistTokens(formattedNewTokens);
+		this.logger.log(`Captured ${formattedNewTokens.length} new collateral tokens`);
+	}
+
+	private async fetchOnChainTokenData(addresses: string[]): Promise<{ [key: string]: Partial<Token> }> {
+		const results: { [key: string]: Partial<Token> } = {};
+		const multicallProvider = this.providerService.multicallProvider;
+
+		const calls: Promise<any>[] = [];
+		for (const address of addresses) {
+			const contract = new ethers.Contract(address, ERC20ABI, multicallProvider);
+			calls.push(contract.name().catch(() => undefined));
+			calls.push(contract.symbol().catch(() => undefined));
+			calls.push(contract.decimals().catch(() => undefined));
+		}
+
+		const responses = await Promise.all(calls);
+		for (let i = 0; i < addresses.length; i++) {
+			const baseIdx = i * 3;
+			results[addresses[i].toLowerCase()] = {
+				name: responses[baseIdx],
+				symbol: responses[baseIdx + 1],
+				decimals: responses[baseIdx + 2],
+			};
+		}
+
+		this.logger.log(`Fetched on-chain token data for ${addresses.length} tokens via multicall`);
+		return results;
+	}
+}

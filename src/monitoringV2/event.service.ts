@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { Contract, ContractType, Event } from './types';
+import { Event } from './types';
 import { EVENT_SIGNATURES } from './constants';
 import { Injectable, Logger } from '@nestjs/common';
 import { ContractService } from './contract.service';
@@ -13,7 +13,7 @@ export class EventService {
 
 	constructor(
 		private readonly contractService: ContractService,
-		private readonly rawEventsRepo: EventsRepository,
+		private readonly eventsRepo: EventsRepository,
 		private readonly providerService: ProviderService
 	) {
 		this.eventTopics = this.generateEventTopics();
@@ -21,7 +21,7 @@ export class EventService {
 
 	async processEvents(fromBlock: number, toBlock: number): Promise<void> {
 		let events = await this.collectEvents(fromBlock, toBlock);
-		const hasNewContracts = await this.contractService.captureNewContracts(events);
+		const hasNewContracts = await this.contractService.captureNewContracts(events); // positions, minters
 		if (hasNewContracts) events = await this.collectEvents(fromBlock, toBlock);
 		await this.persistEvents(events);
 	}
@@ -61,7 +61,7 @@ export class EventService {
 
 	private async persistEvents(events: Event[]): Promise<void> {
 		if (events.length > 0) {
-			await this.rawEventsRepo.createMany(events);
+			await this.eventsRepo.createMany(events);
 			this.logger.log(`Persisted ${events.length} events`);
 		}
 	}

@@ -32,6 +32,24 @@ export class EventsRepository {
 		}
 	}
 
+	async getCollateralTokens(): Promise<string[]> {
+		try {
+			const events = await this.prisma.rawEvent.findMany({
+				where: { topic: 'PositionOpened' },
+				select: { args: true },
+			});
+
+			const collateralAddresses = events
+				.map((e) => (e.args as any)?.collateral?.toLowerCase())
+				.filter(Boolean); // Remove any undefined/null values
+
+			return Array.from(new Set(collateralAddresses));
+		} catch (error) {
+			this.logger.error(`Failed to get collateral tokens: ${error.message}`);
+			throw error;
+		}
+	}
+
 	async getPositionEntities(): Promise<PositionOpenedEvent[]> {
 		try {
 			const events = await this.prisma.rawEvent.findMany({

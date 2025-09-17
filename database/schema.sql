@@ -38,6 +38,17 @@ CREATE TABLE IF NOT EXISTS sync_state (
     CONSTRAINT single_row CHECK (id = 1)
 );
 
+-- Token registry
+CREATE TABLE IF NOT EXISTS tokens (
+    address VARCHAR(42) PRIMARY KEY,
+    symbol VARCHAR(20),
+    name VARCHAR(100),
+    decimals INTEGER,
+    added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_symbol ON tokens(symbol);
+
 -- Position States
 CREATE TABLE IF NOT EXISTS position_states (
     -- Fixed fields

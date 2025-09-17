@@ -1,10 +1,12 @@
 import { ethers } from 'ethers';
 import { Injectable } from '@nestjs/common';
+import { MulticallWrapper, MulticallProvider } from 'ethers-multicall-provider';
 import { AppConfigService } from 'src/config/config.service';
 
 @Injectable()
 export class ProviderService {
 	private ethersProvider: ethers.Provider;
+	private multicallProviderInstance: MulticallProvider;
 	private blockCache = new Map<number, ethers.Block>();
 
 	constructor(private readonly config: AppConfigService) {
@@ -13,10 +15,15 @@ export class ProviderService {
 
 	private initializeProvider() {
 		this.ethersProvider = new ethers.JsonRpcProvider(this.config.rpcUrl);
+		this.multicallProviderInstance = MulticallWrapper.wrap(this.ethersProvider as ethers.AbstractProvider);
 	}
 
 	get provider(): ethers.Provider {
 		return this.ethersProvider;
+	}
+
+	get multicallProvider(): MulticallProvider {
+		return this.multicallProviderInstance;
 	}
 
 	// get block with caching
