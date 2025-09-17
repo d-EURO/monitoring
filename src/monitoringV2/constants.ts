@@ -13,7 +13,7 @@ import {
 import { ContractType } from './types';
 
 export const EVENT_SIGNATURES: Record<string, string> = {
-	// Position events (MintingHub.sol)
+	// Position events (MintingHubGateway.sol)
 	PositionOpened: 'PositionOpened(address,address,address,address)',
 	ChallengeStarted: 'ChallengeStarted(address,address,uint256,uint256)',
 	ChallengeSucceeded: 'ChallengeSucceeded(address,uint256,uint256,uint256,uint256)',
@@ -30,11 +30,11 @@ export const EVENT_SIGNATURES: Record<string, string> = {
 	// Roll event (PositionRoller.sol)
 	Roll: 'Roll(address,uint256,uint256,address,uint256,uint256)',
 
-	// Rate events (Leadrate.sol)
+	// Rate events (SavingsGateway.sol)
 	RateChanged: 'RateChanged(uint24)',
 	RateProposed: 'RateProposed(address,uint24,uint40)',
 
-	// Rate changes events (IFrontendGateway.sol)
+	// Rate changes events (FrontendGateway.sol)
 	RateChangesProposed: 'RateChangesProposed(address,uint24,uint24,uint24,uint256)',
 	RateChangesExecuted: 'RateChangesExecuted(address,uint24,uint24,uint24)',
 
@@ -43,25 +43,25 @@ export const EVENT_SIGNATURES: Record<string, string> = {
 	Loss: 'Loss(address,uint256)',
 	ProfitDistributed: 'ProfitDistributed(address,uint256)',
 
-	// Savings events (Savings.sol)
+	// Savings events (SavingsGateway.sol)
 	Saved: 'Saved(address,uint192)',
 	InterestCollected: 'InterestCollected(address,uint256)',
 	Withdrawn: 'Withdrawn(address,uint192)',
 
-	// Frontend Gateway events (IFrontendGateway.sol)
+	// Frontend Gateway events (FrontendGateway.sol)
 	FrontendCodeRegistered: 'FrontendCodeRegistered(address,bytes32)',
 	FrontendCodeTransferred: 'FrontendCodeTransferred(address,address,bytes32)',
 	FrontendCodeRewardsWithdrawn: 'FrontendCodeRewardsWithdrawn(address,uint256,bytes32)',
 	NewPositionRegistered: 'NewPositionRegistered(address,bytes32)',
 
-	// Reward events (IFrontendGateway.sol)
+	// Reward events (FrontendGateway.sol)
 	InvestRewardAdded: 'InvestRewardAdded(bytes32,address,uint256,uint256)',
 	RedeemRewardAdded: 'RedeemRewardAdded(bytes32,address,uint256,uint256)',
 	UnwrapAndSellRewardAdded: 'UnwrapAndSellRewardAdded(bytes32,address,uint256,uint256)',
 	SavingsRewardAdded: 'SavingsRewardAdded(bytes32,address,uint256,uint256)',
 	PositionRewardAdded: 'PositionRewardAdded(bytes32,address,uint256,uint256)',
 
-	// MintingHub events
+	// MintingHub events (MintingHubGateway.sol)
 	PostponedReturn: 'PostponedReturn(address,address,uint256)',
 	ForcedSale: 'ForcedSale(address,uint256,uint256)',
 

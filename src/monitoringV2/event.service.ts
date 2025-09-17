@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { Event } from './types';
+import { Contract, ContractType, Event } from './types';
 import { EVENT_SIGNATURES } from './constants';
 import { Injectable, Logger } from '@nestjs/common';
 import { ContractService } from './contract.service';
@@ -20,14 +20,16 @@ export class EventService {
 	}
 
 	async processEvents(fromBlock: number, toBlock: number): Promise<void> {
-		const events = await this.collectEvents(fromBlock, toBlock);
+		let events = await this.collectEvents(fromBlock, toBlock);
+		const hasNewContracts = await this.contractService.captureNewContracts(events);
+		if (hasNewContracts) events = await this.collectEvents(fromBlock, toBlock);
 		await this.persistEvents(events);
 	}
 
 	private async collectEvents(fromBlock: number, toBlock: number): Promise<Event[]> {
 		this.logger.log(`Collecting events from blocks ${fromBlock} to ${toBlock}`);
 
-		const contracts = await this.contractService.getActiveContracts();
+		const contracts = await this.contractService.getContracts();
 		if (contracts.length === 0) {
 			this.logger.warn('No active contracts found for event collection');
 			return [];
