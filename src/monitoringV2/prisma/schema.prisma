@@ -50,11 +50,13 @@ model Contract {
 
 // Token registry
 model Token {
-  address   String   @id @db.VarChar(42)
-  symbol    String?  @db.VarChar(20)
-  name      String?  @db.VarChar(100)
-  decimals  Int?
-  addedAt   DateTime @default(now()) @map("added_at") @db.Timestamptz
+  address        String    @id @db.VarChar(42)
+  symbol         String?   @db.VarChar(20)
+  name           String?   @db.VarChar(100)
+  decimals       Int?
+  price          Decimal?  @db.Decimal(20, 8)
+  priceUpdatedAt DateTime? @map("price_updated_at") @db.Timestamptz
+  addedAt        DateTime  @default(now()) @map("added_at") @db.Timestamptz
 
   @@index([symbol], map: "idx_tokens_symbol")
   @@map("tokens")

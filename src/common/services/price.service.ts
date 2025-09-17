@@ -1,14 +1,14 @@
 import { EquityABI } from '@deuro/eurocoin';
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { ethers } from 'ethers';
 import { ProviderService } from 'src/blockchain/provider.service';
+import { AppConfigService } from 'src/config/config.service';
 
-const nDEPS = '0xc71104001A3CCDA1BEf1177d765831Bd1bfE8eE6';
-const DEPS = '0x103747924E74708139a9400e4Ab4BEA79FFFA380';
-const FPS = '0x1bA26788dfDe592fec8bcB0Eaff472a42BE341B2';
-const WFPS = '0x5052D3Cc819f53116641e89b96Ff4cD1EE80B182';
+const nDEPS = '0xc71104001a3ccda1bef1177d765831bd1bfe8ee6';
+const DEPS = '0x103747924e74708139a9400e4ab4bea79fffa380';
+const FPS = '0x1ba26788dfde592fec8bcb0eaff472a42be341b2';
+const WFPS = '0x5052d3cc819f53116641e89b96ff4cd1ee80b182';
 
 const specialTokens = new Map([
 	[DEPS, nDEPS],
@@ -35,24 +35,29 @@ interface PriceCacheEntry {
 @Injectable()
 export class PriceService {
 	private readonly CACHE_TTL_MS: number;
-	private readonly GECKO_TERMINAL_API_URL = 'https://api.geckoterminal.com/api/v2/simple/networks/eth/token_price';
 	private readonly logger = new Logger(PriceService.name);
 	private priceCache = new Map<string, PriceCacheEntry>();
 
 	constructor(
-		private readonly configService: ConfigService,
-		private readonly providerService: ProviderService
+		private readonly providerService: ProviderService,
+		private readonly appConfigService: AppConfigService
 	) {
-		this.CACHE_TTL_MS = this.configService.get<number>('monitoring.priceCacheTtlMs', 120000); // Default 2 minutes
+		this.CACHE_TTL_MS = this.appConfigService.priceCacheTtlMs;
 	}
 
 	async getTokenPricesInEur(addresses: string[]): Promise<{ [key: string]: string }> {
-		const specialPrices = await this.getSpecialTokenPrices();
+		const requestedSpecialAddresses = addresses.filter((addr) => this.isSpecialToken(addr));
 		const standardAddresses = addresses.filter((addr) => !this.isSpecialToken(addr));
-		const coinGeckoPrices = await this.getCoinGeckoPricesInUSD(standardAddresses);
-		const usdToEur = await this.getUsdToEur();
-		const eurPrices: { [key: string]: string } = {};
 
+		// Fetch everything in parallel for better performance
+		const [specialPrices, coinGeckoPrices, usdToEur] = await Promise.all([
+			this.getSpecialTokenPrices(requestedSpecialAddresses),
+			this.getCoinGeckoPricesInUSD(standardAddresses),
+			this.getUsdToEur(),
+		]);
+
+		// Convert USD prices to EUR
+		const eurPrices: { [key: string]: string } = {};
 		for (const [address, price] of Object.entries(coinGeckoPrices)) {
 			eurPrices[address] = (Number(price) * usdToEur).toString();
 		}
@@ -77,7 +82,7 @@ export class PriceService {
 
 		try {
 			const response = await axios.get<TokenPrice>(
-				`${this.GECKO_TERMINAL_API_URL}/${remaining.map((a) => a.toLowerCase()).join(',')}`,
+				`https://api.geckoterminal.com/api/v2/simple/networks/eth/token_price/${remaining.map((a) => a.toLowerCase()).join(',')}`,
 				{
 					headers: { accept: 'application/json' },
 					timeout: 10000, // 10 second timeout
@@ -107,35 +112,37 @@ export class PriceService {
 		}
 	}
 
-	private async getSpecialTokenPrices(): Promise<{ [key: string]: string }> {
-		const cached = this.getFromCache(Array.from(specialTokens.keys()));
-		if (Object.keys(cached).length > 0) {
-			this.logger.debug('Returning cached prices for special tokens');
-			return cached;
-		}
+	private async getSpecialTokenPrices(requestedAddresses: string[]): Promise<{ [key: string]: string }> {
+		if (requestedAddresses.length === 0) return {};
+
+		// Check cache for requested addresses
+		const cached = this.getFromCache(requestedAddresses);
+		const remaining = requestedAddresses.filter((addr) => !cached[addr]);
+		if (remaining.length === 0) return cached;
 
 		const prices: { [key: string]: string } = {};
-		for (const [token, underlying] of specialTokens) {
-			const provider = this.providerService.provider;
-			const equityContract = new ethers.Contract(underlying, EquityABI, provider);
+		for (const requestedAddress of remaining) {
+			const formattedAddress = requestedAddress.toLowerCase();
+			const underlying = specialTokens.get(formattedAddress);
+			if (!underlying) continue; // Not a special token
+
+			// Fetch price from underlying equity contract
+			const equityContract = new ethers.Contract(underlying, EquityABI, this.providerService.provider);
 			const nativePrice = await equityContract.price();
 			let formattedPrice = ethers.formatUnits(nativePrice, 18);
 
 			// For WFPS, convert CHF to EUR
-			if (token === WFPS) {
+			if (formattedAddress === WFPS) {
 				const [usdToEur, usdToChf] = await Promise.all([this.getUsdToEur(), this.getUsdToChf()]);
 				formattedPrice = String((Number(formattedPrice) / usdToChf) * usdToEur);
 			}
 
-			prices[underlying] = formattedPrice;
-			prices[token] = formattedPrice;
-
-			this.setCache(token, formattedPrice);
-			this.setCache(underlying, formattedPrice);
-			this.logger.debug(`Fetched special token price for ${token}: ${formattedPrice}`);
+			prices[requestedAddress] = formattedPrice;
+			this.setCache(requestedAddress, formattedPrice);
+			this.logger.debug(`Fetched special token price for ${requestedAddress}: ${formattedPrice}`);
 		}
 
-		return prices;
+		return { ...cached, ...prices };
 	}
 
 	/**
@@ -199,8 +206,7 @@ export class PriceService {
 	}
 
 	private isSpecialToken(address: string): boolean {
-		const keys = Array.from(specialTokens.keys()).map((k) => k.toLowerCase());
-		return keys.includes(address.toLowerCase());
+		return specialTokens.has(address.toLowerCase());
 	}
 
 	// Cache management methods

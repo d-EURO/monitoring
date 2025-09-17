@@ -69,6 +69,7 @@ export class MonitoringServiceV2 implements OnModuleInit {
 
 		// Post-processing after all blocks are handled
 		await this.tokenService.captureNewTokens(); // sync collateral tokens
+		await this.tokenService.updatePrices(); // update token prices
 		await this.positionService.syncPositions(); // sync position states
 	}
 

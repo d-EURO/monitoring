@@ -6,6 +6,7 @@ import { ethers } from 'ethers';
 import { ProviderService } from 'src/blockchain/provider.service';
 import { TokenRepository } from './prisma/repositories/token.repository';
 import { EventsRepository } from './prisma/repositories/events.repository';
+import { PriceService } from 'src/common/services/price.service';
 
 @Injectable()
 export class TokenService {
@@ -16,7 +17,8 @@ export class TokenService {
 		private readonly config: AppConfigService,
 		private readonly tokenRepo: TokenRepository,
 		private readonly eventsRepo: EventsRepository,
-		private readonly providerService: ProviderService
+		private readonly providerService: ProviderService,
+		private readonly priceService: PriceService
 	) {}
 
 	async initialize(): Promise<void> {
@@ -97,6 +99,25 @@ export class TokenService {
 		// Persist and update cache
 		await this.persistTokens(formattedNewTokens);
 		this.logger.log(`Captured ${formattedNewTokens.length} new collateral tokens`);
+	}
+
+	async updatePrices(): Promise<void> {
+		const tokenAddresses = Array.from(this.cache.keys());
+		if (tokenAddresses.length === 0) return;
+
+		try {
+			const prices = await this.priceService.getTokenPricesInEur(tokenAddresses);
+			const priceUpdates: { address: string; price: string }[] = [];
+			for (const [address, price] of Object.entries(prices)) {
+				if (price && price !== '0' && this.cache.has(address.toLowerCase())) {
+					priceUpdates.push({ address, price });
+				}
+			}
+
+			if (priceUpdates.length > 0) await this.tokenRepo.updatePrices(priceUpdates);
+		} catch (error) {
+			this.logger.error(`Failed to update token prices: ${error.message}`, error.stack);
+		}
 	}
 
 	private async fetchOnChainTokenData(addresses: string[]): Promise<{ [key: string]: Partial<Token> }> {

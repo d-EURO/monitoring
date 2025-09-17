@@ -13,6 +13,7 @@ import { TokenService } from './token.service';
 import { PositionService } from './position.service';
 import { MonitoringServiceV2 } from './monitoring.service';
 import { SchemaInitService } from './schema-init.service';
+import { PriceService } from '../common/services/price.service';
 
 @Module({
 	imports: [],
@@ -21,6 +22,7 @@ import { SchemaInitService } from './schema-init.service';
 		AppConfigService,
 		ProviderService,
 		PrismaClientService,
+		PriceService,
 		EventsRepository,
 		SyncStateRepository,
 		ContractRepository,

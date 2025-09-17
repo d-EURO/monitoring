@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS tokens (
     symbol VARCHAR(20),
     name VARCHAR(100),
     decimals INTEGER,
+    price NUMERIC(20, 8), -- Current price in EUR
+    price_updated_at TIMESTAMP WITH TIME ZONE, -- When price was last updated
     added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
