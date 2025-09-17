@@ -4,13 +4,13 @@ import {
 	SavingsGatewayABI,
 	FrontendGatewayABI,
 	MintingHubGatewayABI,
-	LeadrateABI,
 	DEPSWrapperABI,
 	DecentralizedEUROABI,
 	EquityABI,
 	StablecoinBridgeABI,
+	PositionRollerABI,
 } from '@deuro/eurocoin';
-import { ContractType } from 'src/monitoring/monitoring.dto';
+import { ContractType } from './types';
 
 export const EVENT_SIGNATURES: Record<string, string> = {
 	// Position events (MintingHub.sol)
@@ -78,7 +78,7 @@ export const CONTRACT_ABI_MAP: Record<ContractType, any | undefined> = {
 	[ContractType.FRONTEND_GATEWAY]: FrontendGatewayABI,
 	[ContractType.MINTING_HUB]: MintingHubGatewayABI,
 	[ContractType.POSITION]: PositionV2ABI,
-	[ContractType.ROLLER]: LeadrateABI,
+	[ContractType.ROLLER]: PositionRollerABI,
 	[ContractType.COLLATERAL]: ERC20ABI,
 	[ContractType.BRIDGE]: StablecoinBridgeABI,
 	[ContractType.MINTER]: undefined,

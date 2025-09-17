@@ -8,6 +8,28 @@ export interface Event {
 	timestamp: Date;
 }
 
+export enum ContractType {
+	DEURO = 'DEURO',
+	EQUITY = 'EQUITY',
+	DEPS = 'DEPS',
+	SAVINGS = 'SAVINGS',
+	POSITION = 'POSITION',
+	MINTER = 'MINTER',
+	BRIDGE = 'BRIDGE',
+	FRONTEND_GATEWAY = 'FRONTEND_GATEWAY',
+	MINTING_HUB = 'MINTING_HUB',
+	ROLLER = 'ROLLER',
+	COLLATERAL = 'COLLATERAL',
+}
+
+export interface Contract {
+	address: string;
+	type: ContractType;
+	createdAtBlock: number;
+	isActive?: boolean;
+	metadata?: Record<string, any>;
+}
+
 export interface PositionEntity {
 	address: string;
 	owner: string;

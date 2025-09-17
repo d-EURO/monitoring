@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Contract, ContractType } from '../monitoring/monitoring.dto';
+import { Contract, ContractType } from './types';
 import { AppConfigService } from '../config/config.service';
 import { ContractRepository } from './prisma/repositories/contract.repository';
 import { ADDRESS } from '@deuro/eurocoin';

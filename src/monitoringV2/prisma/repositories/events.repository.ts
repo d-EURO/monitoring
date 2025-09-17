@@ -107,6 +107,7 @@ export class EventsRepository {
 		}
 	}
 
+	// TODO: Where is this used?
 	async withTransaction<T>(fn: (repository: EventsRepository) => Promise<T>): Promise<T> {
 		return this.prisma.withTransaction(async (prisma) => {
 			const tempRepo = new EventsRepository(prisma as PrismaClientService);
