@@ -12,7 +12,7 @@ export class ApiController {
 		return {
 			status: 'ok',
 			lastProcessedBlock: lastBlock?.lastProcessedBlock || 0,
-			updatedAt: lastBlock?.updatedAt?.toISOString(),
+			updatedAt: lastBlock?.updatedAt?.toISOString() || 'unknown',
 		};
 	}
 
@@ -33,11 +33,19 @@ export class ApiController {
 			const collateralizationRatio =
 				formattedVirtualPrice > 0 && marketPrice > 0 ? ((marketPrice / formattedVirtualPrice) * 100).toFixed(2) : '0';
 
-			const status = p.isClosed ? PositionStatus.CLOSED : PositionStatus.ACTIVE;
+			const currentTime = Math.floor(Date.now() / 1000);
+			const status = currentTime < Number(p.startTimestamp) ? PositionStatus.PROPOSED
+				: p.isClosed && p.collateralAmount.gt(p.minimumCollateral) ? PositionStatus.DENIED
+				: p.isClosed ? PositionStatus.CLOSED
+				: p.challengedAmount.toFixed(0) !== '0' ? PositionStatus.CHALLENGED
+				: Number(collateralizationRatio) < 100 ? PositionStatus.UNDERCOLLATERALIZED
+				: Number(p.cooldown) > currentTime ? PositionStatus.COOLDOWN
+				: Number(p.expiration) <= currentTime ? PositionStatus.EXPIRED
+				: PositionStatus.OPEN;
 
 			return {
 				address: p.address,
-				status: status,
+				status,
 				owner: p.owner,
 				original: p.original,
 				collateral: p.collateral,

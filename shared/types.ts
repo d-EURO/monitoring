@@ -1,9 +1,12 @@
 export enum PositionStatus {
-	ACTIVE = 'ACTIVE',
-	CLOSED = 'CLOSED',
-	CHALLENGED = 'CHALLENGED',
+	PROPOSED = 'PROPOSED',
+	DENIED = 'DENIED',
+	OPEN = 'OPEN',
 	COOLDOWN = 'COOLDOWN',
+	CHALLENGED = 'CHALLENGED',
+	UNDERCOLLATERALIZED = 'UNDERCOLLATERALIZED',
 	EXPIRED = 'EXPIRED',
+	CLOSED = 'CLOSED',
 }
 
 export enum ChallengeStatus {
@@ -15,7 +18,7 @@ export enum ChallengeStatus {
 export interface HealthResponse {
 	status: string;
 	lastProcessedBlock: number;
-	updatedAt?: string;
+	updatedAt: string;
 }
 
 export interface PositionResponse {

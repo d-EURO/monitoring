@@ -1,4 +1,4 @@
-import type { PositionResponse } from '../../../shared/types';
+import { PositionStatus, type PositionResponse } from '../../../shared/types';
 import { Alignment, Table } from './Table';
 import type { Column, MultiLineCell } from './Table';
 import { colors } from '../lib/theme';
@@ -15,7 +15,7 @@ export function PositionsTable({ data }: PositionsTableProps) {
 		{
 			header: { primary: 'CREATED', secondary: 'STATUS' },
 			format: (position): MultiLineCell => {
-				const inCooldown = position.status === 'COOLDOWN';
+				const inCooldown = position.status === PositionStatus.COOLDOWN;
 				const primaryContent = inCooldown
 					? formatCountdown(position.cooldown)
 					: position.created
