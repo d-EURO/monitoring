@@ -7,6 +7,7 @@ import { SyncStateRepository } from './prisma/repositories/sync-state.repository
 import { EventService } from './event.service';
 import { TokenService } from './token.service';
 import { PositionService } from './position.service';
+import { ChallengeService } from './challenge.service';
 
 @Injectable()
 export class MonitoringServiceV2 implements OnModuleInit {
@@ -22,6 +23,7 @@ export class MonitoringServiceV2 implements OnModuleInit {
 		private readonly eventCollector: EventService,
 		private readonly tokenService: TokenService,
 		private readonly positionService: PositionService,
+		private readonly challengeService: ChallengeService,
 	) {}
 
 	async onModuleInit() {
@@ -29,6 +31,7 @@ export class MonitoringServiceV2 implements OnModuleInit {
 		await this.contractService.initialize();
 		await this.tokenService.initialize();
 		await this.positionService.initialize();
+		await this.challengeService.initialize();
 		setTimeout(() => this.runMonitoring(), 5000);
 	}
 
@@ -64,13 +67,14 @@ export class MonitoringServiceV2 implements OnModuleInit {
 			batchStart = batchEnd + 1;
 
 			const progress = ((batchEnd - fromBlock + 1) / (currentBlock - fromBlock + 1)) * 100;
-			this.logger.log(`Sync progress: ${progress.toFixed(2)}%`);
+			this.logger.log(`Sync progress: ${progress.toFixed(2)}% (${currentBlock - batchEnd} blocks remaining)`);
 		}
 
 		// Post-processing after all blocks are handled
 		await this.tokenService.captureNewTokens(); // sync collateral tokens
 		await this.tokenService.updatePrices(); // update token prices
 		await this.positionService.syncPositions(); // sync position states
+		await this.challengeService.syncChallenges(); // sync challenge states
 	}
 
 	private async getBlockRangeToProcess(): Promise<{ fromBlock: number; currentBlock: number }> {

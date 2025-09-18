@@ -7,10 +7,12 @@ import { SyncStateRepository } from './prisma/repositories/sync-state.repository
 import { ContractRepository } from './prisma/repositories/contract.repository';
 import { TokenRepository } from './prisma/repositories/token.repository';
 import { PositionRepository } from './prisma/repositories/position.repository';
+import { ChallengeRepository } from './prisma/repositories/challenge.repository';
 import { ContractService } from './contract.service';
 import { EventService } from './event.service';
 import { TokenService } from './token.service';
 import { PositionService } from './position.service';
+import { ChallengeService } from './challenge.service';
 import { MonitoringServiceV2 } from './monitoring.service';
 import { SchemaInitService } from './schema-init.service';
 import { PriceService } from '../common/services/price.service';
@@ -28,10 +30,12 @@ import { PriceService } from '../common/services/price.service';
 		ContractRepository,
 		TokenRepository,
 		PositionRepository,
+		ChallengeRepository,
 		ContractService,
 		EventService,
 		TokenService,
 		PositionService,
+		ChallengeService,
 		MonitoringServiceV2,
 	],
 	exports: [MonitoringServiceV2, ContractService, EventService],

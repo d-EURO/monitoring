@@ -104,3 +104,24 @@ model PositionState {
   @@index([isClosed], map: "idx_position_states_is_closed")
   @@map("position_states")
 }
+
+// Challenge states - tracks all challenge states
+model ChallengeState {
+  // Fixed fields
+  challengeId       Int      @id @map("challenge_id")
+  challengerAddress String   @map("challenger_address") @db.VarChar(42)
+  positionAddress   String   @map("position_address") @db.VarChar(42)
+  startTimestamp    BigInt   @map("start_timestamp")
+  initialSize       Decimal  @map("initial_size") @db.Decimal(78, 0)
+
+  // Dynamic fields
+  size         Decimal  @db.Decimal(78, 0)
+  currentPrice Decimal  @map("current_price") @db.Decimal(78, 0)
+
+  // Metadata
+  timestamp DateTime @db.Timestamptz
+
+  @@index([positionAddress], map: "idx_challenge_states_position")
+  @@index([challengerAddress], map: "idx_challenge_states_challenger")
+  @@map("challenge_states")
+}

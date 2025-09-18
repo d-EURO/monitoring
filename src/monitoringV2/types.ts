@@ -22,6 +22,13 @@ export enum ContractType {
 	COLLATERAL = 'COLLATERAL',
 }
 
+// Integrate later (for API purposes)
+export enum ChallengePhase {
+	AVERTING = 'AVERTING',
+	AUCTION = 'AUCTION',
+	ENDED = 'ENDED',
+}
+
 export interface Contract {
 	address: string;
 	type: ContractType;
@@ -59,6 +66,14 @@ export interface ChallengeEntity {
 	startedAtBlock: number;
 	size?: bigint;
 	liqPrice?: bigint;
+}
+
+export interface ChallengeStartedEvent {
+	challengeId: number;
+	challenger: string;
+	position: string;
+	size: bigint;
+	timestamp: Date;
 }
 
 export interface PositionState {
@@ -107,13 +122,19 @@ export interface MinterState {
 }
 
 export interface ChallengeState {
-	position: string;
-	challenger: string;
+	// Fixed fields
+	challengeId: number;
+	challengerAddress: string;
+	positionAddress: string;
+	startTimestamp: bigint;
+	initialSize: bigint;
+
+	// Dynamic fields
 	size: bigint;
-	liqPrice: bigint;
-	bid: bigint;
-	end: bigint;
-	status: 'ACTIVE' | 'SUCCEEDED' | 'AVERTED';
+	currentPrice: bigint;
+
+	// Metadata
+	timestamp: Date;
 }
 
 export interface MonitoringResult {

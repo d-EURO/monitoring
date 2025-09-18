@@ -99,27 +99,19 @@ CREATE TABLE IF NOT EXISTS challenge_states (
     challenge_id INTEGER PRIMARY KEY, -- MintingHub.ChallengeStarted.number
     challenger_address VARCHAR(42) NOT NULL, -- MintingHub.ChallengeStarted.challenger
     position_address VARCHAR(42) NOT NULL, -- MintingHub.ChallengeStarted.position
-    position_owner_address VARCHAR(42) NOT NULL, -- IPosition(MintingHub.ChallengeStarted.position).owner
     start_timestamp BIGINT NOT NULL, -- MintingHub.ChallengeStarted event timestamp
     initial_size NUMERIC(78, 0) NOT NULL, -- MintingHub.ChallengeStarted.size
-    collateral_address VARCHAR(42) NOT NULL, -- IPosition(MintingHub.ChallengeStarted.position).collateral
-    liq_price NUMERIC(78, 0) NOT NULL, -- IPosition(MintingHub.ChallengeStarted.position).virtualPrice
 
     -- Dynamic fields
     size NUMERIC(78, 0) NOT NULL, -- MintingHub.challenges[challenge_id].size
-    phase INTEGER NOT NULL, -- 0: Bid, 1: Avert, 2: Ended - derived from IPosition(MintingHub.ChallengeStarted.position).challengePeriod
-    status VARCHAR(20) NOT NULL, -- ACTIVE, AVERTED, SUCCEEDED - derived from phase & size
     current_price NUMERIC(78, 0) NOT NULL, -- MintingHub.price(challenge_id)
 
     -- metadata
-    block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_challenge_states_position ON challenge_states(position_address);
 CREATE INDEX IF NOT EXISTS idx_challenge_states_challenger ON challenge_states(challenger_address);
-CREATE INDEX IF NOT EXISTS idx_challenge_states_status ON challenge_states(status);
-CREATE INDEX IF NOT EXISTS idx_challenge_states_phase ON challenge_states(phase);
 
 -- Collateral States
 CREATE TABLE IF NOT EXISTS collateral_states (

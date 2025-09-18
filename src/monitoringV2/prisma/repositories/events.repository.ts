@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaClientService } from '../client.service';
-import { Event, PositionOpenedEvent, MinterEntity as MinterAppliedEvent, ChallengeEntity as ChallengeStartedEvent } from '../../types';
+import { Event, PositionOpenedEvent, MinterEntity as MinterAppliedEvent, ChallengeStartedEvent } from '../../types';
 
 @Injectable()
 export class EventsRepository {
@@ -92,28 +92,28 @@ export class EventsRepository {
 		}
 	}
 
-	async getChallengeEntities(): Promise<ChallengeStartedEvent[]> {
+	async getChallengeStartedEvents(): Promise<ChallengeStartedEvent[]> {
 		try {
 			const events = await this.prisma.rawEvent.findMany({
 				where: { topic: 'ChallengeStarted' },
-				select: { args: true, blockNumber: true },
-				orderBy: { blockNumber: 'asc' },
+				select: { args: true, blockNumber: true, timestamp: true },
+				orderBy: { timestamp: 'asc' },
 			});
 
 			return events
 				.map((event) => {
 					const data = event.args as any;
 					return {
-						position: data.position?.toLowerCase(),
+						challengeId: data.number ? Number(data.number) : undefined,
 						challenger: data.challenger?.toLowerCase(),
-						startedAtBlock: event.blockNumber,
+						position: data.position?.toLowerCase(),
 						size: data.size ? BigInt(data.size) : undefined,
-						liqPrice: data.liqPrice ? BigInt(data.liqPrice) : undefined,
+						timestamp: event.timestamp,
 					};
 				})
-				.filter((c) => c.position);
+				.filter((c) => c.challengeId !== undefined);
 		} catch (error) {
-			this.logger.error(`Failed to get challenge entities: ${error.message}`);
+			this.logger.error(`Failed to get challenge started events: ${error.message}`);
 			throw error;
 		}
 	}

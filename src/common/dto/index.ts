@@ -2,7 +2,6 @@
 export * from './deuro.dto';
 export * from './position.dto';
 export * from './collateral.dto';
-export * from './challenge.dto';
 export * from './stablecoinBridge.dto';
 
 // Event DTOs
