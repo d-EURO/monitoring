@@ -20,7 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_events_timestamp ON raw_events(timestamp DESC);
 CREATE TABLE IF NOT EXISTS contracts (
     address VARCHAR(42) PRIMARY KEY,
     type VARCHAR(50) NOT NULL, -- e.g. DEURO, EQUITY, POSITION, MINTER, BRIDGE
-    created_at_block BIGINT NOT NULL,
+    created_at_block BIGINT NOT NULL, -- TODO: Change to timestamp instead of block number?
     is_active BOOLEAN DEFAULT true,
     metadata JSONB, -- flexible storage for contract-specific data
     added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

@@ -16,9 +16,10 @@ import { ChallengeService } from './challenge.service';
 import { MonitoringServiceV2 } from './monitoring.service';
 import { SchemaInitService } from './schema-init.service';
 import { PriceService } from '../common/services/price.service';
+import { ApiModule } from './api/api.module';
 
 @Module({
-	imports: [],
+	imports: [ApiModule],
 	providers: [
 		SchemaInitService, // Initialize schema first
 		AppConfigService,
@@ -38,6 +39,6 @@ import { PriceService } from '../common/services/price.service';
 		ChallengeService,
 		MonitoringServiceV2,
 	],
-	exports: [MonitoringServiceV2, ContractService, EventService],
+	exports: [MonitoringServiceV2, ContractService, EventService, ApiModule],
 })
 export class MonitoringV2Module {}

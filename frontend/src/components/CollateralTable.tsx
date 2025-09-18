@@ -1,4 +1,4 @@
-import type { Collateral } from '../types/index';
+import type { Collateral } from '../../../shared/types';
 import { Alignment, Table } from './Table';
 import type { Column, MultiLineCell } from './Table';
 import { colors } from '../lib/theme';
