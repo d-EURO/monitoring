@@ -22,8 +22,6 @@ import { ApiModule } from './api/api.module';
 	imports: [ApiModule],
 	providers: [
 		SchemaInitService, // Initialize schema first
-		ProviderService,
-		PriceService,
 		AppConfigService,
 		ProviderService,
 		PrismaClientService,
