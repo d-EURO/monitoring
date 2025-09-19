@@ -1,0 +1,121 @@
+export interface Event {
+	txHash: string;
+	blockNumber: number;
+	logIndex: number;
+	contractAddress: string;
+	topic: string;
+	args: Record<string, any>;
+	timestamp: Date;
+}
+
+export enum ContractType {
+	DEURO = 'DEURO',
+	EQUITY = 'EQUITY',
+	DEPS = 'DEPS',
+	SAVINGS = 'SAVINGS',
+	POSITION = 'POSITION',
+	MINTER = 'MINTER',
+	BRIDGE = 'BRIDGE',
+	FRONTEND_GATEWAY = 'FRONTEND_GATEWAY',
+	MINTING_HUB = 'MINTING_HUB',
+	ROLLER = 'ROLLER',
+	COLLATERAL = 'COLLATERAL',
+}
+
+// Integrate later (for API purposes)
+export enum ChallengePhase {
+	AVERTING = 'AVERTING',
+	AUCTION = 'AUCTION',
+	ENDED = 'ENDED',
+}
+
+export interface Contract {
+	address: string;
+	type: ContractType;
+	createdAtBlock: number;
+	isActive?: boolean;
+	metadata?: Record<string, any>;
+}
+
+export interface Token {
+	address: string;
+	symbol?: string;
+	name?: string;
+	decimals?: number;
+	addedAt?: Date; // set by database
+}
+
+export interface PositionOpenedEvent {
+	address: string;
+	owner: string;
+	original: string;
+	collateral: string;
+	timestamp: Date;
+}
+
+export interface MinterAppliedEvent {
+	address: string;
+	appliedAtBlock: number;
+	applicationPeriod?: bigint;
+	applicationFee?: bigint;
+}
+
+export interface ChallengeStartedEvent {
+	challengeId: number;
+	challenger: string;
+	position: string;
+	size: bigint;
+	timestamp: Date;
+}
+
+export interface PositionState {
+	// Fixed fields
+	address: string;
+	limit: bigint;
+	owner: string;
+	original: string;
+	collateral: string;
+	minimumCollateral: bigint;
+	riskPremiumPpm: number;
+	reserveContribution: number;
+	challengePeriod: bigint;
+	startTimestamp: bigint;
+	expiration: bigint;
+	created?: Date; // When position was opened
+
+	// Dynamic fields
+	price: bigint;
+	virtualPrice: bigint;
+	collateralAmount: bigint;
+	expiredPurchasePrice: bigint;
+	collateralRequirement: bigint;
+	principal: bigint;
+	interest: bigint;
+	debt: bigint;
+	fixedAnnualRatePpm: number;
+	lastAccrual: bigint;
+	cooldown: bigint;
+	challengedAmount: bigint;
+	availableForMinting: bigint;
+	availableForClones: bigint;
+	isClosed: boolean;
+
+	// Metadata
+	timestamp: Date;
+}
+
+export interface ChallengeState {
+	// Fixed fields
+	challengeId: number;
+	challengerAddress: string;
+	positionAddress: string;
+	startTimestamp: bigint;
+	initialSize: bigint;
+
+	// Dynamic fields
+	size: bigint;
+	currentPrice: bigint;
+
+	// Metadata
+	timestamp: Date;
+}

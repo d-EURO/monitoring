@@ -1,5 +1,4 @@
-import type { HealthStatus } from '../types/index';
-import { MonitoringStatus } from '../types/monitoring';
+import type { HealthStatus } from '../../../shared/types';
 import type { DataState } from '../lib/api.hook';
 import { colors } from '../lib/theme';
 import { useState } from 'react';
@@ -13,60 +12,28 @@ export function HealthStatus({ data, error }: DataState<HealthStatus>) {
 	};
 
 	const header = data
-		? `dEURO Protocol Monitor | ${data.blockLag} block${data.blockLag === 1 ? '' : 's'} behind`
+		? `dEURO Protocol Monitor | Block ${data.lastProcessedBlock} | ${new Date(data.updatedAt).toLocaleTimeString()}`
 		: 'dEURO Protocol Monitor';
 
 	const getStatusColor = () => {
-		if (error || !data) return colors.critical;
-		switch (data.monitoringStatus) {
-			case MonitoringStatus.ERROR:
-				return colors.critical;
-			case MonitoringStatus.PROCESSING:
-				return colors.highlight;
-			case MonitoringStatus.IDLE:
-			default:
-				return colors.success;
-		}
+		if (error) return colors.critical;
+		return colors.success;
 	};
 
 	const getStatusText = () => {
 		if (error) return `OFFLINE: ${error}`;
 		if (!data) return 'LOADING...';
-		
-		switch (data.monitoringStatus) {
-			case MonitoringStatus.ERROR:
-				return `ERROR${data.lastError ? ': ' + data.lastError : ''}`;
-			case MonitoringStatus.PROCESSING:
-				return 'SYNCING';
-			case MonitoringStatus.IDLE:
-			default:
-				return 'ONLINE';
-		}
+		return 'ONLINE';
 	};
-
-	const showSync = data && data.syncProgress < 99.5;
-	const isPulsing = data?.monitoringStatus === MonitoringStatus.PROCESSING;
 
 	return (
 		<div className="pt-4 px-4 flex flex-row items-center gap-4 justify-between">
 			<div className="text-gray-500">{header}</div>
 			<div className="flex items-center gap-4">
-				{showSync && (
-					<div className="flex items-center gap-2">
-						<span className="text-xs text-gray-500">SYNC</span>
-						<div className="w-20 h-1.5 bg-neutral-900 rounded-full overflow-hidden">
-							<div 
-								className="h-full bg-yellow-400 transition-all duration-500"
-								style={{ width: `${data.syncProgress}%` }}
-							/>
-						</div>
-						<span className="text-xs text-gray-400">{data.syncProgress.toFixed(1)}%</span>
-					</div>
-				)}
 				<div
 					className={`text-xs font-bold flex items-center gap-1 ${getStatusColor()} ${
 						error ? 'cursor-pointer' : ''
-					} ${isPulsing ? 'animate-pulse' : ''}`}
+					}`}
 					onClick={error ? handleClick : undefined}
 				>
 					{getStatusText()}

@@ -9,6 +9,8 @@ yarn-error.log*
 dist/
 build/
 *.tgz
+*.db
+*.sqlite
 
 # Environment files
 .env
@@ -33,6 +35,7 @@ Thumbs.db
 
 # IDE
 .vscode/
+.claude/
 .idea/
 *.swp
 *.swo
@@ -61,4 +64,3 @@ monitoring_output.json
 
 # Development
 contracts/
-.claude/settings.local.json

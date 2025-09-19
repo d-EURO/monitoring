@@ -14,9 +14,9 @@ function App() {
 			<div className="max-w-7xl mx-auto p-4 space-y-6 text-sm mb-8">
 				<HealthStatus {...health} />
 				<SystemOverview {...deuro} />
-				<PositionsTable data={positions} collateralData={collateral?.data} />
+				<PositionsTable data={positions} />
 				<CollateralTable {...collateral} />
-				<ChallengesTable data={challenges} positionData={positions?.data} collateralData={collateral?.data} />
+				<ChallengesTable data={challenges}/>
 				<MintersTable data={minters} bridgeData={bridges?.data} />
 			</div>
 		</div>

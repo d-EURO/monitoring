@@ -1,4 +1,4 @@
-import type { Bridge, Minter } from '../types/index';
+import type { Bridge, Minter } from '../../../shared/types';
 import { Alignment, Table } from './Table';
 import type { Column, MultiLineCell } from './Table';
 import { formatNumber, bigintToNumber, formatCountdown, formatDateTime, formatPercent, getStatusColor } from '../lib/formatters';
@@ -12,6 +12,8 @@ interface MinterTableProps {
 }
 
 export function MintersTable({ data, bridgeData }: MinterTableProps) {
+	if (!data) return null;
+
 	const bridgeMap = new Map<string, Bridge>();
 	bridgeData?.forEach((b) => bridgeMap.set(b.address.toLowerCase(), b));
 

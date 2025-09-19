@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { HealthStatus, DeuroState, Position, Collateral, Challenge, Minter, Bridge } from '../types';
+import type { Bridge, ChallengeResponse, Collateral, DeuroState, HealthStatus, Minter, PositionResponse } from '../../../shared/types';
 
 export interface DataState<T> {
 	data?: T;
@@ -9,9 +9,9 @@ export interface DataState<T> {
 export interface UseApiResult {
 	health?: DataState<HealthStatus>;
 	deuro?: DataState<DeuroState>;
-	positions?: DataState<Position[]>;
+	positions?: DataState<PositionResponse[]>;
 	collateral?: DataState<Collateral[]>;
-	challenges?: DataState<Challenge[]>;
+	challenges?: DataState<ChallengeResponse[]>;
 	minters?: DataState<Minter[]>;
 	bridges?: DataState<Bridge[]>;
 }
@@ -21,12 +21,12 @@ const REFRESH_INTERVAL = 60000; // 1 minute
 
 export function useApi(): UseApiResult {
 	const [health, setHealth] = useState<DataState<HealthStatus>>();
-	const [deuro, setDeuro] = useState<DataState<DeuroState>>();
-	const [positions, setPositions] = useState<DataState<Position[]>>();
-	const [collateral, setCollateral] = useState<DataState<Collateral[]>>();
-	const [challenges, setChallenges] = useState<DataState<Challenge[]>>();
-	const [minters, setMinters] = useState<DataState<Minter[]>>();
-	const [bridges, setBridges] = useState<DataState<Bridge[]>>();
+	const [deuro, _setDeuro] = useState<DataState<DeuroState>>();
+	const [positions, setPositions] = useState<DataState<PositionResponse[]>>();
+	const [collateral, _setCollateral] = useState<DataState<Collateral[]>>();
+	const [challenges, setChallenges] = useState<DataState<ChallengeResponse[]>>();
+	const [minters, _setMinters] = useState<DataState<Minter[]>>();
+	const [bridges, _setBridges] = useState<DataState<Bridge[]>>();
 
 	useEffect(() => {
 		fetchAllData();
@@ -39,12 +39,13 @@ export function useApi(): UseApiResult {
 		if (!healthResult) return;
 
 		await Promise.all([
-			fetchData('deuro', setDeuro),
+			// TODO: Uncomment when backend tables are ready
+			// fetchData('deuro', setDeuro),
 			fetchData('positions', setPositions),
-			fetchData('collateral', setCollateral),
+			// fetchData('collateral', setCollateral),
 			fetchData('challenges', setChallenges),
-			fetchData('minters', setMinters),
-			fetchData('minters/bridges?all=true', setBridges),
+			// fetchData('minters', setMinters),
+			// fetchData('minters/bridges?all=true', setBridges),
 		]);
 	}
 

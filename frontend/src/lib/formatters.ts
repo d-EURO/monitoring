@@ -1,3 +1,4 @@
+import { ChallengeStatus, MinterStatus, PositionStatus } from '../../../shared/types';
 import { colors } from './theme';
 
 const KNOWN_ADDRESSES: Record<string, string> = {
@@ -100,26 +101,25 @@ export function formatCountdown(value: number | string, isSeconds: boolean = fal
 	return `${minutes}m`;
 }
 
-export function getStatusColor(status: string): string {
-	const statusUpper = status.toUpperCase();
-	switch (statusUpper) {
-		case 'ACTIVE':
-		case 'APPROVED':
-		case 'OPEN':
+export function getStatusColor(status: PositionStatus | MinterStatus | ChallengeStatus): string {
+	switch (status) {
+		case PositionStatus.OPEN:
+		case MinterStatus.APPROVED:
 			return colors.success;
-		case 'CHALLENGED':
-		case 'UNDERCOLLATERALIZED':
-		case 'CRITICAL':
-		case 'DENIED':
-		case 'PENDING':
-		case 'COOLDOWN':
+		case PositionStatus.CHALLENGED:
+		case PositionStatus.UNDERCOLLATERALIZED:
+		case PositionStatus.PROPOSED:
+		case PositionStatus.COOLDOWN:
+		case MinterStatus.PENDING:
+		case ChallengeStatus.AUCTION:
 			return colors.critical;
-		case 'WARNING':
+		case PositionStatus.EXPIRED:
+		case PositionStatus.DENIED:
+		case ChallengeStatus.AVERTING:
 			return colors.highlight;
-		case 'CLOSED':
-		case 'INACTIVE':
-			return colors.text.secondary;
-		default:
+		case PositionStatus.CLOSED:
+		case MinterStatus.DENIED:
+		case ChallengeStatus.ENDED:
 			return colors.text.secondary;
 	}
 }
