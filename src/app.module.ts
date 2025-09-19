@@ -9,7 +9,7 @@ import { MonitoringV2Module } from './monitoringV2/monitoring.module';
 		ConfigModule.forRoot({
 			isGlobal: true,
 			load: [monitoringConfig],
-			envFilePath: ['.env.monitoring', '.env'],
+			envFilePath: ['.env'],
 		}),
 		ScheduleModule.forRoot(),
 		MonitoringV2Module,

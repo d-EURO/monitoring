@@ -1,0 +1,60 @@
+name: dEURO Frontend PRD CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+  workflow_dispatch:
+
+env:
+  AZURE_ACCOUNT_NAME: stdfxdemprd
+  AZURE_CDN_PROFILE: afd-dfx-api-prd
+  AZURE_CDN_ENDPOINT: fde-dfx-dem-prd
+  AZURE_RESOURCE_GROUP: rg-dfx-api-prd
+
+jobs:
+  build-and-deploy:
+    name: Build and deploy Frontend to PRD
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://monitoring.deuro.com/api
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.DFX_PRD_CREDENTIALS }}
+
+      - name: Upload to Azure Storage
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az storage blob upload-batch --account-name ${{ env.AZURE_ACCOUNT_NAME }} -d '$web' -s ./frontend/dist --overwrite
+
+      - name: Purge CDN endpoint
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az afd endpoint purge --content-paths "/*" --profile-name ${{ env.AZURE_CDN_PROFILE }} --endpoint-name ${{ env.AZURE_CDN_ENDPOINT }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+
+      - name: Logout from Azure
+        run: az logout
+        if: always()
