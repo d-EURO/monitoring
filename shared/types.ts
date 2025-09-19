@@ -15,6 +15,12 @@ export enum ChallengeStatus {
 	ENDED = 'ENDED',
 }
 
+export enum MinterStatus {
+	PENDING = 'PENDING',
+	APPROVED = 'APPROVED',
+	DENIED = 'DENIED',
+}
+
 export interface HealthResponse {
 	status: string;
 	lastProcessedBlock: number;
@@ -118,7 +124,7 @@ export interface Collateral {
 
 export interface Minter {
 	minter: string;
-	status: 'PENDING' | 'APPROVED' | 'DENIED';
+	status: MinterStatus;
 	applicationDate: string;
 	applicationPeriod: string;
 	applicationFee: string;

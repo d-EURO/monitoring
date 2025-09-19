@@ -34,14 +34,22 @@ export class ApiController {
 				formattedVirtualPrice > 0 && marketPrice > 0 ? ((marketPrice / formattedVirtualPrice) * 100).toFixed(2) : '0';
 
 			const currentTime = Math.floor(Date.now() / 1000);
-			const status = currentTime < Number(p.startTimestamp) ? PositionStatus.PROPOSED
-				: p.isClosed && p.collateralAmount.gt(p.minimumCollateral) ? PositionStatus.DENIED
-				: p.isClosed ? PositionStatus.CLOSED
-				: p.challengedAmount.toFixed(0) !== '0' ? PositionStatus.CHALLENGED
-				: Number(collateralizationRatio) < 100 ? PositionStatus.UNDERCOLLATERALIZED
-				: Number(p.cooldown) > currentTime ? PositionStatus.COOLDOWN
-				: Number(p.expiration) <= currentTime ? PositionStatus.EXPIRED
-				: PositionStatus.OPEN;
+			const status =
+				currentTime < Number(p.startTimestamp)
+					? PositionStatus.PROPOSED
+					: p.isClosed && p.collateralAmount.gt(p.minimumCollateral)
+						? PositionStatus.DENIED
+						: p.isClosed
+							? PositionStatus.CLOSED
+							: p.challengedAmount.toFixed(0) !== '0'
+								? PositionStatus.CHALLENGED
+								: Number(collateralizationRatio) < 100
+									? PositionStatus.UNDERCOLLATERALIZED
+									: Number(p.cooldown) > currentTime
+										? PositionStatus.COOLDOWN
+										: Number(p.expiration) <= currentTime
+											? PositionStatus.EXPIRED
+											: PositionStatus.OPEN;
 
 			return {
 				address: p.address,
@@ -80,6 +88,7 @@ export class ApiController {
 
 	@Get('challenges')
 	async getChallenges(): Promise<ChallengeResponse[]> {
+		// TODO (later): Create custom Prisma query tokens, positions and challenges in one go
 		const tokens = await this.prisma.token.findMany();
 		const tokenMap = new Map(tokens.map((t) => [t.address.toLowerCase(), t]));
 		const positions = await this.prisma.positionState.findMany();
@@ -115,9 +124,7 @@ export class ApiController {
 				collateral: position?.collateral || '0x0',
 				collateralSymbol: token?.symbol || 'UNKNOWN',
 				collateralBalance:
-					position && token
-						? (Number(position.collateralAmount.toFixed(0)) / Math.pow(10, collateralDecimals)).toString()
-						: '0',
+					position && token ? (Number(position.collateralAmount.toFixed(0)) / Math.pow(10, collateralDecimals)).toString() : '0',
 				challengePeriod: challengePeriod.toString(),
 				status,
 			};

@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import monitoringConfig from './config/monitoring.config';
-import { MonitoringV2Module } from './monitoringV2/monitoring-v2.module';
+import { MonitoringV2Module } from './monitoringV2/monitoring.module';
 
 @Module({
 	imports: [

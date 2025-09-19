@@ -35,13 +35,4 @@ export class PrismaClientService extends PrismaClient implements OnModuleInit, O
 			this.logger.error('Error disconnecting from database:', error);
 		}
 	}
-
-	/**
-	 * Execute operations within a database transaction
-	 */
-	async withTransaction<T>(fn: (prisma: PrismaClientService) => Promise<T>): Promise<T> {
-		return this.$transaction(async (prisma) => {
-			return fn(prisma as PrismaClientService);
-		});
-	}
 }

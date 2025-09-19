@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AppConfigService } from '../config/config.service';
-import { ProviderService } from '../blockchain/provider.service';
+import { ProviderService } from './provider.service';
 import { PrismaClientService } from './prisma/client.service';
 import { EventsRepository } from './prisma/repositories/events.repository';
 import { SyncStateRepository } from './prisma/repositories/sync-state.repository';
@@ -13,15 +13,17 @@ import { EventService } from './event.service';
 import { TokenService } from './token.service';
 import { PositionService } from './position.service';
 import { ChallengeService } from './challenge.service';
-import { MonitoringServiceV2 } from './monitoring.service';
+import { MonitoringService } from './monitoring.service';
 import { SchemaInitService } from './schema-init.service';
-import { PriceService } from '../common/services/price.service';
+import { PriceService } from './price.service';
 import { ApiModule } from './api/api.module';
 
 @Module({
 	imports: [ApiModule],
 	providers: [
 		SchemaInitService, // Initialize schema first
+		ProviderService,
+		PriceService,
 		AppConfigService,
 		ProviderService,
 		PrismaClientService,
@@ -37,8 +39,8 @@ import { ApiModule } from './api/api.module';
 		TokenService,
 		PositionService,
 		ChallengeService,
-		MonitoringServiceV2,
+		MonitoringService,
 	],
-	exports: [MonitoringServiceV2, ContractService, EventService, ApiModule],
+	exports: [MonitoringService, ContractService, EventService, ApiModule],
 })
 export class MonitoringV2Module {}

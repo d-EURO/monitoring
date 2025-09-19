@@ -44,23 +44,4 @@ export class SyncStateRepository {
 			throw error;
 		}
 	}
-
-	async getSyncState(): Promise<{ id: number; lastProcessedBlock: number; updatedAt: Date } | null> {
-		try {
-			const syncState = await this.prisma.syncState.findUnique({
-				where: { id: 1 },
-			});
-
-			if (!syncState) return null;
-
-			return {
-				id: syncState.id,
-				lastProcessedBlock: syncState.lastProcessedBlock,
-				updatedAt: syncState.updatedAt,
-			};
-		} catch (error) {
-			this.logger.error(`Failed to get sync state: ${error.message}`);
-			return null;
-		}
-	}
 }

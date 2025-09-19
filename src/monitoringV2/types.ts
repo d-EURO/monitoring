@@ -53,19 +53,11 @@ export interface PositionOpenedEvent {
 	timestamp: Date;
 }
 
-export interface MinterEntity {
+export interface MinterAppliedEvent {
 	address: string;
 	appliedAtBlock: number;
 	applicationPeriod?: bigint;
 	applicationFee?: bigint;
-}
-
-export interface ChallengeEntity {
-	position: string;
-	challenger: string;
-	startedAtBlock: number;
-	size?: bigint;
-	liqPrice?: bigint;
 }
 
 export interface ChallengeStartedEvent {
@@ -112,15 +104,6 @@ export interface PositionState {
 	timestamp: Date;
 }
 
-export interface MinterState {
-	address: string;
-	applicationPeriod: bigint;
-	applicationFee: bigint;
-	message: string;
-	isApproved: boolean;
-	isDenied: boolean;
-}
-
 export interface ChallengeState {
 	// Fixed fields
 	challengeId: number;
@@ -135,19 +118,4 @@ export interface ChallengeState {
 
 	// Metadata
 	timestamp: Date;
-}
-
-export interface MonitoringResult {
-	processedBlocks: number;
-	eventsCollected: number;
-	entitiesDiscovered: {
-		positions: number;
-		minters: number;
-		challenges: number;
-	};
-	statesFetched: {
-		positions: number;
-		minters: number;
-		challenges: number;
-	};
 }

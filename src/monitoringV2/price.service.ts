@@ -2,7 +2,7 @@ import { EquityABI } from '@deuro/eurocoin';
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { ethers } from 'ethers';
-import { ProviderService } from 'src/blockchain/provider.service';
+import { ProviderService } from './provider.service';
 import { AppConfigService } from 'src/config/config.service';
 
 const nDEPS = '0xc71104001a3ccda1bef1177d765831bd1bfe8ee6';

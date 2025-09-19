@@ -4,7 +4,7 @@ import { EVENT_SIGNATURES } from './constants';
 import { Injectable, Logger } from '@nestjs/common';
 import { ContractService } from './contract.service';
 import { EventsRepository } from './prisma/repositories/events.repository';
-import { ProviderService } from 'src/blockchain/provider.service';
+import { ProviderService } from './provider.service';
 
 @Injectable()
 export class EventService {

@@ -49,7 +49,7 @@ export class ChallengeRepository {
 
 		this.logger.log(`Successfully updated ${challenges.length} existing challenge states`);
 	}
-	
+
 	async findAllChallengeIds(): Promise<number[]> {
 		const challenges = await this.prisma.challengeState.findMany({
 			select: { challengeId: true },

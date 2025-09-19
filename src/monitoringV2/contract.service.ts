@@ -5,7 +5,7 @@ import { ContractRepository } from './prisma/repositories/contract.repository';
 import { ADDRESS, StablecoinBridgeABI } from '@deuro/eurocoin';
 import { CONTRACT_ABI_MAP } from './constants';
 import { ethers } from 'ethers';
-import { ProviderService } from 'src/blockchain/provider.service';
+import { ProviderService } from './provider.service';
 
 @Injectable()
 export class ContractService {
@@ -121,11 +121,6 @@ export class ContractService {
 	async getContracts(onlyActive = false): Promise<Contract[]> {
 		if (this.cache.size === 0) await this.initializeCache();
 		return Array.from(this.cache.values()).filter((c) => (onlyActive ? c.isActive : true));
-	}
-
-	async getContractsByType(type: ContractType): Promise<Contract[]> {
-		const contracts = await this.getContracts();
-		return contracts.filter((c) => c.type === type);
 	}
 
 	async getContract(address: string): Promise<Contract | null> {

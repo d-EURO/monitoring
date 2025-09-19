@@ -2,7 +2,7 @@ import { ChallengeStatus, type ChallengeResponse } from '../../../shared/types';
 import { Alignment, Table } from './Table';
 import type { Column, MultiLineCell } from './Table';
 import { colors } from '../lib/theme';
-import { formatAddress, formatNumber, formatDateTime, formatCountdown } from '../lib/formatters';
+import { formatAddress, formatNumber, formatDateTime, formatCountdown, getStatusColor } from '../lib/formatters';
 import { AddressLink } from './AddressLink';
 import type { DataState } from '../lib/api.hook';
 
@@ -18,7 +18,7 @@ export function ChallengesTable({ data }: ChallengeTableProps) {
 				primary: `#${challenge.id}`,
 				secondary: challenge.status,
 				primaryClass: colors.text.primary,
-				secondaryClass: getChallengeStatusColor(challenge.status),
+				secondaryClass: getStatusColor(challenge.status),
 			}),
 		},
 		{
@@ -81,16 +81,4 @@ export function ChallengesTable({ data }: ChallengeTableProps) {
 			emptyMessage="No challenges found"
 		/>
 	);
-}
-
-function getChallengeStatusColor(status: ChallengeStatus): string {
-	switch (status) {
-		case ChallengeStatus.AVERTING:
-		case ChallengeStatus.AUCTION:
-			return colors.highlight;
-		case ChallengeStatus.ENDED:
-			return colors.text.secondary;
-		default:
-			return colors.text.secondary;
-	}
 }

@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { ProviderService } from '../blockchain/provider.service';
+import { ProviderService } from './provider.service';
 import { ContractService } from './contract.service';
 import { AppConfigService } from 'src/config/config.service';
 import { SyncStateRepository } from './prisma/repositories/sync-state.repository';
@@ -10,10 +10,10 @@ import { PositionService } from './position.service';
 import { ChallengeService } from './challenge.service';
 
 @Injectable()
-export class MonitoringServiceV2 implements OnModuleInit {
+export class MonitoringService implements OnModuleInit {
 	private isRunning = false;
 
-	private readonly logger = new Logger(MonitoringServiceV2.name);
+	private readonly logger = new Logger(MonitoringService.name);
 
 	constructor(
 		private readonly config: AppConfigService,
@@ -23,11 +23,11 @@ export class MonitoringServiceV2 implements OnModuleInit {
 		private readonly eventCollector: EventService,
 		private readonly tokenService: TokenService,
 		private readonly positionService: PositionService,
-		private readonly challengeService: ChallengeService,
+		private readonly challengeService: ChallengeService
 	) {}
 
 	async onModuleInit() {
-		this.logger.log('MonitoringV2 service initialized');
+		this.logger.log('Monitoring service initialized');
 		await this.contractService.initialize();
 		await this.tokenService.initialize();
 		await this.positionService.initialize();

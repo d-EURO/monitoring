@@ -3,10 +3,10 @@ import { Token } from './types';
 import { AppConfigService } from '../config/config.service';
 import { ADDRESS, ERC20ABI } from '@deuro/eurocoin';
 import { ethers } from 'ethers';
-import { ProviderService } from 'src/blockchain/provider.service';
+import { ProviderService } from './provider.service';
 import { TokenRepository } from './prisma/repositories/token.repository';
 import { EventsRepository } from './prisma/repositories/events.repository';
-import { PriceService } from 'src/common/services/price.service';
+import { PriceService } from 'src/monitoringV2/price.service';
 
 @Injectable()
 export class TokenService {

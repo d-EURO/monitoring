@@ -12,6 +12,8 @@ interface MinterTableProps {
 }
 
 export function MintersTable({ data, bridgeData }: MinterTableProps) {
+	if (!data) return null;
+
 	const bridgeMap = new Map<string, Bridge>();
 	bridgeData?.forEach((b) => bridgeMap.set(b.address.toLowerCase(), b));
 

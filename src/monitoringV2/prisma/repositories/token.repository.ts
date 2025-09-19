@@ -23,10 +23,6 @@ export class TokenRepository {
 		this.logger.log(`Successfully persisted ${tokens.length} tokens`);
 	}
 
-	async findAll(): Promise<Token[]> {
-		return this.prisma.token.findMany();
-	}
-
 	async updatePrices(priceUpdates: { address: string; price: string }[]): Promise<void> {
 		if (priceUpdates.length === 0) return;
 
@@ -44,5 +40,9 @@ export class TokenRepository {
 		);
 
 		this.logger.log(`Updated prices for ${priceUpdates.length} tokens`);
+	}
+
+	async findAll(): Promise<Token[]> {
+		return this.prisma.token.findMany();
 	}
 }

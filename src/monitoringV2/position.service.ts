@@ -3,7 +3,7 @@ import { PositionOpenedEvent, PositionState } from './types';
 import { AppConfigService } from '../config/config.service';
 import { PositionV2ABI, MintingHubV2ABI, ADDRESS, ERC20ABI } from '@deuro/eurocoin';
 import { ethers } from 'ethers';
-import { ProviderService } from 'src/blockchain/provider.service';
+import { ProviderService } from './provider.service';
 import { PositionRepository } from './prisma/repositories/position.repository';
 import { EventsRepository } from './prisma/repositories/events.repository';
 

@@ -49,7 +49,7 @@ export default registerAs('monitoring', () => {
 	const config = new MonitoringConfig();
 
 	config.allowedOrigins = process.env.ALLOWED_ORIGINS || 'http://localhost:3000';
-	
+
 	config.rpcUrl = process.env.RPC_URL;
 	config.blockchainId = parseInt(process.env.BLOCKCHAIN_ID || '1');
 	config.deploymentBlock = parseInt(process.env.DEPLOYMENT_BLOCK || '22088283');

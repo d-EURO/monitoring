@@ -3,7 +3,7 @@ import { ChallengeState, ChallengeStartedEvent } from './types';
 import { AppConfigService } from '../config/config.service';
 import { MintingHubV2ABI, ADDRESS } from '@deuro/eurocoin';
 import { ethers } from 'ethers';
-import { ProviderService } from 'src/blockchain/provider.service';
+import { ProviderService } from './provider.service';
 import { ChallengeRepository } from './prisma/repositories/challenge.repository';
 import { EventsRepository } from './prisma/repositories/events.repository';
 

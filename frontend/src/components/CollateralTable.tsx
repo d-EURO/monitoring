@@ -7,6 +7,8 @@ import { AddressLink } from './AddressLink';
 import type { DataState } from '../lib/api.hook';
 
 export function CollateralTable({ data, error }: DataState<Collateral[]>) {
+	if (!data) return null;
+
 	const columns: Column<Collateral>[] = [
 		{
 			header: { primary: 'COLLATERAL', secondary: 'ADDRESS' },

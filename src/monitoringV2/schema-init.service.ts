@@ -16,8 +16,7 @@ export class SchemaInitService implements OnModuleInit {
 
 		try {
 			await client.connect();
-			// Use process.cwd() to get the project root, not relative to compiled output
-			const schemaPath = join(process.cwd(), 'database', 'schema.sql');
+			const schemaPath = join(__dirname, '../../database/schema.sql');
 			const schemaSql = readFileSync(schemaPath, 'utf8');
 			await client.query(schemaSql);
 			this.logger.log('Database schema initialized');

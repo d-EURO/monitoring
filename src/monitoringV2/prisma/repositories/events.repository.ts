@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaClientService } from '../client.service';
-import { Event, PositionOpenedEvent, MinterEntity as MinterAppliedEvent, ChallengeStartedEvent } from '../../types';
+import { Event, PositionOpenedEvent, MinterAppliedEvent, ChallengeStartedEvent } from '../../types';
 
 @Injectable()
 export class EventsRepository {
@@ -67,31 +67,6 @@ export class EventsRepository {
 		}
 	}
 
-	async getMinterEntities(): Promise<MinterAppliedEvent[]> {
-		try {
-			const events = await this.prisma.rawEvent.findMany({
-				where: { topic: 'MinterApplied' },
-				select: { args: true, blockNumber: true },
-				orderBy: { blockNumber: 'asc' },
-			});
-
-			return events
-				.map((event) => {
-					const data = event.args as any;
-					return {
-						address: data.minter?.toLowerCase(),
-						appliedAtBlock: event.blockNumber,
-						applicationPeriod: data.applicationPeriod ? BigInt(data.applicationPeriod) : undefined,
-						applicationFee: data.applicationFee ? BigInt(data.applicationFee) : undefined,
-					};
-				})
-				.filter((m) => m.address);
-		} catch (error) {
-			this.logger.error(`Failed to get minter entities: ${error.message}`);
-			throw error;
-		}
-	}
-
 	async getChallengeStartedEvents(): Promise<ChallengeStartedEvent[]> {
 		try {
 			const events = await this.prisma.rawEvent.findMany({
@@ -116,13 +91,5 @@ export class EventsRepository {
 			this.logger.error(`Failed to get challenge started events: ${error.message}`);
 			throw error;
 		}
-	}
-
-	// TODO: Where is this used?
-	async withTransaction<T>(fn: (repository: EventsRepository) => Promise<T>): Promise<T> {
-		return this.prisma.withTransaction(async (prisma) => {
-			const tempRepo = new EventsRepository(prisma as PrismaClientService);
-			return fn(tempRepo);
-		});
 	}
 }
