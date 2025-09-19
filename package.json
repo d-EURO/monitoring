@@ -4,6 +4,7 @@
   "description": "dEURO Protocol Monitoring Service with Database Persistence",
   "main": "dist/monitoring.main.js",
   "scripts": {
+    "prisma:generate": "prisma generate --schema=./src/monitoringV2/prisma/schema.prisma",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",

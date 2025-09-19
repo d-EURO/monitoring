@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { PrismaClientService } from '../prisma/client.service';
 import { ChallengeResponse, ChallengeStatus, HealthResponse, PositionResponse, PositionStatus } from '../../../shared/types';
+import type { Token, PositionState } from '@prisma/client';
 
 @Controller()
 export class ApiController {
@@ -20,7 +21,7 @@ export class ApiController {
 	async getPositions(): Promise<PositionResponse[]> {
 		const positions = await this.prisma.positionState.findMany();
 		const tokens = await this.prisma.token.findMany();
-		const tokenMap = new Map(tokens.map((t) => [t.address.toLowerCase(), t]));
+		const tokenMap = new Map<string, Token>(tokens.map((t) => [t.address.toLowerCase(), t]));
 
 		return positions.map((p) => {
 			const token = tokenMap.get(p.collateral.toLowerCase());
@@ -90,9 +91,9 @@ export class ApiController {
 	async getChallenges(): Promise<ChallengeResponse[]> {
 		// TODO (later): Create custom Prisma query tokens, positions and challenges in one go
 		const tokens = await this.prisma.token.findMany();
-		const tokenMap = new Map(tokens.map((t) => [t.address.toLowerCase(), t]));
+		const tokenMap = new Map<string, Token>(tokens.map((t) => [t.address.toLowerCase(), t]));
 		const positions = await this.prisma.positionState.findMany();
-		const positionMap = new Map(positions.map((p) => [p.address.toLowerCase(), p]));
+		const positionMap = new Map<string, PositionState>(positions.map((p) => [p.address.toLowerCase(), p]));
 		const challenges = await this.prisma.challengeState.findMany({ orderBy: { startTimestamp: 'desc' } });
 
 		return challenges.map((c) => {

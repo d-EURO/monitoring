@@ -10,6 +10,7 @@ RUN npm install --frozen-lockfile
 
 # Copy source code and build
 COPY --chown=node . .
+RUN npx prisma generate --schema=./src/monitoringV2/prisma/schema.prisma
 RUN npm run build
 
 # Expose port
