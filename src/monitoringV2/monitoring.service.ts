@@ -44,10 +44,10 @@ export class MonitoringService implements OnModuleInit {
 
 		this.isRunning = true;
 
-		const { fromBlock, currentBlock } = await this.getBlockRangeToProcess();
-		if (fromBlock > currentBlock) return;
-
 		try {
+			const { fromBlock, currentBlock } = await this.getBlockRangeToProcess();
+			if (fromBlock > currentBlock) return;
+
 			const startTime = Date.now();
 			await this.processBlocks(fromBlock, currentBlock);
 			this.logger.log(`Monitoring cycle completed in ${Date.now() - startTime}ms`);

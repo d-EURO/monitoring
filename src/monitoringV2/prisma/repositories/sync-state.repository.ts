@@ -8,19 +8,14 @@ export class SyncStateRepository {
 	constructor(private readonly prisma: PrismaClientService) {}
 
 	async getLastProcessedBlock(): Promise<number | null> {
-		try {
-			const syncState = await this.prisma.syncState.findUnique({
-				where: { id: 1 },
-				select: { lastProcessedBlock: true },
-			});
+		const syncState = await this.prisma.syncState.findUnique({
+			where: { id: 1 },
+			select: { lastProcessedBlock: true },
+		});
 
-			const blockNumber = syncState ? syncState.lastProcessedBlock : null;
-			this.logger.debug(`Retrieved last processed block: ${blockNumber}`);
-			return blockNumber;
-		} catch (error) {
-			this.logger.warn(`Failed to get last processed block: ${error.message}`);
-			return null;
-		}
+		const blockNumber = syncState ? syncState.lastProcessedBlock : null;
+		this.logger.debug(`Retrieved last processed block: ${blockNumber}`);
+		return blockNumber;
 	}
 
 	async updateLastProcessedBlock(blockNumber: number): Promise<void> {
