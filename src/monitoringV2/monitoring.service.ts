@@ -73,8 +73,8 @@ export class MonitoringService implements OnModuleInit {
 		}
 
 		// Post-processing after all blocks are handled
-		await this.tokenService.captureNewTokens(); // sync collateral tokens
-		await this.tokenService.updatePrices(); // update token prices
+		await this.tokenService.syncTokens(); // sync tokens (from positions and bridges)
+		await this.tokenService.syncPrices(); // sync token prices
 		await this.positionService.syncPositions(); // sync position states
 		await this.challengeService.syncChallenges(); // sync challenge states
 		await this.collateralService.syncCollaterals(); // sync collateral states

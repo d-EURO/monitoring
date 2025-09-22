@@ -34,8 +34,7 @@ export class EventsRepository {
 				select: { args: true },
 			});
 
-			const collateralAddresses = events.map((e) => (e.args as any)?.collateral?.toLowerCase()).filter(Boolean); // Remove any undefined/null values
-
+			const collateralAddresses = events.map((e) => (e.args as any)?.collateral?.toLowerCase()).filter(Boolean);
 			return Array.from(new Set(collateralAddresses));
 		} catch (error) {
 			this.logger.error(`Failed to get collateral tokens: ${error.message}`);

@@ -132,16 +132,14 @@ CREATE TABLE IF NOT EXISTS collateral_states (
 CREATE TABLE IF NOT EXISTS minter_states (
     -- Fixed fields
     minter_address VARCHAR(42) PRIMARY KEY, -- DecentralizedEuro.MinterApplied.minter
-    minter_type VARCHAR(20) NOT NULL, -- REGULAR, BRIDGE
+    minter_type VARCHAR(20) NOT NULL, -- MINTER (generic), BRIDGE
     application_date TIMESTAMP WITH TIME ZONE, -- DecentralizedEuro.MinterApplied event timestamp
     application_period NUMERIC(78, 0), -- DecentralizedEuro.MinterApplied.applicationPeriod
     application_fee NUMERIC(78, 0), -- DecentralizedEuro.MinterApplied.applicationFee
     message TEXT, -- DecentralizedEuro.MinterApplied.message
 
-    -- Bridge-specific fixed fields (NULL for regular minters)
-    bridge_token_address VARCHAR(42), -- IStablecoinBridge(<minter_address>).eur
-    bridge_token_symbol VARCHAR(10), -- ERC20(<bridge_token_address>).symbol
-    bridge_token_decimals INTEGER, -- ERC20(<bridge_token_address>).decimals
+    -- Bridge-specific fixed fields (NULL for generic minters)
+    bridge_token VARCHAR(42), -- IStablecoinBridge(<minter_address>).eur
     bridge_horizon NUMERIC(78, 0), -- IStablecoinBridge(<minter_address>).horizon
     bridge_limit NUMERIC(78, 0), -- IStablecoinBridge(<minter_address>)."limit"
 
@@ -154,7 +152,6 @@ CREATE TABLE IF NOT EXISTS minter_states (
     bridge_minted NUMERIC(78, 0), -- IStablecoinBridge(<minter_address>).minted
 
     -- metadata
-    block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
 

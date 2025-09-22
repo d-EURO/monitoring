@@ -42,6 +42,16 @@ export class ContractRepository {
 		}
 	}
 
+	async getContractsByType(type: ContractType): Promise<Contract[]> {
+		try {
+			const contracts = await this.prisma.contract.findMany({ where: { type } });
+			return contracts.map(this.mapToContract);
+		} catch (error) {
+			this.logger.error(`Failed to fetch contracts of type ${type}: ${error.message}`);
+			throw error;
+		}
+	}
+
 	private mapToContract = (contract: any): Contract => ({
 		address: contract.address,
 		type: contract.type as ContractType,

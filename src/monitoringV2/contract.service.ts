@@ -6,6 +6,7 @@ import { ADDRESS, StablecoinBridgeABI } from '@deuro/eurocoin';
 import { CONTRACT_ABI_MAP } from './constants';
 import { ethers } from 'ethers';
 import { ProviderService } from './provider.service';
+import { EventsRepository } from './prisma/repositories/events.repository';
 
 @Injectable()
 export class ContractService {
@@ -14,6 +15,7 @@ export class ContractService {
 
 	constructor(
 		private readonly config: AppConfigService,
+		private readonly eventsRepo: EventsRepository,
 		private readonly contractRepo: ContractRepository,
 		private readonly providerService: ProviderService
 	) {}
@@ -108,6 +110,7 @@ export class ContractService {
 
 		let newContracts = (await Promise.all(events.map(this.mapEventToNewContract.bind(this)))).filter(Boolean) as Contract[];
 		newContracts = newContracts.filter((nc) => !this.cache.has(nc.address.toLowerCase()));
+
 		if (newContracts.length > 0) {
 			await this.persistContracts(newContracts);
 			this.logger.log(`Discovered and persisted ${newContracts.length} new contracts`);
@@ -115,6 +118,15 @@ export class ContractService {
 		}
 
 		return false;
+	}
+
+	async getTokensFromContracts(): Promise<string[]> {
+		// Only collateral and bridge tokens are relevant
+		const collateralTokens = await this.eventsRepo.getCollateralTokens();
+		const bridges = await this.contractRepo.getContractsByType(ContractType.BRIDGE);
+		const bridgeTokens = await this.fetchBridgeTokenAddress(bridges);
+
+		return [...collateralTokens, ...bridgeTokens];
 	}
 
 	// TODO (later): onlyActive means not expired, maybe change contract table isActive to isExpired?
@@ -175,5 +187,18 @@ export class ContractService {
 		} catch {
 			return false;
 		}
+	}
+
+	private async fetchBridgeTokenAddress(bridges: Contract[]): Promise<string[]> {
+		const multicallProvider = this.providerService.multicallProvider;
+		const calls: Promise<string | undefined>[] = [];
+
+		for (const bridge of bridges) {
+			const contract = new ethers.Contract(bridge.address, StablecoinBridgeABI, multicallProvider);
+			calls.push(contract.eur().catch(() => undefined));
+		}
+
+		const results = await Promise.all(calls);
+		return results.filter((addr): addr is string => addr !== undefined).map((addr) => addr.toLowerCase());
 	}
 }
