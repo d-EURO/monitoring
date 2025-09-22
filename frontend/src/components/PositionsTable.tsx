@@ -19,7 +19,7 @@ export function PositionsTable({ data }: PositionsTableProps) {
 				const primaryContent = inCooldown
 					? formatCountdown(position.cooldown)
 					: position.created
-						? formatDateTime(new Date(position.created))
+						? formatDateTime(Number(position.created))
 						: '-';
 				return {
 					primary: primaryContent,
@@ -89,7 +89,7 @@ export function PositionsTable({ data }: PositionsTableProps) {
 		<Table
 			title="POSITIONS"
 			data={data?.data}
-			sort={(a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()}
+			sort={(a, b) => Number(b.created) - Number(a.created)}
 			error={data?.error}
 			columns={columns}
 			getRowKey={(position) => position.address}

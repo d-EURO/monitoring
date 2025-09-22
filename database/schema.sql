@@ -1,12 +1,12 @@
 -- All events (raw)
 CREATE TABLE IF NOT EXISTS raw_events (
-    block_number BIGINT NOT NULL,
     tx_hash VARCHAR(66) NOT NULL,
     log_index INTEGER NOT NULL,
     contract_address VARCHAR(42) NOT NULL,
     topic VARCHAR(100) NOT NULL,
     args JSONB NOT NULL,  -- ALL decoded event parameters
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    block_number BIGINT NOT NULL,
+    timestamp BIGINT NOT NULL, -- block timestamp as Unix timestamp in seconds
     PRIMARY KEY (tx_hash, log_index)
 );
 
@@ -20,21 +20,18 @@ CREATE INDEX IF NOT EXISTS idx_events_timestamp ON raw_events(timestamp DESC);
 CREATE TABLE IF NOT EXISTS contracts (
     address VARCHAR(42) PRIMARY KEY,
     type VARCHAR(50) NOT NULL, -- e.g. DEURO, EQUITY, POSITION, MINTER, BRIDGE
-    created_at_block BIGINT NOT NULL, -- TODO: Change to timestamp instead of block number?
-    is_active BOOLEAN DEFAULT true,
     metadata JSONB, -- flexible storage for contract-specific data
-    added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    timestamp BIGINT NOT NULL -- block timestamp as Unix timestamp in seconds when added to protocol
 );
 
 CREATE INDEX IF NOT EXISTS idx_contracts_type ON contracts(type);
-CREATE INDEX IF NOT EXISTS idx_contracts_active ON contracts(is_active) WHERE is_active = true;
 CREATE INDEX IF NOT EXISTS idx_contracts_metadata ON contracts USING GIN(metadata);
 
 -- Processing State
 CREATE TABLE IF NOT EXISTS sync_state (
     id INTEGER PRIMARY KEY DEFAULT 1,
     last_processed_block BIGINT NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     CONSTRAINT single_row CHECK (id = 1)
 );
 
@@ -45,8 +42,7 @@ CREATE TABLE IF NOT EXISTS tokens (
     name VARCHAR(100),
     decimals INTEGER,
     price NUMERIC(20, 8), -- Current price in EUR
-    price_updated_at TIMESTAMP WITH TIME ZONE, -- When price was last updated
-    added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_tokens_symbol ON tokens(symbol);
@@ -62,10 +58,10 @@ CREATE TABLE IF NOT EXISTS position_states (
     minimum_collateral NUMERIC(78, 0) NOT NULL, -- Position.minimumCollateral
     risk_premium_ppm INTEGER NOT NULL, -- Position.riskPremiumPPM
     reserve_contribution INTEGER NOT NULL, -- Position.reserveContribution
-    challenge_period NUMERIC(78, 0) NOT NULL, -- Position.challengePeriod
-    start_timestamp NUMERIC(78, 0) NOT NULL, -- Position.start
-    expiration NUMERIC(78, 0) NOT NULL, -- Position.expiration
-    created TIMESTAMP WITH TIME ZONE, -- PositionOpened event timestamp
+    challenge_period BIGINT NOT NULL, -- Position.challengePeriod (seconds)
+    start_timestamp BIGINT NOT NULL, -- Position.start (Unix timestamp in seconds)
+    expiration BIGINT NOT NULL, -- Position.expiration (Unix timestamp in seconds)
+    created BIGINT NOT NULL, -- PositionOpened event timestamp (Unix timestamp in seconds)
 
     -- Dynamic fields
     price NUMERIC(78, 0) NOT NULL, -- Position.price
@@ -77,12 +73,13 @@ CREATE TABLE IF NOT EXISTS position_states (
     interest NUMERIC(78, 0) NOT NULL, -- Position.interest
     debt NUMERIC(78, 0) NOT NULL, -- Position.getDebt
     fixed_annual_rate_ppm INTEGER NOT NULL, -- Position.fixedAnnualRatePPM
-    last_accrual NUMERIC(78, 0) NOT NULL, -- Position.lastAccrual
-    cooldown NUMERIC(78, 0) NOT NULL, -- Position.cooldown
+    last_accrual BIGINT NOT NULL, -- Position.lastAccrual (Unix timestamp in seconds)
+    cooldown BIGINT NOT NULL, -- Position.cooldown (Unix timestamp in seconds)
     challenged_amount NUMERIC(78, 0) NOT NULL, -- Position.challengedAmount
     available_for_minting NUMERIC(78, 0) NOT NULL, -- Position.availableForMinting
     available_for_clones NUMERIC(78, 0) NOT NULL, -- Position.availableForClones
     is_closed BOOLEAN NOT NULL, -- Position.isClosed
+    is_denied BOOLEAN NOT NULL DEFAULT FALSE, -- derived from PositionDenied events
 
     -- metadata
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
@@ -131,79 +128,77 @@ CREATE TABLE IF NOT EXISTS collateral_states (
 -- Minter States
 CREATE TABLE IF NOT EXISTS minter_states (
     -- Fixed fields
-    minter_address VARCHAR(42) PRIMARY KEY, -- DecentralizedEuro.MinterApplied.minter
-    minter_type VARCHAR(20) NOT NULL, -- MINTER (generic), BRIDGE
-    application_date TIMESTAMP WITH TIME ZONE, -- DecentralizedEuro.MinterApplied event timestamp
-    application_period NUMERIC(78, 0), -- DecentralizedEuro.MinterApplied.applicationPeriod
+    address VARCHAR(42) PRIMARY KEY, -- DecentralizedEuro.MinterApplied.minter
+    type VARCHAR(20) NOT NULL, -- MINTER, BRIDGE
+    application_timestamp BIGINT NOT NULL, -- MinterApplied event timestamp (Unix seconds)
+    application_period BIGINT, -- DecentralizedEuro.MinterApplied.applicationPeriod (seconds)
     application_fee NUMERIC(78, 0), -- DecentralizedEuro.MinterApplied.applicationFee
     message TEXT, -- DecentralizedEuro.MinterApplied.message
 
     -- Bridge-specific fixed fields (NULL for generic minters)
-    bridge_token VARCHAR(42), -- IStablecoinBridge(<minter_address>).eur
-    bridge_horizon NUMERIC(78, 0), -- IStablecoinBridge(<minter_address>).horizon
-    bridge_limit NUMERIC(78, 0), -- IStablecoinBridge(<minter_address>)."limit"
+    bridge_token VARCHAR(42), -- IStablecoinBridge(<address>).eur
+    bridge_horizon BIGINT, -- IStablecoinBridge(<address>).horizon (Unix timestamp)
+    bridge_limit NUMERIC(78, 0), -- IStablecoinBridge(<address>)."limit"
 
     -- Dynamic fields
-    status VARCHAR(20) NOT NULL, -- PENDING, APPROVED, DENIED
-    denial_date TIMESTAMP WITH TIME ZONE, -- DecentralizedEuro.MinterDenied event timestamp
-    denial_message TEXT, -- DecentralizedEuro.MinterDenied.message
+    status VARCHAR(20) NOT NULL, -- PROPOSED, DENIED, APPROVED, EXPIRED
 
     -- Bridge-specific dynamic fields
-    bridge_minted NUMERIC(78, 0), -- IStablecoinBridge(<minter_address>).minted
+    bridge_minted NUMERIC(78, 0), -- IStablecoinBridge(<address>).minted
 
     -- metadata
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_minter_states_type ON minter_states(minter_type);
+CREATE INDEX IF NOT EXISTS idx_minter_states_type ON minter_states(type);
 CREATE INDEX IF NOT EXISTS idx_minter_states_status ON minter_states(status);
-CREATE INDEX IF NOT EXISTS idx_minter_states_bridge_token ON minter_states(bridge_token_address) WHERE bridge_token_address IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_minter_states_bridge_token ON minter_states(bridge_token) WHERE bridge_token IS NOT NULL;
 
 -- System State (single row for global metrics)
-CREATE TABLE IF NOT EXISTS system_state (
-    id INTEGER PRIMARY KEY DEFAULT 1,
-    -- Token supplies
-    deuro_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.totalSupply
-    deps_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DEPSWrapper.totalSupply
+-- CREATE TABLE IF NOT EXISTS system_state (
+--     id INTEGER PRIMARY KEY DEFAULT 1,
+--     -- Token supplies
+--     deuro_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.totalSupply
+--     deps_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DEPSWrapper.totalSupply
     
-    -- Equity metrics
-    equity_shares NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: Equity.totalSupply
-    equity_price NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: Equity.price
+--     -- Equity metrics
+--     equity_shares NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: Equity.totalSupply
+--     equity_price NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: Equity.price
 
-    -- Reserve metrics
-    reserve_total NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.reserve
-    reserve_minter NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.minterReserve
-    reserve_equity NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.equity
+--     -- Reserve metrics
+--     reserve_total NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.reserve
+--     reserve_minter NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.minterReserve
+--     reserve_equity NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.equity
 
-    -- Savings metrics
-    savings_total NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.balanceOf(SavingsGateway.address)
-    savings_interest_collected NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: sum over SavingsGateway.InterestCollected events
-    savings_rate NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: SavingsGateway.currentRatePPM
+--     -- Savings metrics
+--     savings_total NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.balanceOf(SavingsGateway.address)
+--     savings_interest_collected NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: sum over SavingsGateway.InterestCollected events
+--     savings_rate NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: SavingsGateway.currentRatePPM
 
-    -- Profit/Loss tracking
-    deuro_loss NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.Loss events
-    deuro_profit NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.Profit events
-    deuro_profit_distributed NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.ProfitDistributed events
+--     -- Profit/Loss tracking
+--     deuro_loss NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.Loss events
+--     deuro_profit NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.Profit events
+--     deuro_profit_distributed NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.ProfitDistributed events
 
-    -- Frontend metrics
-    frontend_fees_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over FrontendGateway.FrontendCodeRewardsWithdrawn
-    frontends_active INTEGER DEFAULT 0 NOT NULL, -- dynamic: count over FrontendCodeRegistered events
+--     -- Frontend metrics
+--     frontend_fees_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over FrontendGateway.FrontendCodeRewardsWithdrawn
+--     frontends_active INTEGER DEFAULT 0 NOT NULL, -- dynamic: count over FrontendCodeRegistered events
 
-    -- Currency rates
-    usd_to_eur_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL, -- dynamic: getExchangeRate('USD', 'EUR')
-    usd_to_chf_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL, -- dynamic: getExchangeRate('USD', 'CHF')
+--     -- Currency rates
+--     usd_to_eur_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL, -- dynamic: getExchangeRate('USD', 'EUR')
+--     usd_to_chf_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL, -- dynamic: getExchangeRate('USD', 'CHF')
 
-    -- metadata
-    block_number BIGINT NOT NULL DEFAULT 0,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    CONSTRAINT system_single_row CHECK (id = 1)
-);
+--     -- metadata
+--     block_number BIGINT NOT NULL DEFAULT 0,
+--     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+--     CONSTRAINT system_single_row CHECK (id = 1)
+-- );
 
 -- =============================================================================
 -- INITIALIZATION
 -- =============================================================================
 
 -- Initialize system state (required for UPDATE queries to work)
-INSERT INTO system_state (id)
-VALUES (1)
-ON CONFLICT (id) DO NOTHING;
+-- INSERT INTO system_state (id)
+-- VALUES (1)
+-- ON CONFLICT (id) DO NOTHING;

@@ -7,22 +7,30 @@ import {
 	HealthResponse,
 	PositionResponse,
 	PositionStatus,
+	MinterResponse,
+	MinterStatus,
+	MinterType,
 } from '../../../shared/types';
 import type { Token, PositionState } from '@prisma/client';
+import { ADDRESS } from '@deuro/eurocoin';
+import { AppConfigService } from '../../config/config.service';
 
 const deuroDecimals = 18;
 
 @Controller()
 export class ApiController {
-	constructor(private readonly prisma: PrismaClientService) {}
+	constructor(
+		private readonly prisma: PrismaClientService,
+		private readonly config: AppConfigService
+	) {}
 
 	@Get('health')
 	async health(): Promise<HealthResponse> {
 		const lastBlock = await this.prisma.syncState.findFirst();
 		return {
 			status: 'ok',
-			lastProcessedBlock: lastBlock?.lastProcessedBlock || 0,
-			updatedAt: lastBlock?.updatedAt?.toISOString() || 'unknown',
+			lastProcessedBlock: Number(lastBlock?.lastProcessedBlock || 0),
+			updatedAt: lastBlock?.timestamp?.getTime().toString() || '0',
 		};
 	}
 
@@ -43,22 +51,21 @@ export class ApiController {
 				formattedVirtualPrice > 0 && marketPrice > 0 ? ((marketPrice / formattedVirtualPrice) * 100).toFixed(2) : '0';
 
 			const currentTime = Math.floor(Date.now() / 1000);
-			const status =
-				p.isClosed && p.collateralAmount.gte(p.minimumCollateral)
-					? PositionStatus.DENIED
-					: currentTime < Number(p.startTimestamp)
-						? PositionStatus.PROPOSED
-						: p.isClosed
-							? PositionStatus.CLOSED
-							: p.challengedAmount.toFixed(0) !== '0'
-								? PositionStatus.CHALLENGED
-								: Number(collateralizationRatio) < 100
-									? PositionStatus.UNDERCOLLATERALIZED
-									: Number(p.cooldown) > currentTime
-										? PositionStatus.COOLDOWN
-										: Number(p.expiration) <= currentTime
-											? PositionStatus.EXPIRED
-											: PositionStatus.OPEN;
+			const status = p.isDenied
+				? PositionStatus.DENIED
+				: currentTime < Number(p.startTimestamp)
+					? PositionStatus.PROPOSED
+					: p.isClosed
+						? PositionStatus.CLOSED
+						: p.challengedAmount.toFixed(0) !== '0'
+							? PositionStatus.CHALLENGED
+							: Number(collateralizationRatio) < 100
+								? PositionStatus.UNDERCOLLATERALIZED
+								: Number(p.cooldown) > currentTime
+									? PositionStatus.COOLDOWN
+									: Number(p.expiration) <= currentTime
+										? PositionStatus.EXPIRED
+										: PositionStatus.OPEN;
 
 			return {
 				address: p.address,
@@ -83,12 +90,12 @@ export class ApiController {
 				riskPremiumPpm: p.riskPremiumPpm,
 				reserveContribution: p.reserveContribution,
 				fixedAnnualRatePpm: p.fixedAnnualRatePpm,
-				start: p.startTimestamp.toFixed(0),
-				cooldown: p.cooldown.toFixed(0),
-				expiration: p.expiration.toFixed(0),
-				challengePeriod: p.challengePeriod.toFixed(0),
+				start: (Number(p.startTimestamp) * 1000).toString(),
+				cooldown: (Number(p.cooldown) * 1000).toString(),
+				expiration: (Number(p.expiration) * 1000).toString(),
+				challengePeriod: p.challengePeriod.toString(),
 				isClosed: p.isClosed,
-				created: p.created.toISOString(),
+				created: (Number(p.created) * 1000).toString(),
 				marketPrice: marketPrice.toString(),
 				collateralizationRatio: collateralizationRatio,
 			};
@@ -106,7 +113,7 @@ export class ApiController {
 
 		return challenges.map((c) => {
 			const position = positionMap.get(c.positionAddress.toLowerCase());
-			const token = tokenMap.get(position.collateral.toLowerCase());
+			const token = position ? tokenMap.get(position.collateral.toLowerCase()) : undefined;
 			const collateralDecimals = token?.decimals || 18;
 			const pricePrecision = 36 - collateralDecimals;
 
@@ -128,7 +135,7 @@ export class ApiController {
 				initialSize: (Number(c.initialSize.toFixed(0)) / Math.pow(10, collateralDecimals)).toString(),
 				size: (Number(c.size.toFixed(0)) / Math.pow(10, collateralDecimals)).toString(),
 				currentPrice: (Number(c.currentPrice.toFixed(0)) / Math.pow(10, pricePrecision)).toString(),
-				start: Number(c.startTimestamp),
+				start: (Number(c.startTimestamp) * 1000).toString(),
 				liquidationPrice: position ? (Number(position.virtualPrice.toFixed(0)) / Math.pow(10, pricePrecision)).toString() : '0',
 				collateral: position?.collateral || '0x0',
 				collateralSymbol: token?.symbol || 'UNKNOWN',
@@ -157,7 +164,7 @@ export class ApiController {
 				totalLimit: (Number(c.totalLimit.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
 				totalAvailableForMinting: (Number(c.totalAvailableForMinting.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
 				positionCount: c.positionCount,
-				timestamp: c.timestamp,
+				updatedAt: c.timestamp.getTime().toString(),
 			};
 		});
 	}
@@ -169,12 +176,25 @@ export class ApiController {
 	}
 
 	@Get('minters')
-	async getMinters() {
-		return []; // Needs minter_states table
-	}
+	async getMinters(): Promise<MinterResponse[]> {
+		const minters = await this.prisma.minterState.findMany();
+		const tokens = await this.prisma.token.findMany();
+		const tokenMap = new Map<string, Token>(tokens.map((t) => [t.address.toLowerCase(), t]));
 
-	@Get('minters/bridges')
-	async getBridges() {
-		return []; // Needs minter_states table with bridge data
+		return minters.map((m) => ({
+			address: m.address,
+			type: m.type as MinterType,
+			status: m.status as MinterStatus,
+			applicationTimestamp: (Number(m.applicationTimestamp) * 1000).toString(),
+			applicationPeriod: m.applicationPeriod.toString(),
+			applicationFee: (Number(m.applicationFee.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
+			message: m.message || '',
+
+			bridgeToken: m.bridgeToken || undefined,
+			bridgeTokenSymbol: tokenMap.get(m.bridgeToken?.toLowerCase() || '')?.symbol || undefined,
+			bridgeLimit: m.bridgeLimit ? (Number(m.bridgeLimit.toFixed(0)) / Math.pow(10, deuroDecimals)).toFixed(2) : undefined,
+			bridgeMinted: m.bridgeMinted ? (Number(m.bridgeMinted.toFixed(0)) / Math.pow(10, deuroDecimals)).toFixed(4) : undefined,
+			bridgeHorizon: m.bridgeHorizon ? (Number(m.bridgeHorizon) * 1000).toString() : undefined,
+		}));
 	}
 }

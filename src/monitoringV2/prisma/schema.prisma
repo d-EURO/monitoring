@@ -9,13 +9,13 @@ datasource db {
 
 // Raw blockchain events - all protocol events across all contracts
 model RawEvent {
-  blockNumber     Int      @map("block_number")
-  txHash          String   @map("tx_hash") @db.VarChar(66)
-  logIndex        Int      @map("log_index")
-  contractAddress String   @map("contract_address") @db.VarChar(42)
-  topic           String   @db.VarChar(100)
-  args            Json     @db.JsonB
-  timestamp       DateTime @db.Timestamptz
+  blockNumber     BigInt @map("block_number")
+  txHash          String @map("tx_hash") @db.VarChar(66)
+  logIndex        Int    @map("log_index")
+  contractAddress String @map("contract_address") @db.VarChar(42)
+  topic           String @db.VarChar(100)
+  args            Json   @db.JsonB
+  timestamp       BigInt // Unix timestamp in seconds
 
   @@id([txHash, logIndex])
   @@index([blockNumber(sort: Desc)], map: "idx_events_block")
@@ -28,23 +28,20 @@ model RawEvent {
 // Single-row table tracking blockchain sync progress
 model SyncState {
   id                 Int      @id @default(1)
-  lastProcessedBlock Int      @map("last_processed_block")
-  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  lastProcessedBlock BigInt   @map("last_processed_block")
+  timestamp          DateTime @default(now()) @map("timestamp") @db.Timestamptz
 
   @@map("sync_state")
 }
 
 // Contract registry - tracks all known protocol contracts
 model Contract {
-  address        String   @id @db.VarChar(42)
-  type           String   @db.VarChar(50)
-  createdAtBlock Int      @map("created_at_block")
-  metadata       Json?    @db.JsonB
-  isActive       Boolean  @default(true) @map("is_active")
-  addedAt        DateTime @default(now()) @map("added_at") @db.Timestamptz
+  address   String @id @db.VarChar(42)
+  type      String @db.VarChar(50)
+  metadata  Json?  @db.JsonB
+  timestamp BigInt // block timestamp as Unix timestamp in seconds when added to protocol
 
   @@index([type], map: "idx_contracts_type")
-  @@index([isActive], map: "idx_contracts_active")
   @@map("contracts")
 }
 
@@ -55,8 +52,7 @@ model Token {
   name           String?   @db.VarChar(100)
   decimals       Int?
   price          Decimal?  @db.Decimal(20, 8)
-  priceUpdatedAt DateTime? @map("price_updated_at") @db.Timestamptz
-  addedAt        DateTime  @default(now()) @map("added_at") @db.Timestamptz
+  timestamp      DateTime  @default(now()) @map("timestamp") @db.Timestamptz
 
   @@index([symbol], map: "idx_tokens_symbol")
   @@map("tokens")
@@ -65,38 +61,39 @@ model Token {
 // Position states - tracks all position contract states
 model PositionState {
   // Fixed fields
-  address               String    @id @db.VarChar(42)
-  limit                 Decimal   @map("limit") @db.Decimal(78, 0)
-  owner                 String    @db.VarChar(42)
-  original              String    @db.VarChar(42)
-  collateral            String    @db.VarChar(42)
-  minimumCollateral     Decimal   @map("minimum_collateral") @db.Decimal(78, 0)
-  riskPremiumPpm        Int       @map("risk_premium_ppm")
-  reserveContribution   Int       @map("reserve_contribution")
-  challengePeriod       Decimal   @map("challenge_period") @db.Decimal(78, 0)
-  startTimestamp        Decimal   @map("start_timestamp") @db.Decimal(78, 0)
-  expiration            Decimal   @db.Decimal(78, 0)
-  created               DateTime? @db.Timestamptz // When position was opened
+  address             String    @id @db.VarChar(42)
+  limit               Decimal   @map("limit") @db.Decimal(78, 0)
+  owner               String    @db.VarChar(42)
+  original            String    @db.VarChar(42)
+  collateral          String    @db.VarChar(42)
+  minimumCollateral   Decimal   @map("minimum_collateral") @db.Decimal(78, 0)
+  riskPremiumPpm      Int       @map("risk_premium_ppm")
+  reserveContribution Int       @map("reserve_contribution")
+  challengePeriod     BigInt    @map("challenge_period") // Seconds
+  startTimestamp      BigInt    @map("start_timestamp") // Unix timestamp in seconds
+  expiration          BigInt // Unix timestamp in seconds
+  created             BigInt // Unix timestamp when position was opened on blockchain
 
   // Dynamic fields
-  price                 Decimal   @db.Decimal(78, 0)
-  virtualPrice          Decimal   @map("virtual_price") @db.Decimal(78, 0)
-  collateralAmount      Decimal   @map("collateral_amount") @db.Decimal(78, 0)
-  expiredPurchasePrice  Decimal   @map("expired_purchase_price") @db.Decimal(78, 0)
-  collateralRequirement Decimal   @map("collateral_requirement") @db.Decimal(78, 0)
-  principal             Decimal   @db.Decimal(78, 0)
-  interest              Decimal   @db.Decimal(78, 0)
-  debt                  Decimal   @db.Decimal(78, 0)
-  fixedAnnualRatePpm    Int       @map("fixed_annual_rate_ppm")
-  lastAccrual           Decimal   @map("last_accrual") @db.Decimal(78, 0)
-  cooldown              Decimal   @db.Decimal(78, 0)
-  challengedAmount      Decimal   @map("challenged_amount") @db.Decimal(78, 0)
-  availableForMinting   Decimal   @map("available_for_minting") @db.Decimal(78, 0)
-  availableForClones    Decimal   @map("available_for_clones") @db.Decimal(78, 0)
-  isClosed              Boolean   @map("is_closed")
+  price                 Decimal @db.Decimal(78, 0)
+  virtualPrice          Decimal @map("virtual_price") @db.Decimal(78, 0)
+  collateralAmount      Decimal @map("collateral_amount") @db.Decimal(78, 0)
+  expiredPurchasePrice  Decimal @map("expired_purchase_price") @db.Decimal(78, 0)
+  collateralRequirement Decimal @map("collateral_requirement") @db.Decimal(78, 0)
+  principal             Decimal @db.Decimal(78, 0)
+  interest              Decimal @db.Decimal(78, 0)
+  debt                  Decimal @db.Decimal(78, 0)
+  fixedAnnualRatePpm    Int     @map("fixed_annual_rate_ppm")
+  lastAccrual           BigInt  @map("last_accrual") // Unix timestamp in seconds
+  cooldown              BigInt // Unix timestamp in seconds
+  challengedAmount      Decimal @map("challenged_amount") @db.Decimal(78, 0)
+  availableForMinting   Decimal @map("available_for_minting") @db.Decimal(78, 0)
+  availableForClones    Decimal @map("available_for_clones") @db.Decimal(78, 0)
+  isClosed              Boolean @map("is_closed")
+  isDenied              Boolean @default(false) @map("is_denied")
 
   // Metadata
-  timestamp             DateTime @db.Timestamptz
+  timestamp DateTime @db.Timestamptz
 
   @@index([owner], map: "idx_position_states_owner")
   @@index([original], map: "idx_position_states_original")
@@ -108,15 +105,15 @@ model PositionState {
 // Challenge states - tracks all challenge states
 model ChallengeState {
   // Fixed fields
-  challengeId       Int      @id @map("challenge_id")
-  challengerAddress String   @map("challenger_address") @db.VarChar(42)
-  positionAddress   String   @map("position_address") @db.VarChar(42)
-  startTimestamp    BigInt   @map("start_timestamp")
-  initialSize       Decimal  @map("initial_size") @db.Decimal(78, 0)
+  challengeId       Int     @id @map("challenge_id")
+  challengerAddress String  @map("challenger_address") @db.VarChar(42)
+  positionAddress   String  @map("position_address") @db.VarChar(42)
+  startTimestamp    BigInt  @map("start_timestamp")
+  initialSize       Decimal @map("initial_size") @db.Decimal(78, 0)
 
   // Dynamic fields
-  size         Decimal  @db.Decimal(78, 0)
-  currentPrice Decimal  @map("current_price") @db.Decimal(78, 0)
+  size         Decimal @db.Decimal(78, 0)
+  currentPrice Decimal @map("current_price") @db.Decimal(78, 0)
 
   // Metadata
   timestamp DateTime @db.Timestamptz
@@ -128,16 +125,43 @@ model ChallengeState {
 
 model CollateralState {
   // Fixed fields
-  tokenAddress String @id @db.VarChar(42) @map("token_address")
+  tokenAddress String @id @map("token_address") @db.VarChar(42)
 
   // Dynamic fields
-  totalCollateral Decimal @db.Decimal(78, 0) @map("total_collateral")
-  positionCount Int @map("position_count")
-  totalLimit Decimal @default(0) @db.Decimal(78, 0) @map("total_limit")
-  totalAvailableForMinting Decimal @default(0) @db.Decimal(78, 0) @map("total_available_for_minting")
+  totalCollateral          Decimal @map("total_collateral") @db.Decimal(78, 0)
+  positionCount            Int     @map("position_count")
+  totalLimit               Decimal @default(0) @map("total_limit") @db.Decimal(78, 0)
+  totalAvailableForMinting Decimal @default(0) @map("total_available_for_minting") @db.Decimal(78, 0)
 
   // Metadata
   timestamp DateTime @db.Timestamptz
 
   @@map("collateral_states")
+}
+
+model MinterState {
+  // Fixed fields
+  address              String  @id @db.VarChar(42)
+  type                 String  @db.VarChar(20)
+  applicationTimestamp BigInt  @map("application_timestamp") // Unix timestamp in seconds
+  applicationPeriod    BigInt  @map("application_period") // Seconds
+  applicationFee       Decimal @map("application_fee") @db.Decimal(78, 0)
+  message              String? @db.Text
+
+  // Bridge-specific fixed fields
+  bridgeToken   String?  @map("bridge_token") @db.VarChar(42)
+  bridgeHorizon BigInt?  @map("bridge_horizon") // Unix timestamp in seconds
+  bridgeLimit   Decimal? @map("bridge_limit") @db.Decimal(78, 0)
+
+  // Dynamic fields
+  status       String   @db.VarChar(20)
+  bridgeMinted Decimal? @map("bridge_minted") @db.Decimal(78, 0)
+
+  // Metadata
+  timestamp DateTime @db.Timestamptz
+
+  @@index([type], map: "idx_minter_states_type")
+  @@index([status], map: "idx_minter_states_status")
+  @@index([bridgeToken], map: "idx_minter_states_bridge_token")
+  @@map("minter_states")
 }

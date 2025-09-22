@@ -1,27 +1,29 @@
-import type { Bridge, Minter } from '../../../shared/types';
+import { MinterStatus, MinterType, type MinterResponse } from '../../../shared/types';
 import { Alignment, Table } from './Table';
 import type { Column, MultiLineCell } from './Table';
-import { formatNumber, bigintToNumber, formatCountdown, formatDateTime, formatPercent, getStatusColor } from '../lib/formatters';
+import { formatNumber, formatCountdown, formatDateTime, formatPercent, getStatusColor } from '../lib/formatters';
 import { AddressLink } from './AddressLink';
 import { colors } from '../lib/theme';
 import type { DataState } from '../lib/api.hook';
 
 interface MinterTableProps {
-	data?: DataState<Minter[]>;
-	bridgeData?: Bridge[];
+	data?: DataState<MinterResponse[]>;
 }
 
-export function MintersTable({ data, bridgeData }: MinterTableProps) {
+export function MintersTable({ data }: MinterTableProps) {
 	if (!data) return null;
 
-	const bridgeMap = new Map<string, Bridge>();
-	bridgeData?.forEach((b) => bridgeMap.set(b.address.toLowerCase(), b));
-
-	const columns: Column<Minter>[] = [
+	const columns: Column<MinterResponse>[] = [
 		{
 			header: { primary: 'MINTER', secondary: 'MESSAGE' },
 			format: (minter): MultiLineCell => ({
-				primary: <AddressLink address={minter.minter} className="font-mono" />,
+				primary: (
+					<AddressLink
+						address={minter.address}
+						className="font-mono"
+						bridgeTokenSymbol={minter.type === MinterType.BRIDGE ? minter.bridgeTokenSymbol : undefined}
+					/>
+				),
 				secondary: minter.status,
 				secondaryClass: getStatusColor(minter.status),
 			}),
@@ -29,10 +31,10 @@ export function MintersTable({ data, bridgeData }: MinterTableProps) {
 		{
 			header: { primary: 'START', secondary: 'MESSAGE' },
 			format: (minter): MultiLineCell => {
-				const startDate = new Date(minter.applicationDate).getTime() / 1000 + Number(minter.applicationPeriod);
-				const hasStarted = startDate <= Date.now() / 1000;
+				const startTimestamp = Number(minter.applicationTimestamp) + Number(minter.applicationPeriod) * 1000;
+				const hasStarted = startTimestamp <= Date.now();
 				return {
-					primary: hasStarted ? formatDateTime(startDate) : formatCountdown(startDate),
+					primary: hasStarted ? formatDateTime(startTimestamp) : formatCountdown(startTimestamp),
 					secondary: minter.message ? minter.message.slice(0, 40) + (minter.message.length > 40 ? '...' : '') : '-',
 					primaryClass: hasStarted ? undefined : colors.critical,
 				};
@@ -42,10 +44,10 @@ export function MintersTable({ data, bridgeData }: MinterTableProps) {
 			header: { primary: 'MINTED', secondary: 'LIMIT' },
 			align: Alignment.RIGHT,
 			format: (minter): MultiLineCell => {
-				const bridge = bridgeMap.get(minter.minter.toLowerCase());
+				const isBridge = minter.type === MinterType.BRIDGE;
 				return {
-					primary: bridge ? formatNumber(bridge.minted, 18) : '-',
-					secondary: bridge ? formatNumber(bridge.limit, 18) : '-',
+					primary: isBridge ? formatNumber(minter.bridgeMinted || 0) : '-',
+					secondary: isBridge ? formatNumber(minter.bridgeLimit || 0) : '-',
 				};
 			},
 		},
@@ -53,11 +55,11 @@ export function MintersTable({ data, bridgeData }: MinterTableProps) {
 			header: { primary: 'UTIL. %', secondary: 'AVAILABLE' },
 			align: Alignment.RIGHT,
 			format: (minter) => {
-				const bridge = bridgeMap.get(minter.minter.toLowerCase());
-				const minted = bridge && bigintToNumber(bridge?.minted, 18);
-				const limit = bridge && bigintToNumber(bridge?.limit, 18);
-				const utilization = limit && minted ? (limit > 0 ? (minted * 10000) / (limit * 100) : 0) : undefined;
-				const availableForMint = limit && minted ? formatNumber(limit - minted) : '-';
+				const isBridge = minter.type === MinterType.BRIDGE;
+				const minted = isBridge && minter.bridgeMinted ? Number(minter.bridgeMinted) : 0;
+				const limit = isBridge && minter.bridgeLimit ? Number(minter.bridgeLimit) : 0;
+				const utilization = limit > 0 ? (minted * 100) / limit : undefined;
+				const availableForMint = limit > 0 ? formatNumber(limit - minted) : '-';
 				return {
 					primary: utilization !== undefined ? formatPercent(utilization) : '-',
 					secondary: availableForMint,
@@ -69,10 +71,10 @@ export function MintersTable({ data, bridgeData }: MinterTableProps) {
 			header: { primary: 'EXPIRY', secondary: 'COUNTDOWN' },
 			align: Alignment.RIGHT,
 			format: (minter): MultiLineCell => {
-				const bridge = bridgeMap.get(minter.minter.toLowerCase());
+				const isBridge = minter.type === MinterType.BRIDGE;
 				return {
-					primary: bridge?.horizon ? formatDateTime(Number(bridge?.horizon)) : '-',
-					secondary: bridge?.horizon ? formatCountdown(bridge?.horizon) : '-',
+					primary: isBridge && minter.bridgeHorizon ? formatDateTime(Number(minter.bridgeHorizon)) : '-',
+					secondary: isBridge && minter.bridgeHorizon ? formatCountdown(minter.bridgeHorizon) : '-',
 				};
 			},
 		},
@@ -84,18 +86,11 @@ export function MintersTable({ data, bridgeData }: MinterTableProps) {
 			data={data?.data}
 			error={data?.error}
 			columns={columns}
-			getRowKey={(minter) => minter.minter}
-			hidden={(minter) => !isActive(bridgeMap.get(minter.minter.toLowerCase())?.horizon)}
+			getRowKey={(minter) => minter.address}
+			hidden={(minter) => minter.status === MinterStatus.DENIED}
 			emptyMessage="No minters found"
 		/>
 	);
-}
-
-function isActive(horizon?: string): boolean {
-	if (!horizon) return true;
-	const horizonTime = BigInt(horizon);
-	const currentTime = BigInt(Math.floor(Date.now() / 1000));
-	return horizonTime > currentTime;
 }
 
 function getUtilizationColor(utilization: number): string {

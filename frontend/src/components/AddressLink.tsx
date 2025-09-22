@@ -7,10 +7,12 @@ interface AddressLinkProps {
 	showKnownLabel?: boolean;
 	className?: string;
 	colorClass?: string;
+	bridgeTokenSymbol?: string;
 }
 
-export function AddressLink({ address, label, showKnownLabel = true, className = '', colorClass }: AddressLinkProps) {
-	const displayText = label || formatAddress(address, { showKnownLabel });
+export function AddressLink({ address, label, showKnownLabel = true, className = '', colorClass, bridgeTokenSymbol }: AddressLinkProps) {
+	const bridgeLabel = bridgeTokenSymbol ? `${bridgeTokenSymbol}-Bridge` : '';
+	const displayText = label || bridgeLabel || formatAddress(address, { showKnownLabel });
 	const url = formatEtherscanUrl(address);
 	const linkColor = colorClass || colors.text;
 

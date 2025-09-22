@@ -32,7 +32,7 @@ export function ChallengesTable({ data }: ChallengeTableProps) {
 			header: { primary: 'AUCTION START', secondary: 'COUNTDOWN' },
 			format: (challenge): MultiLineCell => {
 				return {
-					primary: formatDateTime(challenge.start),
+					primary: formatDateTime(Number(challenge.start)),
 					secondary: formatCountdown(challenge.start),
 				};
 			},

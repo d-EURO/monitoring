@@ -9,12 +9,14 @@ import { TokenRepository } from './prisma/repositories/token.repository';
 import { PositionRepository } from './prisma/repositories/position.repository';
 import { ChallengeRepository } from './prisma/repositories/challenge.repository';
 import { CollateralRepository } from './prisma/repositories/collateral.repository';
+import { MinterRepository } from './prisma/repositories/minter.repository';
 import { ContractService } from './contract.service';
 import { EventService } from './event.service';
 import { TokenService } from './token.service';
 import { PositionService } from './position.service';
 import { ChallengeService } from './challenge.service';
 import { CollateralService } from './collateral.service';
+import { MinterService } from './minter.service';
 import { MonitoringService } from './monitoring.service';
 import { SchemaInitService } from './schema-init.service';
 import { PriceService } from './price.service';
@@ -35,12 +37,14 @@ import { ApiModule } from './api/api.module';
 		PositionRepository,
 		ChallengeRepository,
 		CollateralRepository,
+		MinterRepository,
 		ContractService,
 		EventService,
 		TokenService,
 		PositionService,
 		ChallengeService,
 		CollateralService,
+		MinterService,
 		MonitoringService,
 	],
 	exports: [MonitoringService, ContractService, EventService, ApiModule],

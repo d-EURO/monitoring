@@ -7,7 +7,7 @@ import { MintersTable } from './components/MintersTable';
 import { HealthStatus } from './components/HealthStatus';
 
 function App() {
-	const { health, deuro, positions, collateral, challenges, minters, bridges } = useApi();
+	const { health, deuro, positions, collateral, challenges, minters } = useApi();
 
 	return (
 		<div className="min-h-screen bg-neutral-950 text-gray-100">
@@ -17,7 +17,7 @@ function App() {
 				<PositionsTable data={positions} />
 				<CollateralTable {...collateral} />
 				<ChallengesTable data={challenges}/>
-				<MintersTable data={minters} bridgeData={bridges?.data} />
+				<MintersTable data={minters} />
 			</div>
 		</div>
 	);

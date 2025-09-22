@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaClientService } from '../client.service';
-import { Event, PositionOpenedEvent, MinterAppliedEvent, ChallengeStartedEvent } from '../../types';
+import { Event, PositionOpenedEvent, ChallengeStartedEvent } from '../../types';
 
 @Injectable()
 export class EventsRepository {
@@ -62,6 +62,36 @@ export class EventsRepository {
 			});
 		} catch (error) {
 			this.logger.error(`Failed to get positions from PositionOpened events: ${error.message}`);
+			throw error;
+		}
+	}
+
+	async getDeniedPositions(): Promise<string[]> {
+		try {
+			const events = await this.prisma.rawEvent.findMany({
+				where: { topic: 'PositionDenied' },
+				select: { contractAddress: true },
+			});
+
+			const deniedAddresses = events.map((e) => e.contractAddress.toLowerCase());
+			return Array.from(new Set(deniedAddresses));
+		} catch (error) {
+			this.logger.error(`Failed to get denied positions from PositionDenied events: ${error.message}`);
+			throw error;
+		}
+	}
+
+	async getDeniedMinters(): Promise<string[]> {
+		try {
+			const events = await this.prisma.rawEvent.findMany({
+				where: { topic: 'MinterDenied' },
+				select: { args: true },
+			});
+
+			const deniedAddresses = events.map((e) => (e.args as any)?.minter?.toLowerCase()).filter(Boolean);
+			return Array.from(new Set(deniedAddresses));
+		} catch (error) {
+			this.logger.error(`Failed to get denied minters from MinterDenied events: ${error.message}`);
 			throw error;
 		}
 	}

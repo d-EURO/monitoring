@@ -104,12 +104,12 @@ export class EventService {
 
 			return {
 				txHash: log.transactionHash,
-				blockNumber: log.blockNumber,
+				blockNumber: BigInt(log.blockNumber),
 				logIndex: log.index,
 				contractAddress: log.address.toLowerCase(),
 				topic: parsed.name,
 				args: this.serializeEventArgs(parsed),
-				timestamp: new Date(block!.timestamp * 1000),
+				timestamp: BigInt(block!.timestamp),
 			};
 		} catch (error) {
 			this.logger.error(`Failed to parse log: ${error.message}`, { log });

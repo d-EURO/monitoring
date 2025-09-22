@@ -55,8 +55,7 @@ export class ContractRepository {
 	private mapToContract = (contract: any): Contract => ({
 		address: contract.address,
 		type: contract.type as ContractType,
-		createdAtBlock: contract.createdAtBlock,
+		timestamp: contract.timestamp,
 		metadata: (contract.metadata as Record<string, any>) || {},
-		isActive: contract.isActive,
 	});
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Bridge, ChallengeResponse, CollateralResponse, DeuroState, HealthStatus, Minter, PositionResponse } from '../../../shared/types';
+import type { ChallengeResponse, CollateralResponse, DeuroState, HealthStatus, MinterResponse, PositionResponse } from '../../../shared/types';
 
 export interface DataState<T> {
 	data?: T;
@@ -12,8 +12,7 @@ export interface UseApiResult {
 	positions?: DataState<PositionResponse[]>;
 	collateral?: DataState<CollateralResponse[]>;
 	challenges?: DataState<ChallengeResponse[]>;
-	minters?: DataState<Minter[]>;
-	bridges?: DataState<Bridge[]>;
+	minters?: DataState<MinterResponse[]>;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
@@ -25,8 +24,7 @@ export function useApi(): UseApiResult {
 	const [positions, setPositions] = useState<DataState<PositionResponse[]>>();
 	const [collateral, setCollateral] = useState<DataState<CollateralResponse[]>>();
 	const [challenges, setChallenges] = useState<DataState<ChallengeResponse[]>>();
-	const [minters, _setMinters] = useState<DataState<Minter[]>>();
-	const [bridges, _setBridges] = useState<DataState<Bridge[]>>();
+	const [minters, setMinters] = useState<DataState<MinterResponse[]>>();
 
 	useEffect(() => {
 		fetchAllData();
@@ -44,8 +42,7 @@ export function useApi(): UseApiResult {
 			fetchData('positions', setPositions),
 			fetchData('collateral', setCollateral),
 			fetchData('challenges', setChallenges),
-			// fetchData('minters', setMinters),
-			// fetchData('minters/bridges?all=true', setBridges),
+			fetchData('minters', setMinters),
 		]);
 	}
 
@@ -75,8 +72,7 @@ export function useApi(): UseApiResult {
 			collateral,
 			challenges,
 			minters,
-			bridges,
 		}),
-		[health, deuro, positions, collateral, challenges, minters, bridges]
+		[health, deuro, positions, collateral, challenges, minters]
 	);
 }

@@ -16,15 +16,21 @@ export enum ChallengeStatus {
 }
 
 export enum MinterStatus {
-	PENDING = 'PENDING',
-	APPROVED = 'APPROVED',
+	PROPOSED = 'PROPOSED',
 	DENIED = 'DENIED',
+	APPROVED = 'APPROVED',
+	EXPIRED = 'EXPIRED',
+}
+
+export enum MinterType {
+	MINTER = 'MINTER',
+	BRIDGE = 'BRIDGE',
 }
 
 export interface HealthResponse {
 	status: string;
 	lastProcessedBlock: number;
-	updatedAt: string;
+	updatedAt: string; // Unix timestamp in milliseconds as string
 }
 
 export interface PositionResponse {
@@ -50,12 +56,12 @@ export interface PositionResponse {
 	riskPremiumPpm: number;
 	reserveContribution: number;
 	fixedAnnualRatePpm: number;
-	start: string;
-	cooldown: string;
-	expiration: string;
-	challengePeriod: string;
+	start: string; // Unix timestamp in milliseconds as string
+	cooldown: string; // Unix timestamp in milliseconds as string
+	expiration: string; // Unix timestamp in milliseconds as string
+	challengePeriod: string; // Duration in seconds as string (NOT a timestamp)
 	isClosed: boolean;
-	created: string;
+	created: string; // Unix timestamp in milliseconds as string
 	marketPrice: string;
 	collateralizationRatio: string;
 }
@@ -64,7 +70,7 @@ export interface ChallengeResponse {
 	id: number;
 	challenger: string;
 	position: string;
-	start: number;
+	start: string; // Unix timestamp in milliseconds as string
 	initialSize: string;
 	size: string;
 	currentPrice: string;
@@ -73,7 +79,7 @@ export interface ChallengeResponse {
 	collateral: string;
 	collateralSymbol: string;
 	collateralBalance: string;
-	challengePeriod: string;
+	challengePeriod: string; // Duration in seconds as string (NOT a timestamp)
 }
 
 // Frontend-specific types that don't come from API
@@ -119,29 +125,23 @@ export interface CollateralResponse {
 	totalLimit: string;
 	totalAvailableForMinting: string;
 	positionCount: number;
-	timestamp: Date;
+	updatedAt: string; // Unix timestamp in milliseconds as string
 }
 
-export interface Minter {
-	minter: string;
+export interface MinterResponse {
+	address: string;
+	type: MinterType;
 	status: MinterStatus;
-	applicationDate: string;
-	applicationPeriod: string;
+	applicationTimestamp: string; // Unix timestamp in milliseconds as string
+	applicationPeriod: string; // Duration in seconds as string (NOT a timestamp)
 	applicationFee: string;
 	message: string;
-	denialDate: string | null;
-	denialMessage: string | null;
-}
 
-export interface Bridge {
-	address: string;
-	eurAddress: string;
-	eurSymbol: string;
-	eurDecimals: number;
-	dEuroAddress: string;
-	limit: string;
-	minted: string;
-	horizon: string;
+	bridgeToken?: string;
+	bridgeTokenSymbol?: string;
+	bridgeLimit?: string;
+	bridgeMinted?: string;
+	bridgeHorizon?: string; // Unix timestamp in milliseconds as string
 }
 
 // Type aliases for frontend compatibility

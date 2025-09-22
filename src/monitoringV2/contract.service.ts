@@ -38,50 +38,44 @@ export class ContractService {
 
 	private async registerCoreContracts(): Promise<void> {
 		const chainId = this.config.blockchainId;
-		const deploymentBlock = this.config.deploymentBlock;
+		const deploymentBlock = await this.providerService.getBlock(this.config.deploymentBlock);
+		const deploymentTimestamp = BigInt(deploymentBlock.timestamp);
 
 		const coreContracts: Contract[] = [
 			{
 				address: ADDRESS[chainId].decentralizedEURO,
 				type: ContractType.DEURO,
-				createdAtBlock: deploymentBlock,
-				isActive: true,
+				timestamp: deploymentTimestamp,
 			},
 			{
 				address: ADDRESS[chainId].equity,
 				type: ContractType.EQUITY,
-				createdAtBlock: deploymentBlock,
-				isActive: true,
+				timestamp: deploymentTimestamp,
 			},
 			{
 				address: ADDRESS[chainId].DEPSwrapper,
 				type: ContractType.DEPS,
-				createdAtBlock: deploymentBlock,
-				isActive: true,
+				timestamp: deploymentTimestamp,
 			},
 			{
 				address: ADDRESS[chainId].savingsGateway,
 				type: ContractType.SAVINGS,
-				createdAtBlock: deploymentBlock,
-				isActive: true,
+				timestamp: deploymentTimestamp,
 			},
 			{
 				address: ADDRESS[chainId].frontendGateway,
 				type: ContractType.FRONTEND_GATEWAY,
-				createdAtBlock: deploymentBlock,
-				isActive: true,
+				timestamp: deploymentTimestamp,
 			},
 			{
 				address: ADDRESS[chainId].mintingHubGateway,
 				type: ContractType.MINTING_HUB,
-				createdAtBlock: deploymentBlock,
-				isActive: true,
+				timestamp: deploymentTimestamp,
 			},
 			{
 				address: ADDRESS[chainId].roller,
 				type: ContractType.ROLLER,
-				createdAtBlock: deploymentBlock,
-				isActive: true,
+				timestamp: deploymentTimestamp,
 			},
 		];
 
@@ -129,10 +123,9 @@ export class ContractService {
 		return [...collateralTokens, ...bridgeTokens];
 	}
 
-	// TODO (later): onlyActive means not expired, maybe change contract table isActive to isExpired?
-	async getContracts(onlyActive = false): Promise<Contract[]> {
+	async getContracts(): Promise<Contract[]> {
 		if (this.cache.size === 0) await this.initializeCache();
-		return Array.from(this.cache.values()).filter((c) => (onlyActive ? c.isActive : true));
+		return Array.from(this.cache.values());
 	}
 
 	async getContract(address: string): Promise<Contract | null> {
@@ -162,18 +155,16 @@ export class ContractService {
 			return {
 				address: event.args.position,
 				type: ContractType.POSITION,
-				createdAtBlock: event.blockNumber,
-				isActive: true,
 				metadata: event.args,
+				timestamp: event.timestamp,
 			};
 		} else if (event.topic === 'MinterApplied') {
 			const isBridge = await this.isStablecoinBridge(event.args.minter);
 			return {
 				address: event.args.minter,
 				type: isBridge ? ContractType.BRIDGE : ContractType.MINTER,
-				createdAtBlock: event.blockNumber,
-				isActive: true,
 				metadata: event.args,
+				timestamp: event.timestamp,
 			};
 		}
 		return null;
