@@ -57,7 +57,7 @@ export function CollateralTable({ data, error }: DataState<CollateralResponse[]>
 			error={error}
 			columns={columns}
 			getRowKey={(collateral) => collateral.collateral}
-			shouldDimRow={(collateral) => collateral.totalLimit === '0'}
+			hidden={(collateral) => collateral.totalLimit === '0'}
 			emptyMessage="No collateral found"
 		/>
 	);

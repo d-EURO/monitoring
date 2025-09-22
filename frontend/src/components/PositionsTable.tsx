@@ -33,11 +33,10 @@ export function PositionsTable({ data }: PositionsTableProps) {
 			header: { primary: 'POSITION', secondary: 'OWNER' },
 			format: (position): MultiLineCell => ({
 				primary: (
-					<AddressLink
-						address={position.address}
-						className="font-mono"
-						colorClass={position.address === position.original ? colors.highlight : colors.text.primary}
-					/>
+					<span>
+						<AddressLink address={position.address} className="font-mono" />
+						{position.address === position.original ? ' (O)' : ''}
+					</span>
 				),
 				secondary: <AddressLink address={position.owner} className="font-mono" />,
 			}),
@@ -90,10 +89,11 @@ export function PositionsTable({ data }: PositionsTableProps) {
 		<Table
 			title="POSITIONS"
 			data={data?.data}
+			sort={(a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()}
 			error={data?.error}
 			columns={columns}
 			getRowKey={(position) => position.address}
-			shouldDimRow={(position) => position.isClosed}
+			hidden={(position) => position.isClosed}
 			emptyMessage="No positions found"
 		/>
 	);

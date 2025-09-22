@@ -44,10 +44,10 @@ export class ApiController {
 
 			const currentTime = Math.floor(Date.now() / 1000);
 			const status =
-				currentTime < Number(p.startTimestamp)
-					? PositionStatus.PROPOSED
-					: p.isClosed && p.collateralAmount.gt(p.minimumCollateral)
-						? PositionStatus.DENIED
+				p.isClosed && p.collateralAmount.gte(p.minimumCollateral)
+					? PositionStatus.DENIED
+					: currentTime < Number(p.startTimestamp)
+						? PositionStatus.PROPOSED
 						: p.isClosed
 							? PositionStatus.CLOSED
 							: p.challengedAmount.toFixed(0) !== '0'

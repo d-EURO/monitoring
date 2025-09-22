@@ -85,7 +85,7 @@ export function MintersTable({ data, bridgeData }: MinterTableProps) {
 			error={data?.error}
 			columns={columns}
 			getRowKey={(minter) => minter.minter}
-			shouldDimRow={(minter) => !isActive(bridgeMap.get(minter.minter.toLowerCase())?.horizon)}
+			hidden={(minter) => !isActive(bridgeMap.get(minter.minter.toLowerCase())?.horizon)}
 			emptyMessage="No minters found"
 		/>
 	);

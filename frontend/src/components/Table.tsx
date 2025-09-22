@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { colors, spacing, typography } from '../lib/theme';
 
@@ -21,32 +21,31 @@ export interface Column<T> {
 	format: (row: T) => ReactNode | MultiLineCell;
 }
 
-export function Table<T>({
-	title,
-	data,
-	error,
-	columns,
-	getRowKey,
-	shouldDimRow,
-	emptyMessage = 'No data found',
-}: {
+interface TableProps<T> {
 	title: string;
 	data?: T[];
+	sort?: (a: T, b: T) => number;
 	error?: string;
 	columns: Column<T>[];
 	getRowKey: (row: T) => string;
-	shouldDimRow?: (row: T) => boolean;
+	hidden?: (row: T) => boolean;
 	emptyMessage?: string;
-}) {
-	const [showDimmed, setShowDimmed] = useState(false);
+}
 
-	const filteredData = data && shouldDimRow ? (showDimmed ? data : data.filter((row) => !shouldDimRow(row))) : data;
-	const dimmedCount = data && shouldDimRow ? data.filter((row) => shouldDimRow(row)).length : 0;
+export function Table<T>({ title, data, sort, error, columns, getRowKey, hidden, emptyMessage = 'No data found' }: TableProps<T>) {
+	const [showHidden, setShowHidden] = useState(false);
+
+	const sortedData = useMemo(() => (data && sort ? [...data].sort(sort) : data), [data, sort]);
+	const filteredData = useMemo(
+		() => (hidden && !showHidden ? sortedData?.filter((row) => !hidden(row)) : sortedData),
+		[sortedData, hidden, showHidden]
+	);
+	const hiddenCount = useMemo(() => (hidden ? sortedData?.filter(hidden).length : 0), [sortedData, hidden]);
 
 	return error ? (
 		<EmptyTable title={title} message={`Error: ${error}`} />
-	) : !filteredData?.length && (!dimmedCount || !showDimmed) ? (
-		<EmptyTable title={title} message={emptyMessage} dimmedCount={dimmedCount} setShowDimmed={setShowDimmed} />
+	) : !filteredData?.length && (!hiddenCount || !showHidden) ? (
+		<EmptyTable title={title} message={emptyMessage} hiddenCount={hiddenCount} setShowHidden={setShowHidden} />
 	) : (
 		<div className={`${colors.background} ${colors.table.border} border rounded-xl`}>
 			{/* table top bar */}
@@ -57,11 +56,11 @@ export function Table<T>({
 					{title} ({filteredData?.length})
 				</h2>
 				<button
-					hidden={!dimmedCount}
-					onClick={() => setShowDimmed(!showDimmed)}
+					hidden={!hiddenCount}
+					onClick={() => setShowHidden((prev) => !prev)}
 					className={`text-xs ${colors.text.secondary} hover:text-gray-300 transition-colors cursor-pointer`}
 				>
-					{showDimmed ? `Hide ${dimmedCount}` : `Show ${dimmedCount} more`}
+					{showHidden ? `Hide ${hiddenCount}` : `Show ${hiddenCount} more`}
 				</button>
 			</div>
 
@@ -73,7 +72,8 @@ export function Table<T>({
 						<tr className={`${colors.table.border} border-b`}>
 							{columns.map((column, index) => {
 								const align = column.align || Alignment.LEFT;
-								const alignClass = align === Alignment.RIGHT ? 'text-right' : align === Alignment.CENTER ? 'text-center' : 'text-left';
+								const alignClass =
+									align === Alignment.RIGHT ? 'text-right' : align === Alignment.CENTER ? 'text-center' : 'text-left';
 								return (
 									<th
 										key={index}
@@ -91,13 +91,13 @@ export function Table<T>({
 					{/* rows (body) */}
 					<tbody>
 						{filteredData?.map((row) => {
-							const isDimmed = shouldDimRow?.(row) || false;
-							const rowClass = isDimmed ? colors.table.rowDim : '';
+							const isHidden = hidden?.(row) || false;
+							const rowClass = isHidden ? colors.table.rowDim : '';
 							return (
 								<tr key={getRowKey(row)} className={`${colors.table.border} border-b ${colors.table.rowHover} ${rowClass}`}>
 									{columns.map((column, index) => (
 										<td key={index} className={`${spacing.cellPadding} ${typography.value}`}>
-											<CellContent column={column} row={row} isDimmed={isDimmed} />
+											<CellContent column={column} row={row} isHidden={isHidden} />
 										</td>
 									))}
 								</tr>
@@ -110,17 +110,14 @@ export function Table<T>({
 	);
 }
 
-function EmptyTable({
-	title,
-	message,
-	dimmedCount,
-	setShowDimmed,
-}: {
+interface EmptyTableProps {
 	title: string;
 	message: string;
-	dimmedCount?: number;
-	setShowDimmed?: Dispatch<SetStateAction<boolean>>;
-}) {
+	hiddenCount?: number;
+	setShowHidden?: Dispatch<SetStateAction<boolean>>;
+}
+
+function EmptyTable({ title, message, hiddenCount, setShowHidden }: EmptyTableProps) {
 	return (
 		<div className={`${colors.background} ${colors.table.border} border rounded-xl`}>
 			<div
@@ -128,11 +125,11 @@ function EmptyTable({
 			>
 				<h2 className={`text-sm ${typography.tableHeader} ${colors.text.primary}`}>{title}</h2>
 				<button
-					hidden={!dimmedCount || !setShowDimmed}
-					onClick={() => setShowDimmed && setShowDimmed((prev) => !prev)}
+					hidden={!hiddenCount || !setShowHidden}
+					onClick={() => setShowHidden && setShowHidden((prev) => !prev)}
 					className={`text-xs ${colors.text.secondary} hover:text-gray-300 transition-colors cursor-pointer`}
 				>
-					Show {dimmedCount} more
+					Show {hiddenCount} more
 				</button>
 			</div>
 			<div className={`${spacing.cellPadding} ${colors.text.secondary}`}>{message}</div>
@@ -140,7 +137,13 @@ function EmptyTable({
 	);
 }
 
-function CellContent<T>({ column, row, isDimmed }: { column: Column<T>; row: T; isDimmed: boolean }): ReactNode {
+interface CellContentProps<T> {
+	column: Column<T>;
+	row: T;
+	isHidden: boolean;
+}
+
+function CellContent<T>({ column, row, isHidden }: CellContentProps<T>): ReactNode {
 	const content = column.format(row);
 	const align = column.align || Alignment.LEFT;
 	const alignClass = align === Alignment.RIGHT ? 'text-right' : align === Alignment.CENTER ? 'text-center' : 'text-left';
@@ -148,7 +151,7 @@ function CellContent<T>({ column, row, isDimmed }: { column: Column<T>; row: T; 
 		const cellContent = content as MultiLineCell;
 		return (
 			<div className={`${spacing.compact} ${alignClass}`}>
-				<div className={cellContent.primaryClass || (isDimmed ? colors.text.secondary : colors.text.primary)}>
+				<div className={cellContent.primaryClass || (isHidden ? colors.text.secondary : colors.text.primary)}>
 					{cellContent.primary}
 				</div>
 				{cellContent.secondary && (
@@ -158,5 +161,5 @@ function CellContent<T>({ column, row, isDimmed }: { column: Column<T>; row: T; 
 		);
 	}
 
-	return <div className={`${alignClass} ${isDimmed ? colors.text.secondary : colors.text.primary}`}>{content}</div>;
+	return <div className={`${alignClass} ${isHidden ? colors.text.secondary : colors.text.primary}`}>{content}</div>;
 }
