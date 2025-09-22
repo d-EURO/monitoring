@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Bridge, ChallengeResponse, Collateral, DeuroState, HealthStatus, Minter, PositionResponse } from '../../../shared/types';
+import type { Bridge, ChallengeResponse, CollateralResponse, DeuroState, HealthStatus, Minter, PositionResponse } from '../../../shared/types';
 
 export interface DataState<T> {
 	data?: T;
@@ -10,7 +10,7 @@ export interface UseApiResult {
 	health?: DataState<HealthStatus>;
 	deuro?: DataState<DeuroState>;
 	positions?: DataState<PositionResponse[]>;
-	collateral?: DataState<Collateral[]>;
+	collateral?: DataState<CollateralResponse[]>;
 	challenges?: DataState<ChallengeResponse[]>;
 	minters?: DataState<Minter[]>;
 	bridges?: DataState<Bridge[]>;
@@ -23,7 +23,7 @@ export function useApi(): UseApiResult {
 	const [health, setHealth] = useState<DataState<HealthStatus>>();
 	const [deuro, _setDeuro] = useState<DataState<DeuroState>>();
 	const [positions, setPositions] = useState<DataState<PositionResponse[]>>();
-	const [collateral, _setCollateral] = useState<DataState<Collateral[]>>();
+	const [collateral, setCollateral] = useState<DataState<CollateralResponse[]>>();
 	const [challenges, setChallenges] = useState<DataState<ChallengeResponse[]>>();
 	const [minters, _setMinters] = useState<DataState<Minter[]>>();
 	const [bridges, _setBridges] = useState<DataState<Bridge[]>>();
@@ -42,7 +42,7 @@ export function useApi(): UseApiResult {
 			// TODO: Uncomment when backend tables are ready
 			// fetchData('deuro', setDeuro),
 			fetchData('positions', setPositions),
-			// fetchData('collateral', setCollateral),
+			fetchData('collateral', setCollateral),
 			fetchData('challenges', setChallenges),
 			// fetchData('minters', setMinters),
 			// fetchData('minters/bridges?all=true', setBridges),

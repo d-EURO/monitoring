@@ -117,22 +117,16 @@ CREATE INDEX IF NOT EXISTS idx_challenge_states_challenger ON challenge_states(c
 CREATE TABLE IF NOT EXISTS collateral_states (
     -- Fixed fields
     token_address VARCHAR(42) PRIMARY KEY, -- MintingHub.PositionOpened.collateral
-    symbol VARCHAR(20) NOT NULL, -- ERC20(<token_address>).symbol
-    decimals INTEGER NOT NULL, -- ERC20(<token_address>).decimals
 
     -- Dynamic fields
     total_collateral NUMERIC(78, 0) NOT NULL, -- derived from position_states
     position_count INTEGER NOT NULL, -- derived from position_states
     total_limit NUMERIC(78, 0) NOT NULL DEFAULT 0, -- derived from position_states
     total_available_for_minting NUMERIC(78, 0) NOT NULL DEFAULT 0, -- derived from position_states
-    price NUMERIC(20, 8) DEFAULT 0, -- price.service.ts:getTokenPricesInEur
 
     -- metadata
-    block_number BIGINT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
-
-CREATE INDEX IF NOT EXISTS idx_collateral_states_symbol ON collateral_states(symbol);
 
 -- Minter States
 CREATE TABLE IF NOT EXISTS minter_states (

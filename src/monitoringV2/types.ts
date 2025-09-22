@@ -119,3 +119,17 @@ export interface ChallengeState {
 	// Metadata
 	timestamp: Date;
 }
+
+export interface CollateralState {
+	// Fixed fields
+	collateral: string;
+
+	// Dynamic fields
+	totalCollateral: bigint;
+	positionCount: number;
+	totalLimit: bigint;
+	totalAvailableForMinting: bigint;
+
+	// Metadata
+	timestamp: Date;
+}

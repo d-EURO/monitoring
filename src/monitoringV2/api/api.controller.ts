@@ -1,7 +1,16 @@
 import { Controller, Get } from '@nestjs/common';
 import { PrismaClientService } from '../prisma/client.service';
-import { ChallengeResponse, ChallengeStatus, HealthResponse, PositionResponse, PositionStatus } from '../../../shared/types';
+import {
+	ChallengeResponse,
+	ChallengeStatus,
+	CollateralResponse,
+	HealthResponse,
+	PositionResponse,
+	PositionStatus,
+} from '../../../shared/types';
 import type { Token, PositionState } from '@prisma/client';
+
+const deuroDecimals = 18;
 
 @Controller()
 export class ApiController {
@@ -27,7 +36,6 @@ export class ApiController {
 			const token = tokenMap.get(p.collateral.toLowerCase());
 			const collateralDecimals = token?.decimals || 18;
 			const pricePrecision = 36 - collateralDecimals;
-			const deuroDecimals = 18;
 
 			const marketPrice = token?.price ? Number(token.price.toString()) : 0;
 			const formattedVirtualPrice = Number(p.virtualPrice.toFixed(0)) / Math.pow(10, pricePrecision);
@@ -132,15 +140,32 @@ export class ApiController {
 		});
 	}
 
+	@Get('collateral')
+	async getCollateral(): Promise<CollateralResponse[]> {
+		const tokens = await this.prisma.token.findMany();
+		const collaterals = await this.prisma.collateralState.findMany();
+		const tokenMap = new Map<string, Token>(tokens.map((t) => [t.address.toLowerCase(), t]));
+
+		return collaterals.map((c) => {
+			const token = tokenMap.get(c.tokenAddress.toLowerCase());
+			const tokenMarketPrice = token?.price ? Number(token.price.toString()) : 0;
+			return {
+				collateral: c.tokenAddress,
+				symbol: token?.symbol || 'UNKNOWN',
+				price: tokenMarketPrice.toString(),
+				totalCollateral: (Number(c.totalCollateral.toFixed(0)) / Math.pow(10, token?.decimals || 18)).toString(),
+				totalLimit: (Number(c.totalLimit.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
+				totalAvailableForMinting: (Number(c.totalAvailableForMinting.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
+				positionCount: c.positionCount,
+				timestamp: c.timestamp,
+			};
+		});
+	}
+
 	// TODO: Implement these endpoints when we have the necessary tables
 	@Get('deuro')
 	async getDeuroState() {
 		return null; // Needs system_state table
-	}
-
-	@Get('collateral')
-	async getCollateral() {
-		return []; // Needs aggregation or separate table
 	}
 
 	@Get('minters')

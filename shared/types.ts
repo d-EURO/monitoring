@@ -111,15 +111,15 @@ export interface DeuroState {
 	usdToChfRate?: number;
 }
 
-export interface Collateral {
-	tokenAddress: string;
+export interface CollateralResponse {
+	collateral: string;
 	symbol: string;
-	decimals: number;
+	price: string;
 	totalCollateral: string;
-	positionCount: number;
 	totalLimit: string;
 	totalAvailableForMinting: string;
-	price: string;
+	positionCount: number;
+	timestamp: Date;
 }
 
 export interface Minter {

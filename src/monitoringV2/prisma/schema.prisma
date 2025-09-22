@@ -125,3 +125,19 @@ model ChallengeState {
   @@index([challengerAddress], map: "idx_challenge_states_challenger")
   @@map("challenge_states")
 }
+
+model CollateralState {
+  // Fixed fields
+  tokenAddress String @id @db.VarChar(42) @map("token_address")
+
+  // Dynamic fields
+  totalCollateral Decimal @db.Decimal(78, 0) @map("total_collateral")
+  positionCount Int @map("position_count")
+  totalLimit Decimal @default(0) @db.Decimal(78, 0) @map("total_limit")
+  totalAvailableForMinting Decimal @default(0) @db.Decimal(78, 0) @map("total_available_for_minting")
+
+  // Metadata
+  timestamp DateTime @db.Timestamptz
+
+  @@map("collateral_states")
+}

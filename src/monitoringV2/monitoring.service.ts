@@ -8,6 +8,7 @@ import { EventService } from './event.service';
 import { TokenService } from './token.service';
 import { PositionService } from './position.service';
 import { ChallengeService } from './challenge.service';
+import { CollateralService } from './collateral.service';
 
 @Injectable()
 export class MonitoringService implements OnModuleInit {
@@ -23,7 +24,8 @@ export class MonitoringService implements OnModuleInit {
 		private readonly eventCollector: EventService,
 		private readonly tokenService: TokenService,
 		private readonly positionService: PositionService,
-		private readonly challengeService: ChallengeService
+		private readonly challengeService: ChallengeService,
+		private readonly collateralService: CollateralService
 	) {}
 
 	async onModuleInit() {
@@ -75,6 +77,7 @@ export class MonitoringService implements OnModuleInit {
 		await this.tokenService.updatePrices(); // update token prices
 		await this.positionService.syncPositions(); // sync position states
 		await this.challengeService.syncChallenges(); // sync challenge states
+		await this.collateralService.syncCollaterals(); // sync collateral states
 	}
 
 	private async getBlockRangeToProcess(): Promise<{ fromBlock: number; currentBlock: number }> {
