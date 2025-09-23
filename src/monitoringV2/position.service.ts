@@ -49,7 +49,7 @@ export class PositionService {
 
 		const deniedPositions = await this.eventsRepo.getDeniedPositions();
 
-		const calls: Promise<any>[] = [];
+		const calls: Array<() => Promise<any>> = [];
 		for (const event of positionOpenedArgs) {
 			const address = event.address.toLowerCase();
 			const isNew = !this.existingPositions.has(address);
@@ -58,38 +58,37 @@ export class PositionService {
 
 			// Fixed fields
 			if (isNew) {
-				calls.push(position.limit().catch(() => 0n));
-				calls.push(position.owner().catch(() => ethers.ZeroAddress));
-				calls.push(position.original().catch(() => ethers.ZeroAddress));
-				calls.push(position.collateral().catch(() => ethers.ZeroAddress));
-				calls.push(position.minimumCollateral().catch(() => 0n));
-				calls.push(position.riskPremiumPPM().catch(() => 0));
-				calls.push(position.reserveContribution().catch(() => 0));
-				calls.push(position.challengePeriod().catch(() => 0n));
-				calls.push(position.start().catch(() => 0n));
-				calls.push(position.expiration().catch(() => 0n));
+				calls.push(() => position.limit());
+				calls.push(() => position.owner());
+				calls.push(() => position.original());
+				calls.push(() => position.collateral());
+				calls.push(() => position.minimumCollateral());
+				calls.push(() => position.riskPremiumPPM());
+				calls.push(() => position.reserveContribution());
+				calls.push(() => position.challengePeriod());
+				calls.push(() => position.start());
+				calls.push(() => position.expiration());
 			}
 
 			// Dynamic fields
-			calls.push(position.price().catch(() => 0n));
-			calls.push(position.virtualPrice().catch(() => 0n));
-			calls.push(position.getCollateralRequirement().catch(() => 0n));
-			calls.push(position.principal().catch(() => 0n));
-			calls.push(position.interest().catch(() => 0n));
-			calls.push(position.getDebt().catch(() => 0n));
-			calls.push(position.fixedAnnualRatePPM().catch(() => 0));
-			calls.push(position.lastAccrual().catch(() => 0n));
-			calls.push(position.cooldown().catch(() => 0n));
-			calls.push(position.challengedAmount().catch(() => 0n));
-			calls.push(position.availableForMinting().catch(() => 0n));
-			calls.push(position.availableForClones().catch(() => 0n));
-			calls.push(position.isClosed().catch(() => false));
-			calls.push(mintingHub.expiredPurchasePrice(address).catch(() => 0n));
-			calls.push(collateralToken.balanceOf(address).catch(() => 0n));
+			calls.push(() => position.price());
+			calls.push(() => position.virtualPrice());
+			calls.push(() => position.getCollateralRequirement());
+			calls.push(() => position.principal());
+			calls.push(() => position.interest());
+			calls.push(() => position.getDebt());
+			calls.push(() => position.fixedAnnualRatePPM());
+			calls.push(() => position.lastAccrual());
+			calls.push(() => position.cooldown());
+			calls.push(() => position.challengedAmount());
+			calls.push(() => position.availableForMinting());
+			calls.push(() => position.availableForClones());
+			calls.push(() => position.isClosed());
+			calls.push(() => mintingHub.expiredPurchasePrice(address));
+			calls.push(() => collateralToken.balanceOf(address));
 		}
 
-		// Execute all calls in a single multicall
-		const responses = await Promise.all(calls);
+		const responses = await this.providerService.callBatch(calls, 3);
 
 		let idx = 0;
 		const results: Partial<PositionState>[] = [];

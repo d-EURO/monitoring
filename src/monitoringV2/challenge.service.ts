@@ -49,24 +49,24 @@ export class ChallengeService {
 		const timestamp = new Date();
 
 		// Fetch on-chain data
-		const calls: Promise<any>[] = [];
+		const calls: Array<() => Promise<any>> = [];
 		for (const event of challengeStartedEvents) {
-			calls.push(mintingHub.challenges(event.challengeId).catch(() => ({ size: 0n })));
-			calls.push(mintingHub.price(event.challengeId).catch(() => 0n));
+			calls.push(() => mintingHub.challenges(event.challengeId));
+			calls.push(() => mintingHub.price(event.challengeId));
 		}
 
 		// Execute multicall
-		const responses = await Promise.all(calls);
+		const responses = await this.providerService.callBatch(calls);
 
 		let responseIndex = 0;
 		const challenges: Partial<ChallengeState>[] = [];
 		for (const event of challengeStartedEvents) {
 			const isNew = !this.existingChallenges.has(event.challengeId);
 			const challengeData = responses[responseIndex++];
-			const currentPrice = responses[responseIndex++];
+			const currentPrice = BigInt(responses[responseIndex++]);
 			const state: Partial<ChallengeState> = {
 				challengeId: event.challengeId,
-				size: challengeData.size || 0n,
+				size: BigInt(challengeData.size),
 				currentPrice,
 				timestamp,
 			};
