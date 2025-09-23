@@ -1,29 +1,25 @@
-import type { Position, Collateral } from '../types/index';
+import { PositionStatus, type PositionResponse } from '../../../shared/types';
 import { Alignment, Table } from './Table';
 import type { Column, MultiLineCell } from './Table';
 import { colors } from '../lib/theme';
-import { formatNumber, formatPercent, formatDateTime, bigintToNumber, formatCountdown, getStatusColor } from '../lib/formatters';
+import { formatNumber, formatPercent, formatDateTime, formatCountdown, getStatusColor } from '../lib/formatters';
 import { AddressLink } from './AddressLink';
 import type { DataState } from '../lib/api.hook';
 
 interface PositionsTableProps {
-	data?: DataState<Position[]>;
-	collateralData?: Collateral[];
+	data?: DataState<PositionResponse[]>;
 }
 
-export function PositionsTable({ data, collateralData }: PositionsTableProps) {
-	const collateralMap = new Map<string, Collateral>();
-	collateralData?.forEach((c) => collateralMap.set(c.tokenAddress.toLowerCase(), c));
-
-	const columns: Column<Position>[] = [
+export function PositionsTable({ data }: PositionsTableProps) {
+	const columns: Column<PositionResponse>[] = [
 		{
 			header: { primary: 'CREATED', secondary: 'STATUS' },
 			format: (position): MultiLineCell => {
-				const inCooldown = position.status === 'COOLDOWN';
+				const inCooldown = position.status === PositionStatus.COOLDOWN;
 				const primaryContent = inCooldown
 					? formatCountdown(position.cooldown)
 					: position.created
-						? formatDateTime(position.created)
+						? formatDateTime(Number(position.created))
 						: '-';
 				return {
 					primary: primaryContent,
@@ -37,11 +33,10 @@ export function PositionsTable({ data, collateralData }: PositionsTableProps) {
 			header: { primary: 'POSITION', secondary: 'OWNER' },
 			format: (position): MultiLineCell => ({
 				primary: (
-					<AddressLink
-						address={position.address}
-						className="font-mono"
-						colorClass={position.address === position.original ? colors.highlight : colors.text.primary}
-					/>
+					<span>
+						<AddressLink address={position.address} className="font-mono" />
+						{position.address === position.original ? ' (O)' : ''}
+					</span>
 				),
 				secondary: <AddressLink address={position.owner} className="font-mono" />,
 			}),
@@ -50,10 +45,9 @@ export function PositionsTable({ data, collateralData }: PositionsTableProps) {
 			header: { primary: 'COLLATERAL', secondary: 'BALANCE' },
 			align: Alignment.RIGHT,
 			format: (position): MultiLineCell => {
-				const collateral = collateralMap.get(position.collateralAddress.toLowerCase());
 				return {
-					primary: <AddressLink address={position.collateralAddress} label={collateral?.symbol} />,
-					secondary: formatNumber(position.collateralBalance, collateral?.decimals || 18),
+					primary: <AddressLink address={position.collateral} label={position.collateralSymbol} />,
+					secondary: formatNumber(Number(position.collateralBalance)),
 				};
 			},
 		},
@@ -61,11 +55,9 @@ export function PositionsTable({ data, collateralData }: PositionsTableProps) {
 			header: { primary: 'LIQ. PRICE', secondary: 'MARKET PRICE' },
 			align: Alignment.RIGHT,
 			format: (position): MultiLineCell => {
-				const collateral = collateralMap.get(position.collateralAddress.toLowerCase());
-				const virtualPrice = bigintToNumber(position.virtualPrice, 36 - (collateral?.decimals ?? 18));
 				return {
-					primary: formatNumber(virtualPrice),
-					secondary: collateral?.price ? formatNumber(collateral?.price) : '-',
+					primary: formatNumber(Number(position.virtualPrice)),
+					secondary: position.marketPrice ? formatNumber(Number(position.marketPrice)) : '-',
 				};
 			},
 		},
@@ -73,11 +65,9 @@ export function PositionsTable({ data, collateralData }: PositionsTableProps) {
 			header: { primary: 'DEBT', secondary: 'COL. %' },
 			align: Alignment.RIGHT,
 			format: (position): MultiLineCell => {
-				const collateral = collateralMap.get(position.collateralAddress.toLowerCase());
-				const virtualPrice = bigintToNumber(position.virtualPrice, 36 - (collateral?.decimals ?? 18));
-				const ratio = calculateCollateralizationRatio(collateral?.price, virtualPrice);
+				const ratio = Number(position.collateralizationRatio || '0');
 				return {
-					primary: formatNumber(position.debt, 18, 2),
+					primary: formatNumber(Number(position.debt)),
 					secondary: formatPercent(ratio),
 					secondaryClass: !position.isClosed ? getCollateralizationColor(ratio) : undefined,
 				};
@@ -99,10 +89,11 @@ export function PositionsTable({ data, collateralData }: PositionsTableProps) {
 		<Table
 			title="POSITIONS"
 			data={data?.data}
+			sort={(a, b) => Number(b.created) - Number(a.created)}
 			error={data?.error}
 			columns={columns}
 			getRowKey={(position) => position.address}
-			shouldDimRow={(position) => position.isClosed}
+			hidden={(position) => position.isClosed}
 			emptyMessage="No positions found"
 		/>
 	);
@@ -113,12 +104,4 @@ export function getCollateralizationColor(ratio: number | null): string {
 	if (ratio >= 120) return colors.success;
 	if (ratio >= 105) return colors.highlight;
 	return colors.critical;
-}
-
-function calculateCollateralizationRatio(marketPrice: string | undefined, virtualPrice: string | number): number | null {
-	if (!marketPrice || marketPrice === '0' || virtualPrice === '0') {
-		return null;
-	}
-
-	return (Number(marketPrice) / Number(virtualPrice)) * 100;
 }

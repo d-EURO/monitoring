@@ -16,7 +16,6 @@ export class MonitoringConfig {
 	@Min(1)
 	deploymentBlock: number;
 
-
 	@IsString()
 	databaseUrl: string;
 
@@ -25,7 +24,7 @@ export class MonitoringConfig {
 	@IsNumber()
 	@Min(1)
 	@Max(100)
-	pgMaxClients?: number = 10;
+	pgMaxClients?: number;
 
 	@IsOptional()
 	@IsString()
@@ -34,51 +33,33 @@ export class MonitoringConfig {
 	@Transform(({ value }) => parseInt(value))
 	@IsOptional()
 	@IsNumber()
-	@Min(60000) // Minimum 1 minute
-	@Max(3600000) // Maximum 1 hour
-	priceCacheTtlMs?: number = 120000; // Default 2 minutes
+	@Min(60000)
+	@Max(3600000)
+	priceCacheTtlMs?: number;
+
+	@Transform(({ value }) => parseInt(value))
+	@IsOptional()
+	@IsNumber()
+	@Min(1)
+	blockPerBatch?: number;
 }
 
 export default registerAs('monitoring', () => {
-	validateRequiredEnvironmentVariables();
-
 	const config = new MonitoringConfig();
+
+	config.allowedOrigins = process.env.ALLOWED_ORIGINS || 'http://localhost:3000';
 
 	config.rpcUrl = process.env.RPC_URL;
 	config.blockchainId = parseInt(process.env.BLOCKCHAIN_ID || '1');
-	config.deploymentBlock = parseInt(process.env.DEPLOYMENT_BLOCK);
+	config.deploymentBlock = parseInt(process.env.DEPLOYMENT_BLOCK || '22088283');
 
 	config.databaseUrl = process.env.DATABASE_URL;
-	config.pgMaxClients = process.env.PG_MAX_CLIENTS ? parseInt(process.env.PG_MAX_CLIENTS) : 10;
-	config.allowedOrigins = process.env.ALLOWED_ORIGINS;
-	config.priceCacheTtlMs = process.env.PRICE_CACHE_TTL_MS ? parseInt(process.env.PRICE_CACHE_TTL_MS) : 120000;
+	config.pgMaxClients = parseInt(process.env.PG_MAX_CLIENTS || '10');
+	config.priceCacheTtlMs = parseInt(process.env.PRICE_CACHE_TTL_MS || '120000');
+	config.blockPerBatch = parseInt(process.env.MAX_BLOCKS_PER_BATCH || '500');
 
-	validateConfiguration(config);
+	const errors = validateSync(plainToClass(MonitoringConfig, config));
+	if (errors.length > 0) throw new Error(`Config validation failed: ${errors}`);
 
 	return config;
 });
-
-function validateRequiredEnvironmentVariables(): void {
-	const required = ['RPC_URL', 'DEPLOYMENT_BLOCK', 'DATABASE_URL'];
-	const missing = required.filter((key) => !process.env[key]);
-
-	if (missing.length > 0) {
-		throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-	}
-}
-
-function validateConfiguration(config: MonitoringConfig): void {
-	const validatedConfig = plainToClass(MonitoringConfig, config);
-	const errors = validateSync(validatedConfig, { skipMissingProperties: false });
-
-	if (errors.length > 0) {
-		const errorMessages = errors
-			.map((error) => {
-				const constraints = Object.values(error.constraints || {});
-				return `${error.property}: ${constraints.join(', ')}`;
-			})
-			.join('\n');
-
-		throw new Error(`Configuration validation failed:\n${errorMessages}`);
-	}
-}

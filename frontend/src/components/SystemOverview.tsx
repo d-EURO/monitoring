@@ -1,4 +1,4 @@
-import type { DeuroState } from '../types/index';
+import type { DeuroState } from '../../../shared/types';
 import { colors, spacing } from '../lib/theme';
 import { formatNumber, formatPercent } from '../lib/formatters';
 import type { DataState } from '../lib/api.hook';

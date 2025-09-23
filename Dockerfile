@@ -10,6 +10,7 @@ RUN npm install --frozen-lockfile
 
 # Copy source code and build
 COPY --chown=node . .
+RUN npm run prisma:generate
 RUN npm run build
 
 # Expose port

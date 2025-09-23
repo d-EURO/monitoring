@@ -1,3 +1,4 @@
+import { ChallengeStatus, MinterStatus, PositionStatus } from '../../../shared/types';
 import { colors } from './theme';
 
 const KNOWN_ADDRESSES: Record<string, string> = {
@@ -71,7 +72,7 @@ export function formatPercent(value: number | null, precision: number = 2): stri
 }
 
 export function formatDateTime(timestamp: number | Date): string {
-	const date = timestamp instanceof Date ? timestamp : new Date(timestamp * 1000);
+	const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
 	const day = date.getDate().toString().padStart(2, '0');
 	const month = (date.getMonth() + 1).toString().padStart(2, '0');
 	const year = date.getFullYear();
@@ -87,7 +88,7 @@ export function formatDateTime(timestamp: number | Date): string {
  */
 export function formatCountdown(value: number | string, isSeconds: boolean = false): string {
 	const numValue = typeof value === 'string' ? Number(value) : value;
-	const seconds = isSeconds ? numValue : numValue - Math.floor(Date.now() / 1000);
+	const seconds = isSeconds ? numValue : Math.floor((numValue - Date.now()) / 1000);
 
 	if (seconds <= 0) return '-';
 
@@ -100,24 +101,25 @@ export function formatCountdown(value: number | string, isSeconds: boolean = fal
 	return `${minutes}m`;
 }
 
-export function getStatusColor(status: string): string {
-	const statusUpper = status.toUpperCase();
-	switch (statusUpper) {
-		case 'ACTIVE':
-		case 'APPROVED':
-		case 'OPEN':
+export function getStatusColor(status: PositionStatus | MinterStatus | ChallengeStatus): string {
+	switch (status) {
+		case PositionStatus.OPEN:
+		case MinterStatus.APPROVED:
 			return colors.success;
-		case 'CHALLENGED':
-		case 'UNDERCOLLATERALIZED':
-		case 'CRITICAL':
-		case 'DENIED':
-		case 'PENDING':
-		case 'COOLDOWN':
+		case PositionStatus.CHALLENGED:
+		case PositionStatus.UNDERCOLLATERALIZED:
+		case PositionStatus.PROPOSED:
+		case PositionStatus.COOLDOWN:
+		case MinterStatus.PROPOSED:
+		case ChallengeStatus.AUCTION:
 			return colors.critical;
-		case 'WARNING':
+		case PositionStatus.EXPIRED:
+		case PositionStatus.DENIED:
+		case ChallengeStatus.AVERTING:
 			return colors.highlight;
-		case 'CLOSED':
-		case 'INACTIVE':
+		case PositionStatus.CLOSED:
+		case MinterStatus.DENIED:
+		case ChallengeStatus.ENDED:
 			return colors.text.secondary;
 		default:
 			return colors.text.secondary;

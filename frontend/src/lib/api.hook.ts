@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { HealthStatus, DeuroState, Position, Collateral, Challenge, Minter, Bridge } from '../types';
+import type { ChallengeResponse, CollateralResponse, DeuroState, HealthStatus, MinterResponse, PositionResponse } from '../../../shared/types';
 
 export interface DataState<T> {
 	data?: T;
@@ -9,11 +9,10 @@ export interface DataState<T> {
 export interface UseApiResult {
 	health?: DataState<HealthStatus>;
 	deuro?: DataState<DeuroState>;
-	positions?: DataState<Position[]>;
-	collateral?: DataState<Collateral[]>;
-	challenges?: DataState<Challenge[]>;
-	minters?: DataState<Minter[]>;
-	bridges?: DataState<Bridge[]>;
+	positions?: DataState<PositionResponse[]>;
+	collateral?: DataState<CollateralResponse[]>;
+	challenges?: DataState<ChallengeResponse[]>;
+	minters?: DataState<MinterResponse[]>;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
@@ -21,12 +20,11 @@ const REFRESH_INTERVAL = 60000; // 1 minute
 
 export function useApi(): UseApiResult {
 	const [health, setHealth] = useState<DataState<HealthStatus>>();
-	const [deuro, setDeuro] = useState<DataState<DeuroState>>();
-	const [positions, setPositions] = useState<DataState<Position[]>>();
-	const [collateral, setCollateral] = useState<DataState<Collateral[]>>();
-	const [challenges, setChallenges] = useState<DataState<Challenge[]>>();
-	const [minters, setMinters] = useState<DataState<Minter[]>>();
-	const [bridges, setBridges] = useState<DataState<Bridge[]>>();
+	const [deuro, _setDeuro] = useState<DataState<DeuroState>>();
+	const [positions, setPositions] = useState<DataState<PositionResponse[]>>();
+	const [collateral, setCollateral] = useState<DataState<CollateralResponse[]>>();
+	const [challenges, setChallenges] = useState<DataState<ChallengeResponse[]>>();
+	const [minters, setMinters] = useState<DataState<MinterResponse[]>>();
 
 	useEffect(() => {
 		fetchAllData();
@@ -39,12 +37,12 @@ export function useApi(): UseApiResult {
 		if (!healthResult) return;
 
 		await Promise.all([
-			fetchData('deuro', setDeuro),
+			// TODO: Uncomment when backend tables are ready
+			// fetchData('deuro', setDeuro),
 			fetchData('positions', setPositions),
 			fetchData('collateral', setCollateral),
 			fetchData('challenges', setChallenges),
 			fetchData('minters', setMinters),
-			fetchData('minters/bridges?all=true', setBridges),
 		]);
 	}
 
@@ -74,8 +72,7 @@ export function useApi(): UseApiResult {
 			collateral,
 			challenges,
 			minters,
-			bridges,
 		}),
-		[health, deuro, positions, collateral, challenges, minters, bridges]
+		[health, deuro, positions, collateral, challenges, minters]
 	);
 }

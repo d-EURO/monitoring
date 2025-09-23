@@ -7,17 +7,17 @@ import { MintersTable } from './components/MintersTable';
 import { HealthStatus } from './components/HealthStatus';
 
 function App() {
-	const { health, deuro, positions, collateral, challenges, minters, bridges } = useApi();
+	const { health, deuro, positions, collateral, challenges, minters } = useApi();
 
 	return (
 		<div className="min-h-screen bg-neutral-950 text-gray-100">
 			<div className="max-w-7xl mx-auto p-4 space-y-6 text-sm mb-8">
 				<HealthStatus {...health} />
 				<SystemOverview {...deuro} />
-				<PositionsTable data={positions} collateralData={collateral?.data} />
+				<PositionsTable data={positions} />
 				<CollateralTable {...collateral} />
-				<ChallengesTable data={challenges} positionData={positions?.data} collateralData={collateral?.data} />
-				<MintersTable data={minters} bridgeData={bridges?.data} />
+				<ChallengesTable data={challenges}/>
+				<MintersTable data={minters} />
 			</div>
 		</div>
 	);

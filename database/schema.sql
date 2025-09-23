@@ -1,510 +1,204 @@
--- =============================================================================
--- DEURO MONITORING DATABASE SCHEMA
--- =============================================================================
-
--- =============================================================================
--- MONITORING INFRASTRUCTURE TABLES
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS monitoring_metadata (
-    cycle_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    last_processed_block BIGINT NOT NULL,
-    events_processed INTEGER DEFAULT 0,
-    processing_duration_ms INTEGER DEFAULT 0,
-    PRIMARY KEY (cycle_timestamp)
-);
-
-CREATE INDEX IF NOT EXISTS idx_monitoring_metadata_cycle_timestamp ON monitoring_metadata (cycle_timestamp DESC);
-
--- =============================================================================
--- EVENT TABLES
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS deuro_transfer_events (
+-- All events (raw)
+CREATE TABLE IF NOT EXISTS raw_events (
     tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     log_index INTEGER NOT NULL,
-    from_address VARCHAR(42) NOT NULL,
-    to_address VARCHAR(42) NOT NULL,
-    value NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS deps_transfer_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    from_address VARCHAR(42) NOT NULL,
-    to_address VARCHAR(42) NOT NULL,
-    value NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS deuro_minter_applied_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    minter VARCHAR(42) NOT NULL,
-    application_period NUMERIC(78, 0) NOT NULL,
-    application_fee NUMERIC(78, 0) NOT NULL,
-    message TEXT,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS deuro_minter_denied_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    minter VARCHAR(42) NOT NULL,
-    message TEXT,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS deuro_loss_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    reporting_minter VARCHAR(42) NOT NULL,
-    amount NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS deuro_profit_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    reporting_minter VARCHAR(42) NOT NULL,
-    amount NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS deuro_profit_distributed_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    recipient VARCHAR(42) NOT NULL,
-    amount NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS equity_trade_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    who VARCHAR(42) NOT NULL,
-    amount NUMERIC(78, 0) NOT NULL,
-    tot_price NUMERIC(78, 0) NOT NULL,
-    new_price NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS equity_delegation_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    from_address VARCHAR(42) NOT NULL,
-    to_address VARCHAR(42) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS savings_saved_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    account VARCHAR(42) NOT NULL,
-    amount NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS savings_interest_collected_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    account VARCHAR(42) NOT NULL,
-    interest NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS savings_withdrawn_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    account VARCHAR(42) NOT NULL,
-    amount NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS savings_rate_proposed_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    who VARCHAR(42) NOT NULL,
-    next_rate NUMERIC(78, 0) NOT NULL,
-    next_change NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS savings_rate_changed_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    new_rate NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS mintinghub_position_opened_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    owner VARCHAR(42) NOT NULL,
-    position VARCHAR(42) NOT NULL,
-    original VARCHAR(42) NOT NULL,
-    collateral VARCHAR(42) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS mintinghub_challenge_started_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    challenger VARCHAR(42) NOT NULL,
-    position VARCHAR(42) NOT NULL,
-    size NUMERIC(78, 0) NOT NULL,
-    number NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS mintinghub_challenge_averted_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    position VARCHAR(42) NOT NULL,
-    number NUMERIC(78, 0) NOT NULL,
-    size NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS mintinghub_challenge_succeeded_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    position VARCHAR(42) NOT NULL,
-    number NUMERIC(78, 0) NOT NULL,
-    bid NUMERIC(78, 0) NOT NULL,
-    acquired_collateral NUMERIC(78, 0) NOT NULL,
-    challenge_size NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS mintinghub_postponed_return_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    collateral VARCHAR(42) NOT NULL,
-    beneficiary VARCHAR(42) NOT NULL,
-    amount NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS mintinghub_forced_sale_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    pos VARCHAR(42) NOT NULL,
-    amount NUMERIC(78, 0) NOT NULL,
-    price_e36_minus_decimals NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS roller_roll_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    source VARCHAR(42) NOT NULL,
-    coll_withdraw NUMERIC(78, 0) NOT NULL,
-    repay NUMERIC(78, 0) NOT NULL,
-    target VARCHAR(42) NOT NULL,
-    coll_deposit NUMERIC(78, 0) NOT NULL,
-    mint NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS position_denied_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    position VARCHAR(42) NOT NULL,
-    sender VARCHAR(42) NOT NULL,
-    message TEXT,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE IF NOT EXISTS position_minting_update_events (
-    tx_hash VARCHAR(66) NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    log_index INTEGER NOT NULL,
-    position VARCHAR(42) NOT NULL,
-    collateral NUMERIC(78, 0) NOT NULL,
-    price NUMERIC(78, 0) NOT NULL,
-    principal NUMERIC(78, 0) NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-
--- =============================================================================
--- STATE TABLES
--- =============================================================================
-
--- Single row for deuro state
-CREATE TABLE IF NOT EXISTS deuro_state (
-    id INTEGER DEFAULT 1,
-    deuro_total_supply NUMERIC(78, 0) NOT NULL,
-    deps_total_supply NUMERIC(78, 0) NOT NULL,
-    equity_shares NUMERIC(78, 0) NOT NULL,
-    equity_price NUMERIC(78, 0) NOT NULL,
-    reserve_total NUMERIC(78, 0) NOT NULL,
-    reserve_minter NUMERIC(78, 0) NOT NULL,
-    reserve_equity NUMERIC(78, 0) NOT NULL,
-
-    -- daily metrics
-    deuro_volume_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    deuro_transfer_count_24h INTEGER DEFAULT 0 NOT NULL,
-    deuro_unique_addresses_24h INTEGER DEFAULT 0 NOT NULL,
-    deps_volume_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    deps_transfer_count_24h INTEGER DEFAULT 0 NOT NULL,
-    deps_unique_addresses_24h INTEGER DEFAULT 0 NOT NULL,
-    equity_trade_volume_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    equity_trade_count_24h INTEGER DEFAULT 0 NOT NULL,
-    equity_delegations_24h INTEGER DEFAULT 0 NOT NULL,
-    savings_added_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    savings_withdrawn_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    savings_interest_collected_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    deuro_minted_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    deuro_burned_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-
-    -- global metrics
-    deuro_loss NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    deuro_profit NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    deuro_profit_distributed NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    savings_total NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    savings_interest_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    savings_rate NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    frontend_fees_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL,
-    frontends_active INTEGER DEFAULT 0 NOT NULL,
-    
-    -- currency rates
-    usd_to_eur_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL,
-    usd_to_chf_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL,
-    
-    -- metadata
+    contract_address VARCHAR(42) NOT NULL,
+    topic VARCHAR(100) NOT NULL,
+    args JSONB NOT NULL,  -- ALL decoded event parameters
     block_number BIGINT NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    PRIMARY KEY (id),
+    timestamp BIGINT NOT NULL, -- block timestamp as Unix timestamp in seconds
+    PRIMARY KEY (tx_hash, log_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_block ON raw_events(block_number DESC);
+CREATE INDEX IF NOT EXISTS idx_events_name_time ON raw_events(topic, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_events_contract ON raw_events(contract_address, block_number DESC);
+CREATE INDEX IF NOT EXISTS idx_events_data ON raw_events USING GIN(args);
+CREATE INDEX IF NOT EXISTS idx_events_timestamp ON raw_events(timestamp DESC);
+
+-- Dynamic Contract Registry (auto-populated from events)
+CREATE TABLE IF NOT EXISTS contracts (
+    address VARCHAR(42) PRIMARY KEY,
+    type VARCHAR(50) NOT NULL, -- e.g. DEURO, EQUITY, POSITION, MINTER, BRIDGE
+    metadata JSONB, -- flexible storage for contract-specific data
+    timestamp BIGINT NOT NULL -- block timestamp as Unix timestamp in seconds when added to protocol
+);
+
+CREATE INDEX IF NOT EXISTS idx_contracts_type ON contracts(type);
+CREATE INDEX IF NOT EXISTS idx_contracts_metadata ON contracts USING GIN(metadata);
+
+-- Processing State
+CREATE TABLE IF NOT EXISTS sync_state (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    last_processed_block BIGINT NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     CONSTRAINT single_row CHECK (id = 1)
 );
 
--- Single row per position
+-- Token registry
+CREATE TABLE IF NOT EXISTS tokens (
+    address VARCHAR(42) PRIMARY KEY,
+    symbol VARCHAR(20),
+    name VARCHAR(100),
+    decimals INTEGER,
+    price NUMERIC(20, 8), -- Current price in EUR
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_symbol ON tokens(symbol);
+
+-- Position States
 CREATE TABLE IF NOT EXISTS position_states (
-    position_address VARCHAR(42) NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    owner_address VARCHAR(42) NOT NULL,
-    original_address VARCHAR(42) NOT NULL,
-    collateral_address VARCHAR(42) NOT NULL,
-    collateral_balance NUMERIC(78, 0) NOT NULL,
-    price NUMERIC(78, 0) NOT NULL,
-    virtual_price NUMERIC(78, 0) NOT NULL,
-    expired_purchase_price NUMERIC(78, 0) NOT NULL,
-    collateral_requirement NUMERIC(78, 0) NOT NULL,
-    debt NUMERIC(78, 0) NOT NULL,
-    interest NUMERIC(78, 0) NOT NULL,
-    minimum_collateral NUMERIC(78, 0) NOT NULL,
-    minimum_challenge_amount NUMERIC(78, 0) NOT NULL,
-    limit_amount NUMERIC(78, 0) NOT NULL,
-    principal NUMERIC(78, 0) NOT NULL,
-    risk_premium_ppm INTEGER NOT NULL,
-    reserve_contribution INTEGER NOT NULL,
-    fixed_annual_rate_ppm INTEGER NOT NULL,
-    last_accrual NUMERIC(78, 0) NOT NULL,
-    start_timestamp NUMERIC(78, 0) NOT NULL,
-    cooldown_period NUMERIC(78, 0) NOT NULL,
-    expiration_timestamp NUMERIC(78, 0) NOT NULL,
-    challenged_amount NUMERIC(78, 0) NOT NULL,
-    challenge_period NUMERIC(78, 0) NOT NULL,
-    is_closed BOOLEAN NOT NULL,
-    available_for_minting NUMERIC(78, 0) NOT NULL,
-    available_for_clones NUMERIC(78, 0) NOT NULL,
-    created INTEGER,
-    market_price NUMERIC(78, 0),
-    collateralization_ratio NUMERIC(10, 4),
-    
+    -- Fixed fields
+    address VARCHAR(42) PRIMARY KEY, -- Position.address
+    "limit" NUMERIC(78, 0) NOT NULL, -- Position.limit
+    owner VARCHAR(42) NOT NULL, -- Position.owner
+    original VARCHAR(42) NOT NULL, -- Position.original
+    collateral VARCHAR(42) NOT NULL, -- Position.collateral
+    minimum_collateral NUMERIC(78, 0) NOT NULL, -- Position.minimumCollateral
+    risk_premium_ppm INTEGER NOT NULL, -- Position.riskPremiumPPM
+    reserve_contribution INTEGER NOT NULL, -- Position.reserveContribution
+    challenge_period BIGINT NOT NULL, -- Position.challengePeriod (seconds)
+    start_timestamp BIGINT NOT NULL, -- Position.start (Unix timestamp in seconds)
+    expiration BIGINT NOT NULL, -- Position.expiration (Unix timestamp in seconds)
+    created BIGINT NOT NULL, -- PositionOpened event timestamp (Unix timestamp in seconds)
+
+    -- Dynamic fields
+    price NUMERIC(78, 0) NOT NULL, -- Position.price
+    virtual_price NUMERIC(78, 0) NOT NULL, -- Position.virtualPrice
+    collateral_amount NUMERIC(78, 0) NOT NULL, -- ERC20(collateral_address).balanceOf
+    expired_purchase_price NUMERIC(78, 0) NOT NULL, -- MintingHub.expiredPurchasePrice(position_address)
+    collateral_requirement NUMERIC(78, 0) NOT NULL, -- Position.getCollateralRequirement
+    principal NUMERIC(78, 0) NOT NULL, -- Position.principal
+    interest NUMERIC(78, 0) NOT NULL, -- Position.interest
+    debt NUMERIC(78, 0) NOT NULL, -- Position.getDebt
+    fixed_annual_rate_ppm INTEGER NOT NULL, -- Position.fixedAnnualRatePPM
+    last_accrual BIGINT NOT NULL, -- Position.lastAccrual (Unix timestamp in seconds)
+    cooldown BIGINT NOT NULL, -- Position.cooldown (Unix timestamp in seconds)
+    challenged_amount NUMERIC(78, 0) NOT NULL, -- Position.challengedAmount
+    available_for_minting NUMERIC(78, 0) NOT NULL, -- Position.availableForMinting
+    available_for_clones NUMERIC(78, 0) NOT NULL, -- Position.availableForClones
+    is_closed BOOLEAN NOT NULL, -- Position.isClosed
+    is_denied BOOLEAN NOT NULL DEFAULT FALSE, -- derived from PositionDenied events
+
     -- metadata
-    block_number BIGINT NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    PRIMARY KEY (position_address)
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
--- Single row per challenge
+CREATE INDEX IF NOT EXISTS idx_position_states_owner ON position_states(owner);
+CREATE INDEX IF NOT EXISTS idx_position_states_original ON position_states(original);
+CREATE INDEX IF NOT EXISTS idx_position_states_collateral ON position_states(collateral);
+CREATE INDEX IF NOT EXISTS idx_position_states_is_closed ON position_states(is_closed);
+
+-- Challenge States
 CREATE TABLE IF NOT EXISTS challenge_states (
-    challenge_id INTEGER NOT NULL,
-    challenger_address VARCHAR(42) NOT NULL,
-    position_address VARCHAR(42) NOT NULL,
-    position_owner_address VARCHAR(42) NOT NULL,
-    start_timestamp BIGINT NOT NULL,
-    initial_size NUMERIC(78, 0) NOT NULL,
-    size NUMERIC(78, 0) NOT NULL,
-    collateral_address VARCHAR(42) NOT NULL,
-    liq_price NUMERIC(78, 0) NOT NULL,
-    phase INTEGER NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    current_price NUMERIC(78, 0) NOT NULL,
-    
+    -- Fixed fields
+    challenge_id INTEGER PRIMARY KEY, -- MintingHub.ChallengeStarted.number
+    challenger_address VARCHAR(42) NOT NULL, -- MintingHub.ChallengeStarted.challenger
+    position_address VARCHAR(42) NOT NULL, -- MintingHub.ChallengeStarted.position
+    start_timestamp BIGINT NOT NULL, -- MintingHub.ChallengeStarted event timestamp
+    initial_size NUMERIC(78, 0) NOT NULL, -- MintingHub.ChallengeStarted.size
+
+    -- Dynamic fields
+    size NUMERIC(78, 0) NOT NULL, -- MintingHub.challenges[challenge_id].size
+    current_price NUMERIC(78, 0) NOT NULL, -- MintingHub.price(challenge_id)
+
     -- metadata
-    block_number BIGINT NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    PRIMARY KEY (challenge_id)
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
--- Single row per collateral token
+CREATE INDEX IF NOT EXISTS idx_challenge_states_position ON challenge_states(position_address);
+CREATE INDEX IF NOT EXISTS idx_challenge_states_challenger ON challenge_states(challenger_address);
+
+-- Collateral States
 CREATE TABLE IF NOT EXISTS collateral_states (
-    token_address VARCHAR(42) NOT NULL,
-    symbol VARCHAR(20) NOT NULL,
-    decimals INTEGER NOT NULL,
-    total_collateral NUMERIC(78, 0) NOT NULL,
-    position_count INTEGER NOT NULL,
-    total_limit NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    total_available_for_minting NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    price NUMERIC(30, 18) DEFAULT 0,
-    
+    -- Fixed fields
+    token_address VARCHAR(42) PRIMARY KEY, -- MintingHub.PositionOpened.collateral
+
+    -- Dynamic fields
+    total_collateral NUMERIC(78, 0) NOT NULL, -- derived from position_states
+    position_count INTEGER NOT NULL, -- derived from position_states
+    total_limit NUMERIC(78, 0) NOT NULL DEFAULT 0, -- derived from position_states
+    total_available_for_minting NUMERIC(78, 0) NOT NULL DEFAULT 0, -- derived from position_states
+
     -- metadata
-    block_number BIGINT NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    PRIMARY KEY (token_address)
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
--- Single row per bridge
-CREATE TABLE IF NOT EXISTS bridge_states (
-    bridge_address VARCHAR(42) NOT NULL,
-    eur_address VARCHAR(42) NOT NULL,
-    eur_symbol VARCHAR(10) NOT NULL,
-    eur_decimals INTEGER NOT NULL,
-    deuro_address VARCHAR(42) NOT NULL,
-    horizon NUMERIC(78, 0) NOT NULL,
-    "limit" NUMERIC(78, 0) NOT NULL,
-    minted NUMERIC(78, 0) NOT NULL,
-    
-    -- metadata
-    block_number BIGINT NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    PRIMARY KEY (bridge_address)
-);
-
--- Single row per minter
+-- Minter States
 CREATE TABLE IF NOT EXISTS minter_states (
-    minter VARCHAR(42) NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    application_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    application_period NUMERIC(78, 0) NOT NULL,
-    application_fee NUMERIC(78, 0) NOT NULL,
-    message TEXT,
-    denial_date TIMESTAMP WITH TIME ZONE,
-    denial_message TEXT,
+    -- Fixed fields
+    address VARCHAR(42) PRIMARY KEY, -- DecentralizedEuro.MinterApplied.minter
+    type VARCHAR(20) NOT NULL, -- MINTER, BRIDGE
+    application_timestamp BIGINT NOT NULL, -- MinterApplied event timestamp (Unix seconds)
+    application_period BIGINT, -- DecentralizedEuro.MinterApplied.applicationPeriod (seconds)
+    application_fee NUMERIC(78, 0), -- DecentralizedEuro.MinterApplied.applicationFee
+    message TEXT, -- DecentralizedEuro.MinterApplied.message
+
+    -- Bridge-specific fixed fields (NULL for generic minters)
+    bridge_token VARCHAR(42), -- IStablecoinBridge(<address>).eur
+    bridge_horizon BIGINT, -- IStablecoinBridge(<address>).horizon (Unix timestamp)
+    bridge_limit NUMERIC(78, 0), -- IStablecoinBridge(<address>)."limit"
+
+    -- Dynamic fields
+    status VARCHAR(20) NOT NULL, -- PROPOSED, DENIED, APPROVED, EXPIRED
+
+    -- Bridge-specific dynamic fields
+    bridge_minted NUMERIC(78, 0), -- IStablecoinBridge(<address>).minted
 
     -- metadata
-    block_number BIGINT NOT NULL,
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    PRIMARY KEY (minter)
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_minter_states_type ON minter_states(type);
+CREATE INDEX IF NOT EXISTS idx_minter_states_status ON minter_states(status);
+CREATE INDEX IF NOT EXISTS idx_minter_states_bridge_token ON minter_states(bridge_token) WHERE bridge_token IS NOT NULL;
 
+-- System State (single row for global metrics)
+-- CREATE TABLE IF NOT EXISTS system_state (
+--     id INTEGER PRIMARY KEY DEFAULT 1,
+--     -- Token supplies
+--     deuro_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.totalSupply
+--     deps_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DEPSWrapper.totalSupply
+    
+--     -- Equity metrics
+--     equity_shares NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: Equity.totalSupply
+--     equity_price NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: Equity.price
+
+--     -- Reserve metrics
+--     reserve_total NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.reserve
+--     reserve_minter NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.minterReserve
+--     reserve_equity NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.equity
+
+--     -- Savings metrics
+--     savings_total NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.balanceOf(SavingsGateway.address)
+--     savings_interest_collected NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: sum over SavingsGateway.InterestCollected events
+--     savings_rate NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: SavingsGateway.currentRatePPM
+
+--     -- Profit/Loss tracking
+--     deuro_loss NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.Loss events
+--     deuro_profit NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.Profit events
+--     deuro_profit_distributed NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.ProfitDistributed events
+
+--     -- Frontend metrics
+--     frontend_fees_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over FrontendGateway.FrontendCodeRewardsWithdrawn
+--     frontends_active INTEGER DEFAULT 0 NOT NULL, -- dynamic: count over FrontendCodeRegistered events
+
+--     -- Currency rates
+--     usd_to_eur_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL, -- dynamic: getExchangeRate('USD', 'EUR')
+--     usd_to_chf_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL, -- dynamic: getExchangeRate('USD', 'CHF')
+
+--     -- metadata
+--     block_number BIGINT NOT NULL DEFAULT 0,
+--     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+--     CONSTRAINT system_single_row CHECK (id = 1)
+-- );
 
 -- =============================================================================
--- PERFORMANCE INDEXES
+-- INITIALIZATION
 -- =============================================================================
 
--- Event indexes
-CREATE INDEX IF NOT EXISTS idx_deuro_transfer_events_timestamp ON deuro_transfer_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_deuro_transfer_events_from ON deuro_transfer_events (from_address);
-CREATE INDEX IF NOT EXISTS idx_deuro_transfer_events_to ON deuro_transfer_events (to_address);
-
-CREATE INDEX IF NOT EXISTS idx_deps_transfer_events_timestamp ON deps_transfer_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_deps_transfer_events_from ON deps_transfer_events (from_address);
-CREATE INDEX IF NOT EXISTS idx_deps_transfer_events_to ON deps_transfer_events (to_address);
-
-CREATE INDEX IF NOT EXISTS idx_deuro_minter_applied_events_timestamp ON deuro_minter_applied_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_deuro_minter_applied_events_minter ON deuro_minter_applied_events (minter);
-
-CREATE INDEX IF NOT EXISTS idx_deuro_minter_denied_events_timestamp ON deuro_minter_denied_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_deuro_minter_denied_events_minter ON deuro_minter_denied_events (minter);
-
-CREATE INDEX IF NOT EXISTS idx_equity_trade_events_timestamp ON equity_trade_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_equity_trade_events_who ON equity_trade_events (who);
-CREATE INDEX IF NOT EXISTS idx_equity_trade_events_amount ON equity_trade_events (amount) WHERE amount != 0;
-
-CREATE INDEX IF NOT EXISTS idx_savings_saved_events_timestamp ON savings_saved_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_savings_saved_events_account ON savings_saved_events (account);
-
-CREATE INDEX IF NOT EXISTS idx_savings_withdrawn_events_timestamp ON savings_withdrawn_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_savings_withdrawn_events_account ON savings_withdrawn_events (account);
-
-CREATE INDEX IF NOT EXISTS idx_mintinghub_position_opened_events_timestamp ON mintinghub_position_opened_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_mintinghub_position_opened_events_owner ON mintinghub_position_opened_events (owner);
-CREATE INDEX IF NOT EXISTS idx_mintinghub_position_opened_events_position ON mintinghub_position_opened_events (position);
-
-CREATE INDEX IF NOT EXISTS idx_position_denied_events_timestamp ON position_denied_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_position_denied_events_position ON position_denied_events (position);
-CREATE INDEX IF NOT EXISTS idx_position_denied_events_sender ON position_denied_events (sender);
-
-CREATE INDEX IF NOT EXISTS idx_mintinghub_challenge_started_events_timestamp ON mintinghub_challenge_started_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_mintinghub_challenge_started_events_challenger ON mintinghub_challenge_started_events (challenger);
-CREATE INDEX IF NOT EXISTS idx_mintinghub_challenge_started_events_position ON mintinghub_challenge_started_events (position);
-
-CREATE INDEX IF NOT EXISTS idx_mintinghub_challenge_averted_events_timestamp ON mintinghub_challenge_averted_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_mintinghub_challenge_averted_events_position ON mintinghub_challenge_averted_events (position);
-
-CREATE INDEX IF NOT EXISTS idx_mintinghub_challenge_succeeded_events_timestamp ON mintinghub_challenge_succeeded_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_mintinghub_challenge_succeeded_events_position ON mintinghub_challenge_succeeded_events (position);
-
-CREATE INDEX IF NOT EXISTS idx_mintinghub_postponed_return_events_timestamp ON mintinghub_postponed_return_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_mintinghub_postponed_return_events_beneficiary ON mintinghub_postponed_return_events (beneficiary);
-
-CREATE INDEX IF NOT EXISTS idx_mintinghub_forced_sale_events_timestamp ON mintinghub_forced_sale_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_mintinghub_forced_sale_events_pos ON mintinghub_forced_sale_events (pos);
-
-CREATE INDEX IF NOT EXISTS idx_position_minting_update_events_timestamp ON position_minting_update_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_position_minting_update_events_position ON position_minting_update_events (position);
-
-CREATE INDEX IF NOT EXISTS idx_deuro_loss_events_timestamp ON deuro_loss_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_deuro_loss_events_reporting_minter ON deuro_loss_events (reporting_minter);
-
-CREATE INDEX IF NOT EXISTS idx_deuro_profit_events_timestamp ON deuro_profit_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_deuro_profit_events_reporting_minter ON deuro_profit_events (reporting_minter);
-
-CREATE INDEX IF NOT EXISTS idx_deuro_profit_distributed_events_timestamp ON deuro_profit_distributed_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_deuro_profit_distributed_events_recipient ON deuro_profit_distributed_events (recipient);
-
-CREATE INDEX IF NOT EXISTS idx_equity_delegation_events_timestamp ON equity_delegation_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_equity_delegation_events_from ON equity_delegation_events (from_address);
-CREATE INDEX IF NOT EXISTS idx_equity_delegation_events_to ON equity_delegation_events (to_address);
-
-CREATE INDEX IF NOT EXISTS idx_savings_interest_collected_events_timestamp ON savings_interest_collected_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_savings_interest_collected_events_account ON savings_interest_collected_events (account);
-
-CREATE INDEX IF NOT EXISTS idx_savings_rate_proposed_events_timestamp ON savings_rate_proposed_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_savings_rate_proposed_events_who ON savings_rate_proposed_events (who);
-
-CREATE INDEX IF NOT EXISTS idx_savings_rate_changed_events_timestamp ON savings_rate_changed_events (timestamp DESC);
-
-CREATE INDEX IF NOT EXISTS idx_roller_roll_events_timestamp ON roller_roll_events (timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_roller_roll_events_source ON roller_roll_events (source);
-CREATE INDEX IF NOT EXISTS idx_roller_roll_events_target ON roller_roll_events (target);
-
--- State table indexes
-CREATE INDEX IF NOT EXISTS idx_position_states_owner ON position_states (owner_address);
-CREATE INDEX IF NOT EXISTS idx_position_states_is_closed ON position_states (is_closed);
-CREATE INDEX IF NOT EXISTS idx_position_states_status ON position_states (status);
-CREATE INDEX IF NOT EXISTS idx_position_states_original ON position_states (original_address);
-CREATE INDEX IF NOT EXISTS idx_position_states_collateral ON position_states (collateral_address);
-
-CREATE INDEX IF NOT EXISTS idx_challenge_states_position ON challenge_states (position_address);
-CREATE INDEX IF NOT EXISTS idx_challenge_states_challenger ON challenge_states (challenger_address);
-CREATE INDEX IF NOT EXISTS idx_challenge_states_status ON challenge_states (status);
-CREATE INDEX IF NOT EXISTS idx_challenge_states_phase ON challenge_states (phase);
+-- Initialize system state (required for UPDATE queries to work)
+-- INSERT INTO system_state (id)
+-- VALUES (1)
+-- ON CONFLICT (id) DO NOTHING;
