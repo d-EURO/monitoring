@@ -12,7 +12,7 @@ export function HealthStatus({ data, error }: DataState<HealthStatus>) {
 	};
 
 	const header = data
-		? `dEURO Protocol Monitor | Block ${data.lastProcessedBlock} | ${new Date(data.updatedAt).toLocaleTimeString()}`
+		? `dEURO Protocol Monitor | Block ${data.lastProcessedBlock} | ${new Date(Number(data.updatedAt)).toLocaleTimeString()}`
 		: 'dEURO Protocol Monitor';
 
 	const getStatusColor = () => {

@@ -5,8 +5,8 @@ import { ADDRESS, ERC20ABI } from '@deuro/eurocoin';
 import { ethers } from 'ethers';
 import { ProviderService } from './provider.service';
 import { TokenRepository } from './prisma/repositories/token.repository';
-import { EventsRepository } from './prisma/repositories/events.repository';
 import { PriceService } from 'src/monitoringV2/price.service';
+import { ContractService } from './contract.service';
 
 @Injectable()
 export class TokenService {
@@ -16,7 +16,7 @@ export class TokenService {
 	constructor(
 		private readonly config: AppConfigService,
 		private readonly tokenRepo: TokenRepository,
-		private readonly eventsRepo: EventsRepository,
+		private readonly contractService: ContractService,
 		private readonly providerService: ProviderService,
 		private readonly priceService: PriceService
 	) {}
@@ -80,8 +80,8 @@ export class TokenService {
 		}
 	}
 
-	async captureNewTokens(): Promise<void> {
-		const allTokens = await this.eventsRepo.getCollateralTokens();
+	async syncTokens(): Promise<void> {
+		const allTokens = await this.contractService.getTokensFromContracts();
 		const newTokens = allTokens.filter((t) => !this.cache.has(t.toLowerCase()));
 		if (newTokens.length === 0) return;
 
@@ -98,10 +98,10 @@ export class TokenService {
 
 		// Persist and update cache
 		await this.persistTokens(formattedNewTokens);
-		this.logger.log(`Captured ${formattedNewTokens.length} new collateral tokens`);
+		this.logger.log(`Captured ${formattedNewTokens.length} new tokens`);
 	}
 
-	async updatePrices(): Promise<void> {
+	async syncPrices(): Promise<void> {
 		const tokenAddresses = Array.from(this.cache.keys());
 		if (tokenAddresses.length === 0) return;
 

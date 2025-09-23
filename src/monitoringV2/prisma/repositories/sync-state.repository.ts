@@ -13,7 +13,7 @@ export class SyncStateRepository {
 			select: { lastProcessedBlock: true },
 		});
 
-		const blockNumber = syncState ? syncState.lastProcessedBlock : null;
+		const blockNumber = syncState ? Number(syncState.lastProcessedBlock) : null;
 		this.logger.debug(`Retrieved last processed block: ${blockNumber}`);
 		return blockNumber;
 	}
@@ -25,11 +25,11 @@ export class SyncStateRepository {
 				create: {
 					id: 1,
 					lastProcessedBlock: blockNumber,
-					updatedAt: new Date(),
+					timestamp: new Date(),
 				},
 				update: {
 					lastProcessedBlock: blockNumber,
-					updatedAt: new Date(),
+					timestamp: new Date(),
 				},
 			});
 

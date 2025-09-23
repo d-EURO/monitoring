@@ -32,7 +32,7 @@ export function ChallengesTable({ data }: ChallengeTableProps) {
 			header: { primary: 'AUCTION START', secondary: 'COUNTDOWN' },
 			format: (challenge): MultiLineCell => {
 				return {
-					primary: formatDateTime(challenge.start),
+					primary: formatDateTime(Number(challenge.start)),
 					secondary: formatCountdown(challenge.start),
 				};
 			},
@@ -77,7 +77,7 @@ export function ChallengesTable({ data }: ChallengeTableProps) {
 			error={data?.error}
 			columns={columns}
 			getRowKey={(challenge) => challenge.id.toString()}
-			shouldDimRow={(challenge) => challenge.status === ChallengeStatus.ENDED}
+			hidden={(challenge) => challenge.status === ChallengeStatus.ENDED}
 			emptyMessage="No challenges found"
 		/>
 	);

@@ -8,6 +8,8 @@ import { EventService } from './event.service';
 import { TokenService } from './token.service';
 import { PositionService } from './position.service';
 import { ChallengeService } from './challenge.service';
+import { CollateralService } from './collateral.service';
+import { MinterService } from './minter.service';
 
 @Injectable()
 export class MonitoringService implements OnModuleInit {
@@ -23,7 +25,9 @@ export class MonitoringService implements OnModuleInit {
 		private readonly eventCollector: EventService,
 		private readonly tokenService: TokenService,
 		private readonly positionService: PositionService,
-		private readonly challengeService: ChallengeService
+		private readonly challengeService: ChallengeService,
+		private readonly collateralService: CollateralService,
+		private readonly minterService: MinterService
 	) {}
 
 	async onModuleInit() {
@@ -32,6 +36,7 @@ export class MonitoringService implements OnModuleInit {
 		await this.tokenService.initialize();
 		await this.positionService.initialize();
 		await this.challengeService.initialize();
+		await this.minterService.initialize();
 		setTimeout(() => this.runMonitoring(), 5000);
 	}
 
@@ -71,10 +76,12 @@ export class MonitoringService implements OnModuleInit {
 		}
 
 		// Post-processing after all blocks are handled
-		await this.tokenService.captureNewTokens(); // sync collateral tokens
-		await this.tokenService.updatePrices(); // update token prices
+		await this.tokenService.syncTokens(); // sync tokens (from positions and bridges)
+		await this.tokenService.syncPrices(); // sync token prices
 		await this.positionService.syncPositions(); // sync position states
 		await this.challengeService.syncChallenges(); // sync challenge states
+		await this.collateralService.syncCollaterals(); // sync collateral states
+		await this.minterService.syncMinters(); // sync minter states
 	}
 
 	private async getBlockRangeToProcess(): Promise<{ fromBlock: number; currentBlock: number }> {

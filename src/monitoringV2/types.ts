@@ -1,11 +1,11 @@
 export interface Event {
 	txHash: string;
-	blockNumber: number;
+	blockNumber: bigint;
 	logIndex: number;
 	contractAddress: string;
 	topic: string;
 	args: Record<string, any>;
-	timestamp: Date;
+	timestamp: bigint; // Unix timestamp in seconds
 }
 
 export enum ContractType {
@@ -29,12 +29,18 @@ export enum ChallengePhase {
 	ENDED = 'ENDED',
 }
 
+export enum MinterStatus {
+	PROPOSED = 'PROPOSED',
+	DENIED = 'DENIED',
+	APPROVED = 'APPROVED',
+	EXPIRED = 'EXPIRED',
+}
+
 export interface Contract {
 	address: string;
 	type: ContractType;
-	createdAtBlock: number;
-	isActive?: boolean;
 	metadata?: Record<string, any>;
+	timestamp: bigint; // Unix timestamp in seconds
 }
 
 export interface Token {
@@ -50,14 +56,7 @@ export interface PositionOpenedEvent {
 	owner: string;
 	original: string;
 	collateral: string;
-	timestamp: Date;
-}
-
-export interface MinterAppliedEvent {
-	address: string;
-	appliedAtBlock: number;
-	applicationPeriod?: bigint;
-	applicationFee?: bigint;
+	timestamp: bigint; // Unix timestamp in seconds from blockchain event
 }
 
 export interface ChallengeStartedEvent {
@@ -65,7 +64,7 @@ export interface ChallengeStartedEvent {
 	challenger: string;
 	position: string;
 	size: bigint;
-	timestamp: Date;
+	timestamp: bigint; // Unix timestamp in seconds from blockchain event
 }
 
 export interface PositionState {
@@ -81,7 +80,7 @@ export interface PositionState {
 	challengePeriod: bigint;
 	startTimestamp: bigint;
 	expiration: bigint;
-	created?: Date; // When position was opened
+	created: bigint; // Unix timestamp when position was opened on blockchain
 
 	// Dynamic fields
 	price: bigint;
@@ -99,6 +98,7 @@ export interface PositionState {
 	availableForMinting: bigint;
 	availableForClones: bigint;
 	isClosed: boolean;
+	isDenied: boolean;
 
 	// Metadata
 	timestamp: Date;
@@ -115,6 +115,42 @@ export interface ChallengeState {
 	// Dynamic fields
 	size: bigint;
 	currentPrice: bigint;
+
+	// Metadata
+	timestamp: Date;
+}
+
+export interface CollateralState {
+	// Fixed fields
+	collateral: string;
+
+	// Dynamic fields
+	totalCollateral: bigint;
+	positionCount: number;
+	totalLimit: bigint;
+	totalAvailableForMinting: bigint;
+
+	// Metadata
+	timestamp: Date;
+}
+
+export interface MinterState {
+	// Fixed fields
+	address: string;
+	type: ContractType;
+	applicationTimestamp: bigint;
+	applicationPeriod: bigint;
+	applicationFee: bigint;
+	message: string;
+
+	// Bridge-specific fields
+	bridgeToken?: string;
+	bridgeHorizon?: bigint;
+	bridgeLimit?: bigint;
+
+	// Dynamic fields
+	status: MinterStatus;
+	bridgeMinted?: bigint;
 
 	// Metadata
 	timestamp: Date;

@@ -1,20 +1,20 @@
-import type { Collateral } from '../../../shared/types';
+import type { CollateralResponse } from '../../../shared/types';
 import { Alignment, Table } from './Table';
 import type { Column, MultiLineCell } from './Table';
 import { colors } from '../lib/theme';
-import { formatNumber, bigintToNumber } from '../lib/formatters';
+import { formatNumber } from '../lib/formatters';
 import { AddressLink } from './AddressLink';
 import type { DataState } from '../lib/api.hook';
 
-export function CollateralTable({ data, error }: DataState<Collateral[]>) {
+export function CollateralTable({ data, error }: DataState<CollateralResponse[]>) {
 	if (!data) return null;
 
-	const columns: Column<Collateral>[] = [
+	const columns: Column<CollateralResponse>[] = [
 		{
 			header: { primary: 'COLLATERAL', secondary: 'ADDRESS' },
 			format: (collateral): MultiLineCell => ({
 				primary: collateral.symbol,
-				secondary: <AddressLink address={collateral.tokenAddress} showKnownLabel={false} className="font-mono" />,
+				secondary: <AddressLink address={collateral.collateral} showKnownLabel={false} className="font-mono" />,
 				primaryClass: colors.text.primary,
 			}),
 		},
@@ -22,7 +22,7 @@ export function CollateralTable({ data, error }: DataState<Collateral[]>) {
 			header: { primary: 'TOTAL LOCKED', secondary: 'POSITIONS' },
 			align: Alignment.RIGHT,
 			format: (collateral): MultiLineCell => ({
-				primary: formatNumber(collateral.totalCollateral, collateral.decimals),
+				primary: formatNumber(Number(collateral.totalCollateral)),
 				secondary: `${collateral.positionCount} positions`,
 			}),
 		},
@@ -31,11 +31,11 @@ export function CollateralTable({ data, error }: DataState<Collateral[]>) {
 			align: Alignment.RIGHT,
 			format: (collateral): MultiLineCell => {
 				const price = parseFloat(collateral.price);
-				const totalLocked = bigintToNumber(collateral.totalCollateral, collateral.decimals);
-				const tvl = isNaN(price) || price === 0 ? '-' : formatNumber(totalLocked * price);
+				const totalLocked = parseFloat(collateral.totalCollateral);
+				const tvl = price * totalLocked;
 				return {
-					primary: tvl,
-					secondary: isNaN(price) || price === 0 ? '-' : formatNumber(price),
+					primary: tvl !== 0 ? formatNumber(Number(tvl)) : '-',
+					secondary: price !== 0 ? formatNumber(price) : '-',
 				};
 			},
 		},
@@ -43,8 +43,8 @@ export function CollateralTable({ data, error }: DataState<Collateral[]>) {
 			header: { primary: 'MINT LIMIT', secondary: 'AVAILABLE' },
 			align: Alignment.RIGHT,
 			format: (collateral): MultiLineCell => ({
-				primary: formatNumber(collateral.totalLimit, 18, 2),
-				secondary: formatNumber(collateral.totalAvailableForMinting, 18, 2),
+				primary: formatNumber(Number(collateral.totalLimit)),
+				secondary: formatNumber(Number(collateral.totalAvailableForMinting)),
 				secondaryClass: collateral.totalAvailableForMinting !== '0' ? colors.success : undefined,
 			}),
 		},
@@ -56,8 +56,8 @@ export function CollateralTable({ data, error }: DataState<Collateral[]>) {
 			data={data}
 			error={error}
 			columns={columns}
-			getRowKey={(collateral) => collateral.tokenAddress}
-			shouldDimRow={(collateral) => collateral.totalLimit === '0'}
+			getRowKey={(collateral) => collateral.collateral}
+			hidden={(collateral) => collateral.totalLimit === '0'}
 			emptyMessage="No collateral found"
 		/>
 	);

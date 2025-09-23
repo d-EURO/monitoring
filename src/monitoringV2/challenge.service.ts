@@ -74,7 +74,7 @@ export class ChallengeService {
 			if (isNew) {
 				state.challengerAddress = event.challenger;
 				state.positionAddress = event.position;
-				state.startTimestamp = BigInt(Math.floor(event.timestamp.getTime() / 1000));
+				state.startTimestamp = event.timestamp;
 				state.initialSize = event.size;
 			}
 

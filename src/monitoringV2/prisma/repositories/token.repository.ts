@@ -33,7 +33,7 @@ export class TokenRepository {
 					where: { address: update.address.toLowerCase() },
 					data: {
 						price: update.price,
-						priceUpdatedAt: now,
+						timestamp: now,
 					},
 				})
 			)

@@ -47,6 +47,8 @@ export class PositionService {
 		const multicallProvider = this.providerService.multicallProvider;
 		const mintingHub = new ethers.Contract(ADDRESS[this.config.blockchainId].mintingHubGateway, MintingHubV2ABI, multicallProvider);
 
+		const deniedPositions = await this.eventsRepo.getDeniedPositions();
+
 		const calls: Promise<any>[] = [];
 		for (const event of positionOpenedArgs) {
 			const address = event.address.toLowerCase();
@@ -131,6 +133,7 @@ export class PositionService {
 			state.isClosed = Boolean(responses[idx++]);
 			state.expiredPurchasePrice = BigInt(responses[idx++]);
 			state.collateralAmount = BigInt(responses[idx++]);
+			state.isDenied = deniedPositions.includes(address);
 
 			results.push(state);
 		}
