@@ -33,18 +33,18 @@ export class MinterService {
 		const allMinters = [...bridges, ...genericMinters];
 		if (!allMinters.length) return;
 
-		const calls = [];
+		const calls: Array<() => Promise<any>> = [];
 		const multicallProvider = this.providerService.multicallProvider;
 		for (const bridge of bridges) {
 			const isNew = !this.cache.has(bridge.address.toLowerCase());
 			const contract = new ethers.Contract(bridge.address, StablecoinBridgeABI, multicallProvider);
-			calls.push(isNew ? contract.eur().catch(() => null) : Promise.resolve(null));
-			calls.push(isNew ? contract.horizon().catch(() => null) : Promise.resolve(null));
-			calls.push(isNew ? contract.limit().catch(() => null) : Promise.resolve(null));
-			calls.push(contract.minted().catch(() => null));
+			calls.push(isNew ? () => contract.eur() : () => Promise.resolve(null));
+			calls.push(isNew ? () => contract.horizon() : () => Promise.resolve(null));
+			calls.push(isNew ? () => contract.limit() : () => Promise.resolve(null));
+			calls.push(() => contract.minted());
 		}
 
-		const results = await Promise.all(calls); // TODO (later): Switch to Promise.allSettled and handle errors
+		const results = await this.providerService.callBatch(calls, 3);
 		const deniedMinters = await this.eventsRepo.getDeniedMinters();
 
 		let resultIndex = 0;

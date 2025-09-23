@@ -182,14 +182,14 @@ export class ContractService {
 
 	private async fetchBridgeTokenAddress(bridges: Contract[]): Promise<string[]> {
 		const multicallProvider = this.providerService.multicallProvider;
-		const calls: Promise<string | undefined>[] = [];
+		const calls: Array<() => Promise<any>> = [];
 
 		for (const bridge of bridges) {
 			const contract = new ethers.Contract(bridge.address, StablecoinBridgeABI, multicallProvider);
-			calls.push(contract.eur().catch(() => undefined));
+			calls.push(() => contract.eur());
 		}
 
-		const results = await Promise.all(calls);
+		const results = await this.providerService.callBatch(calls);
 		return results.filter((addr): addr is string => addr !== undefined).map((addr) => addr.toLowerCase());
 	}
 }

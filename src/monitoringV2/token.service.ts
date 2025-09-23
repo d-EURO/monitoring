@@ -124,15 +124,15 @@ export class TokenService {
 		const results: { [key: string]: Partial<Token> } = {};
 		const multicallProvider = this.providerService.multicallProvider;
 
-		const calls: Promise<any>[] = [];
+		const calls: Array<() => Promise<any>> = [];
 		for (const address of addresses) {
 			const contract = new ethers.Contract(address, ERC20ABI, multicallProvider);
-			calls.push(contract.name().catch(() => undefined));
-			calls.push(contract.symbol().catch(() => undefined));
-			calls.push(contract.decimals().catch(() => undefined));
+			calls.push(() => contract.name());
+			calls.push(() => contract.symbol());
+			calls.push(() => contract.decimals());
 		}
 
-		const responses = await Promise.all(calls);
+		const responses = await this.providerService.callBatch(calls);
 		for (let i = 0; i < addresses.length; i++) {
 			const baseIdx = i * 3;
 			results[addresses[i].toLowerCase()] = {
