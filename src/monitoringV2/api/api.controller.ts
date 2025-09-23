@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaClientService } from '../prisma/client.service';
 import {
 	ChallengeResponse,
@@ -17,6 +18,7 @@ import { AppConfigService } from '../../config/config.service';
 
 const deuroDecimals = 18;
 
+@ApiTags('Monitoring')
 @Controller()
 export class ApiController {
 	constructor(
@@ -25,6 +27,8 @@ export class ApiController {
 	) {}
 
 	@Get('health')
+	@ApiOperation({ summary: 'Get service health status' })
+	@ApiResponse({ status: 200, description: 'Service health information' })
 	async health(): Promise<HealthResponse> {
 		const lastBlock = await this.prisma.syncState.findFirst();
 		return {
@@ -35,6 +39,8 @@ export class ApiController {
 	}
 
 	@Get('positions')
+	@ApiOperation({ summary: 'Get all positions' })
+	@ApiResponse({ status: 200, description: 'List of all positions with current state' })
 	async getPositions(): Promise<PositionResponse[]> {
 		const positions = await this.prisma.positionState.findMany();
 		const tokens = await this.prisma.token.findMany();
@@ -103,6 +109,8 @@ export class ApiController {
 	}
 
 	@Get('challenges')
+	@ApiOperation({ summary: 'Get all challenges' })
+	@ApiResponse({ status: 200, description: 'List of all active and completed challenges' })
 	async getChallenges(): Promise<ChallengeResponse[]> {
 		// TODO (later): Create custom Prisma query tokens, positions and challenges in one go
 		const tokens = await this.prisma.token.findMany();
@@ -148,6 +156,8 @@ export class ApiController {
 	}
 
 	@Get('collateral')
+	@ApiOperation({ summary: 'Get collateral summary by token' })
+	@ApiResponse({ status: 200, description: 'Aggregated collateral statistics by token type' })
 	async getCollateral(): Promise<CollateralResponse[]> {
 		const tokens = await this.prisma.token.findMany();
 		const collaterals = await this.prisma.collateralState.findMany();
@@ -171,11 +181,15 @@ export class ApiController {
 
 	// TODO: Implement these endpoints when we have the necessary tables
 	@Get('deuro')
+	@ApiOperation({ summary: 'Get dEURO token information' })
+	@ApiResponse({ status: 200, description: 'dEURO token contract and metadata' })
 	async getDeuroState() {
 		return null; // Needs system_state table
 	}
 
 	@Get('minters')
+	@ApiOperation({ summary: 'Get all minters and bridges' })
+	@ApiResponse({ status: 200, description: 'List of all generic minters and bridge contracts' })
 	async getMinters(): Promise<MinterResponse[]> {
 		const minters = await this.prisma.minterState.findMany();
 		const tokens = await this.prisma.token.findMany();

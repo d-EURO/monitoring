@@ -1,52 +1,70 @@
 # dEURO Monitoring
 
-dEURO protocol monitoring service with PostgreSQL database and REST API endpoints.
+Real-time monitoring service for the dEURO protocol on Ethereum mainnet.
 
-## Setup
+## Architecture
 
-### Local Development
+The monitoring service continuously syncs blockchain data to provide real-time insights:
 
-1. **Environment Configuration:**
+1. **Event Collection**: Fetches all protocol events (PositionOpened, MinterApplied, ChallengeStarted, etc.) from blockchain logs
+2. **Dynamic Discovery**: Automatically detects new positions, minters, and bridges as they're created on-chain
+3. **State Tracking**: Maintains current state for:
+   - Positions (collateral, debt, status, cooldowns)
+   - Challenges (active auctions, liquidations)
+   - Minters (generic minters and bridge contracts)
+   - Collateral aggregation by token type
+4. **Token Prices**: Fetches real-time prices from GeckoTerminal API with caching
+5. **API Endpoints**: Serves data via REST API for frontend consumption
+
+## Local Development
+
+### Prerequisites
+- Node.js 18+
+- PostgreSQL database
+- Ethereum RPC endpoint (Alchemy/Infura)
+
+### Setup
+
 ```bash
-# Copy the environment template
-cp .env.example .env
-
-# Edit .env with your local settings:
-# - DATABASE_URL: Your local PostgreSQL connection
-# - RPC_URL: Your Alchemy/Infura API key
-```
-
-2. **Development Server:**
-```bash
+# Install dependencies
 npm install
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your settings:
+# - DATABASE_URL: PostgreSQL connection string
+# - RPC_URL: Ethereum mainnet RPC endpoint
+# - BLOCKCHAIN_ID: Must be 1 (Ethereum mainnet)
+
+# Initialize database schema
+psql $DATABASE_URL < database/schema.sql
+
+# Generate Prisma client
+npm run prisma:generate
+
+# Start the service
 npm run build
 npm run start:prod
 ```
 
-### Deployment
+## Docker
 
-#### Automatic (GitHub Actions)
-- Push to `develop` → Deploys to `dev.monitoring.deuro.com`
-- Push to `main` → Deploys to `monitoring.deuro.com`
-
-#### Manual (Azure)
-1. **Build:** `docker build -t deuro-monitoring .`
-2. **Environment Variables:** Set in Azure App Service
 ```bash
-DATABASE_URL=postgresql://user:pass@server.postgres.database.azure.com:5432/database?sslmode=require
-RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR-KEY
-ALLOWED_ORIGINS=https://dev.monitoring.deuro.com  # or https://monitoring.deuro.com
-PORT=3001
-DEPLOYMENT_BLOCK=22088283
-BLOCKCHAIN_ID=1
-PRICE_CACHE_TTL_MS=120000
-PG_MAX_CLIENTS=10
+# Build the image
+docker build -t deuro-monitoring:test .
+
+# Run with your .env file
+docker run --name deuro-test -p 3001:3001 --env-file .env deuro-monitoring:test
+
+# Clean up
+docker rm -f deuro-test
 ```
-3. **Docs:** Available at `/swagger`
 
+## API Documentation
 
-# TODO
+Swagger documentation available at: `http://localhost:3001/swagger`
 
-- Make sure leadrate change proposal is captured in dashboard
-- Make sure position status are colored correctly
-- Sort tables in a logical order
+## Deployment
+
+- **Development**: Push to `develop` branch → auto-deploys to `dev.monitoring.deuro.com`
+- **Production**: Push to `main` branch → auto-deploys to `monitoring.deuro.com`
