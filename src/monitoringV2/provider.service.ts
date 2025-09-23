@@ -5,6 +5,41 @@ import { AppConfigService } from 'src/config/config.service';
 
 @Injectable()
 export class ProviderService {
+	private static readonly SERVER_STATUSES = new Set([500, 502, 503, 504, 520, 522, 524]);
+	private static readonly NET_CODES = new Set([
+		'ETIMEDOUT',
+		'ECONNRESET',
+		'ECONNABORTED',
+		'ECONNREFUSED',
+		'EAI_AGAIN',
+		'NETWORK_ERROR',
+		'SERVER_ERROR',
+		'TIMEOUT',
+	]);
+	private static readonly TOO_LARGE_PATTERNS = [
+		'payload too large',
+		'request entity too large',
+		'entity too large',
+		'data too large',
+		'max content length',
+		'request size exceeded',
+		'oversized',
+	];
+	private static readonly DETERMINISTIC_PATTERNS = ['execution reverted', 'call exception', 'invalid argument', 'method not found'];
+	private static readonly RATE_LIMIT_PATTERNS = ['too many requests', 'rate limit'];
+	private static readonly NETWORK_PATTERNS = [
+		'timeout',
+		'timed out',
+		'temporarily unavailable',
+		'overloaded',
+		'socket hang up',
+		'connection reset',
+		'connection closed',
+		'connection aborted',
+		'network error',
+		'dns',
+	];
+
 	private readonly logger = new Logger(ProviderService.name);
 	private ethersProvider: ethers.JsonRpcProvider;
 	private multicallProviderInstance: MulticallProvider<ethers.JsonRpcProvider>;
@@ -48,32 +83,24 @@ export class ProviderService {
 		return block;
 	}
 
-	// Check if error is transient and worth retrying
-	private isTransientRpcError(err: any): boolean {
-		const msg = (err?.message || '').toLowerCase();
-		const code = err?.code;
+	// Helper functions for retry logic
 
-		return (
-			// Common network / rate limit / overload cases
-			msg.includes('timeout') ||
-			msg.includes('timed out') ||
-			msg.includes('temporarily unavailable') ||
-			msg.includes('overloaded') ||
-			msg.includes('socket hang up') ||
-			msg.includes('connection reset') ||
-			msg.includes('fetch failed') ||
-			msg.includes('network error') ||
-			code === 'NETWORK_ERROR' ||
-			code === 'SERVER_ERROR' ||
-			msg.includes('too many requests') ||
-			code === 'ETIMEDOUT' ||
-			code === 'ECONNRESET' ||
-			code === 'EAI_AGAIN' ||
-			code === 429
-		);
+	private isTransientRpcError(err: any): boolean {
+		const status = Number(err?.status ?? err?.response?.status ?? NaN);
+		const code = String(err?.code ?? err?.cause?.code ?? '');
+		const msg = String(err?.shortMessage ?? err?.message ?? '').toLowerCase();
+
+		const matches = (patterns: string[]) => patterns.some((p) => msg.includes(p));
+
+		if (status === 413 || matches(ProviderService.TOO_LARGE_PATTERNS)) return false;
+		if (matches(ProviderService.DETERMINISTIC_PATTERNS)) return false;
+
+		if (status === 429 || code === '429' || matches(ProviderService.RATE_LIMIT_PATTERNS)) return true;
+		if (ProviderService.SERVER_STATUSES.has(status)) return true;
+
+		return ProviderService.NET_CODES.has(code) || matches(ProviderService.NETWORK_PATTERNS);
 	}
 
-	// Generic retry with exponential backoff + jitter
 	private async withRetry<T>(
 		fn: () => Promise<T>,
 		options: { retries?: number; baseMs?: number; factor?: number; maxMs?: number } = {}
