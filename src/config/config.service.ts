@@ -44,4 +44,20 @@ export class AppConfigService {
 	get priceCacheTtlMs(): number {
 		return this.monitoringConfig.priceCacheTtlMs || 120000;
 	}
+
+	get telegramBotToken(): string | undefined {
+		return this.monitoringConfig.telegramBotToken;
+	}
+
+	get telegramChatId(): string | undefined {
+		return this.monitoringConfig.telegramChatId;
+	}
+
+	get telegramAlertsEnabled(): boolean {
+		return this.monitoringConfig.telegramAlertsEnabled || false;
+	}
+
+	get alertTimeframeHours(): number {
+		return this.monitoringConfig.alertTimeframeHours || 12;
+	}
 }
