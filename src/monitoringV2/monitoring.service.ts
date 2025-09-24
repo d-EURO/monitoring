@@ -10,6 +10,7 @@ import { PositionService } from './position.service';
 import { ChallengeService } from './challenge.service';
 import { CollateralService } from './collateral.service';
 import { MinterService } from './minter.service';
+import { TelegramService } from './telegram.service';
 
 @Injectable()
 export class MonitoringService implements OnModuleInit {
@@ -27,7 +28,8 @@ export class MonitoringService implements OnModuleInit {
 		private readonly positionService: PositionService,
 		private readonly challengeService: ChallengeService,
 		private readonly collateralService: CollateralService,
-		private readonly minterService: MinterService
+		private readonly minterService: MinterService,
+		private readonly telegramService: TelegramService
 	) {}
 
 	async onModuleInit() {
@@ -82,6 +84,7 @@ export class MonitoringService implements OnModuleInit {
 		await this.challengeService.syncChallenges(); // sync challenge states
 		await this.collateralService.syncCollaterals(); // sync collateral states
 		await this.minterService.syncMinters(); // sync minter states
+		await this.telegramService.sendPendingAlerts(); // send pending telegram alerts
 	}
 
 	private async getBlockRangeToProcess(): Promise<{ fromBlock: number; currentBlock: number }> {

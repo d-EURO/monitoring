@@ -9,19 +9,21 @@ datasource db {
 
 // Raw blockchain events - all protocol events across all contracts
 model RawEvent {
-  blockNumber     BigInt @map("block_number")
-  txHash          String @map("tx_hash") @db.VarChar(66)
-  logIndex        Int    @map("log_index")
-  contractAddress String @map("contract_address") @db.VarChar(42)
-  topic           String @db.VarChar(100)
-  args            Json   @db.JsonB
-  timestamp       BigInt // Unix timestamp in seconds
+  blockNumber     BigInt  @map("block_number")
+  txHash          String  @map("tx_hash") @db.VarChar(66)
+  logIndex        Int     @map("log_index")
+  contractAddress String  @map("contract_address") @db.VarChar(42)
+  topic           String  @db.VarChar(100)
+  args            Json    @db.JsonB
+  timestamp       BigInt  // Unix timestamp in seconds
+  alerted         Boolean @default(false)
 
   @@id([txHash, logIndex])
   @@index([blockNumber(sort: Desc)], map: "idx_events_block")
   @@index([topic, timestamp(sort: Desc)], map: "idx_events_name_time")
   @@index([contractAddress, blockNumber(sort: Desc)], map: "idx_events_contract")
   @@index([timestamp(sort: Desc)], map: "idx_events_timestamp")
+  @@index([alerted, timestamp(sort: Desc)], map: "idx_events_alert")
   @@map("raw_events")
 }
 
