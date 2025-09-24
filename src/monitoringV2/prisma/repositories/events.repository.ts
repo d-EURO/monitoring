@@ -27,6 +27,31 @@ export class EventsRepository {
 		}
 	}
 
+	async getUnalertedEvents(hoursAgo: number = 12): Promise<Event[]> {
+		const cutoffTime = BigInt(Math.floor(Date.now() / 1000) - hoursAgo * 3600);
+		const rawEvents = await this.prisma.rawEvent.findMany({
+			where: {
+				alerted: false,
+				timestamp: { gte: cutoffTime },
+			},
+			orderBy: { timestamp: 'asc' },
+		});
+
+		return rawEvents.map((e) => ({ ...e, args: e.args as Record<string, any> }));
+	}
+
+	async markAsAlerted(txHash: string, logIndex: number): Promise<void> {
+		try {
+			await this.prisma.rawEvent.update({
+				where: { txHash_logIndex: { txHash, logIndex } },
+				data: { alerted: true },
+			});
+		} catch (error) {
+			this.logger.error(`Failed to mark event ${txHash} at logIndex ${logIndex} as alerted: ${error.message}`);
+			// no throw, non-critical
+		}
+	}
+
 	async getCollateralTokens(): Promise<string[]> {
 		try {
 			const events = await this.prisma.rawEvent.findMany({

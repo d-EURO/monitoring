@@ -56,6 +56,9 @@ docker build -t deuro-monitoring:test .
 # Run with your .env file
 docker run --name deuro-test -p 3001:3001 --env-file .env deuro-monitoring:test
 
+# Test the API
+curl http://localhost:3001/health
+
 # Clean up
 docker rm -f deuro-test
 ```

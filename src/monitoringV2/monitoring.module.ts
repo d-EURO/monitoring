@@ -20,6 +20,7 @@ import { MinterService } from './minter.service';
 import { MonitoringService } from './monitoring.service';
 import { SchemaInitService } from './schema-init.service';
 import { PriceService } from './price.service';
+import { TelegramService } from './telegram.service';
 import { ApiModule } from './api/api.module';
 
 @Module({
@@ -45,6 +46,7 @@ import { ApiModule } from './api/api.module';
 		ChallengeService,
 		CollateralService,
 		MinterService,
+		TelegramService,
 		MonitoringService,
 	],
 	exports: [MonitoringService, ContractService, EventService, ApiModule],

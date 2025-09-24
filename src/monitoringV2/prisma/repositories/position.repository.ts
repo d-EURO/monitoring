@@ -92,14 +92,37 @@ export class PositionRepository {
 		return positions.map((p) => p.address);
 	}
 
+	async getPrice(address: string): Promise<string> {
+		const position = await this.prisma.positionState.findUnique({
+			where: { address: address.toLowerCase() },
+			select: { price: true },
+		});
+
+		return position?.price.toFixed(0) || '0';
+	}
+
+	async isInCooldown(address: string): Promise<boolean> {
+		const position = await this.prisma.positionState.findUnique({
+			where: { address: address.toLowerCase() },
+			select: { cooldown: true },
+		});
+
+		if (!position) return false;
+
+		const now = BigInt(Math.floor(Date.now() / 1000));
+		return BigInt(position.cooldown) > now;
+	}
+
 	async getCollateralSummary(): Promise<CollateralState[]> {
-		const result = await this.prisma.$queryRaw<Array<{
-			collateral: string;
-			total_collateral: string;
-			position_count: bigint;
-			total_limit: string;
-			total_available_for_minting: string;
-		}>>`
+		const result = await this.prisma.$queryRaw<
+			Array<{
+				collateral: string;
+				total_collateral: string;
+				position_count: bigint;
+				total_limit: string;
+				total_available_for_minting: string;
+			}>
+		>`
 			WITH position_families AS (
 				-- For each family, calculate metrics from open positions only
 				SELECT
@@ -123,7 +146,7 @@ export class PositionRepository {
 		`;
 
 		const timestamp = new Date();
-		return result.map(row => ({
+		return result.map((row) => ({
 			collateral: row.collateral,
 			totalCollateral: BigInt(row.total_collateral),
 			positionCount: Number(row.position_count),

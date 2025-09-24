@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS raw_events (
     args JSONB NOT NULL,  -- ALL decoded event parameters
     block_number BIGINT NOT NULL,
     timestamp BIGINT NOT NULL, -- block timestamp as Unix timestamp in seconds
+    alerted BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (tx_hash, log_index)
 );
 
@@ -15,6 +16,12 @@ CREATE INDEX IF NOT EXISTS idx_events_name_time ON raw_events(topic, timestamp D
 CREATE INDEX IF NOT EXISTS idx_events_contract ON raw_events(contract_address, block_number DESC);
 CREATE INDEX IF NOT EXISTS idx_events_data ON raw_events USING GIN(args);
 CREATE INDEX IF NOT EXISTS idx_events_timestamp ON raw_events(timestamp DESC);
+
+-- Backfill: ensure alerted column exists on existing deployments
+ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS alerted BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Index over alert status and time for efficient querying of unalerted recent events
+CREATE INDEX IF NOT EXISTS idx_events_alert ON raw_events(alerted, timestamp DESC);
 
 -- Dynamic Contract Registry (auto-populated from events)
 CREATE TABLE IF NOT EXISTS contracts (
