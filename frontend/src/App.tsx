@@ -5,6 +5,7 @@ import { CollateralTable } from './components/CollateralTable';
 import { ChallengesTable } from './components/ChallengesTable';
 import { MintersTable } from './components/MintersTable';
 import { HealthStatus } from './components/HealthStatus';
+import { VerificationAlert } from './components/VerificationAlert';
 
 function App() {
 	const { health, deuro, positions, collateral, challenges, minters } = useApi();
@@ -13,6 +14,7 @@ function App() {
 		<div className="min-h-screen bg-neutral-950 text-gray-100">
 			<div className="max-w-7xl mx-auto p-4 space-y-6 text-sm mb-8">
 				<HealthStatus {...health} />
+				<VerificationAlert />
 				<SystemOverview {...deuro} />
 				<PositionsTable data={positions} />
 				<CollateralTable {...collateral} />

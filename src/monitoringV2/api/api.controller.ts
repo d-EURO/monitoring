@@ -15,6 +15,7 @@ import {
 import type { Token, PositionState } from '@prisma/client';
 import { ADDRESS } from '@deuro/eurocoin';
 import { AppConfigService } from '../../config/config.service';
+import { BlockchainVerificationService } from '../blockchain-verification.service';
 
 const deuroDecimals = 18;
 
@@ -23,7 +24,8 @@ const deuroDecimals = 18;
 export class ApiController {
 	constructor(
 		private readonly prisma: PrismaClientService,
-		private readonly config: AppConfigService
+		private readonly config: AppConfigService,
+		private readonly blockchainVerification: BlockchainVerificationService
 	) {}
 
 	@Get('health')
@@ -210,5 +212,12 @@ export class ApiController {
 			bridgeMinted: m.bridgeMinted ? (Number(m.bridgeMinted.toFixed(0)) / Math.pow(10, deuroDecimals)).toFixed(4) : undefined,
 			bridgeHorizon: m.bridgeHorizon ? (Number(m.bridgeHorizon) * 1000).toString() : undefined,
 		}));
+	}
+
+	@Get('verification')
+	@ApiOperation({ summary: 'Get blockchain vs database verification status' })
+	@ApiResponse({ status: 200, description: 'Verification status for minters and positions' })
+	async getVerificationStatus() {
+		return this.blockchainVerification.getVerificationStatus();
 	}
 }

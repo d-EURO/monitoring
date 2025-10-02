@@ -21,6 +21,7 @@ import { MonitoringService } from './monitoring.service';
 import { SchemaInitService } from './schema-init.service';
 import { PriceService } from './price.service';
 import { TelegramService } from './telegram.service';
+import { BlockchainVerificationService } from './blockchain-verification.service';
 import { ApiModule } from './api/api.module';
 
 @Module({
@@ -47,8 +48,9 @@ import { ApiModule } from './api/api.module';
 		CollateralService,
 		MinterService,
 		TelegramService,
+		BlockchainVerificationService,
 		MonitoringService,
 	],
-	exports: [MonitoringService, ContractService, EventService, ApiModule],
+	exports: [MonitoringService, ContractService, EventService, BlockchainVerificationService, ApiModule],
 })
 export class MonitoringV2Module {}
