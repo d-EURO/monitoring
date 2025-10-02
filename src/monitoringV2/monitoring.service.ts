@@ -69,7 +69,7 @@ export class MonitoringService implements OnModuleInit {
 				error.stack
 			);
 
-			if (this.consecutiveFailures === 3 || this.consecutiveFailures % 10 === 0) {
+			if (this.shouldAlertFailure()) {
 				try {
 					const lastProcessedBlock = await this.syncStateRepo.getLastProcessedBlock();
 					const currentBlockStr = currentBlock !== undefined ? currentBlock.toString() : 'unknown';
@@ -89,6 +89,10 @@ export class MonitoringService implements OnModuleInit {
 		} finally {
 			this.isRunning = false;
 		}
+	}
+
+	getConsecutiveFailures(): number {
+		return this.consecutiveFailures;
 	}
 
 	private async processBlocks(fromBlock: number, currentBlock: number): Promise<void> {
@@ -113,15 +117,18 @@ export class MonitoringService implements OnModuleInit {
 		await this.telegramService.sendPendingAlerts(); // send pending telegram alerts
 	}
 
-	getConsecutiveFailures(): number {
-		return this.consecutiveFailures;
-	}
-
 	private async getBlockRangeToProcess(): Promise<{ fromBlock: number; currentBlock: number }> {
 		const lastProcessedBlock = await this.syncStateRepo.getLastProcessedBlock();
 		const fromBlock = (lastProcessedBlock ?? this.config.deploymentBlock) + 1;
 		const currentBlock = await this.providerService.getBlockNumber();
 		this.logger.log(`${currentBlock - fromBlock + 1} new blocks to process: ${fromBlock} to ${currentBlock}`);
 		return { fromBlock, currentBlock };
+	}
+
+	private shouldAlertFailure() {
+		return (
+			this.consecutiveFailures > 0 &&
+			(this.consecutiveFailures === 3 || this.consecutiveFailures === 12 || this.consecutiveFailures % 72 === 0) // ~ 6 hour heartbeat
+		);
 	}
 }
