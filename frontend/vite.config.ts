@@ -11,7 +11,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://dev.monitoring.deuro.com',
+        target: 'http://localhost:3001',
         changeOrigin: true,
         secure: false,
       }
