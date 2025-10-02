@@ -1,9 +1,9 @@
-import type { HealthStatus } from '../../../shared/types';
+import { HealthState, type HealthResponse } from '../../../shared/types';
 import type { DataState } from '../lib/api.hook';
 import { colors } from '../lib/theme';
 import { useState } from 'react';
 
-export function HealthStatus({ data, error }: DataState<HealthStatus>) {
+export function HealthStatus({ data, error }: DataState<HealthResponse>) {
 	const [isReloading, setIsReloading] = useState(false);
 
 	const handleClick = () => {
@@ -11,24 +11,36 @@ export function HealthStatus({ data, error }: DataState<HealthStatus>) {
 		setTimeout(() => window.location.reload(), 250);
 	};
 
-	const header = data
-		? `dEURO Protocol Monitor | Block ${data.lastProcessedBlock} | ${new Date(Number(data.updatedAt)).toLocaleTimeString()}`
-		: 'dEURO Protocol Monitor';
+	const getHeader = () => {
+		if (!data) return 'dEURO Protocol Monitor';
+
+		const time = new Date(Number(data.updatedAt)).toLocaleTimeString();
+		const syncInfo = data.currentBlock !== undefined
+			? data.blocksBehind === 0
+				? ` / ${data.currentBlock} (synced ✓)`
+				: ` / ${data.currentBlock} (${data.blocksBehind} behind)`
+			: '';
+
+		return `dEURO Protocol Monitor | Block ${data.lastProcessedBlock}${syncInfo} | ${time}`;
+	};
 
 	const getStatusColor = () => {
 		if (error) return colors.critical;
+		if (!data) return colors.text.secondary;
+		if (data.status !== HealthState.OK) return colors.critical;
 		return colors.success;
 	};
 
 	const getStatusText = () => {
 		if (error) return `OFFLINE: ${error}`;
-		if (!data) return 'LOADING...';
-		return 'ONLINE';
+		if (!data) return 'Loading...';
+		if (data.status === HealthState.FAILING) return `FAILING (${data.consecutiveFailures} cycles)`;
+		return data.status;
 	};
 
 	return (
 		<div className="pt-4 px-4 flex flex-row items-center gap-4 justify-between">
-			<div className="text-gray-500">{header}</div>
+			<div className="text-gray-500">{getHeader()}</div>
 			<div className="flex items-center gap-4">
 				<div
 					className={`text-xs font-bold flex items-center gap-1 ${getStatusColor()} ${

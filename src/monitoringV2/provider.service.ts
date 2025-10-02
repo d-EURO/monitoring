@@ -72,7 +72,7 @@ export class ProviderService {
 			return this.blockCache.get(blockNumber);
 		}
 
-		const block = await this.ethersProvider.getBlock(blockNumber);
+		const block = await this.withRetry(() => this.ethersProvider.getBlock(blockNumber));
 		if (block) this.blockCache.set(blockNumber, block);
 
 		if (this.blockCache.size > 1000) {
@@ -81,6 +81,10 @@ export class ProviderService {
 		}
 
 		return block;
+	}
+
+	async getBlockNumber(): Promise<number> {
+		return await this.withRetry(() => this.ethersProvider.getBlockNumber());
 	}
 
 	// Helper functions for retry logic

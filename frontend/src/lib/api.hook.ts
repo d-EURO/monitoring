@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ChallengeResponse, CollateralResponse, DeuroState, HealthStatus, MinterResponse, PositionResponse } from '../../../shared/types';
+import type { ChallengeResponse, CollateralResponse, DeuroState, HealthResponse, MinterResponse, PositionResponse } from '../../../shared/types';
 
 export interface DataState<T> {
 	data?: T;
@@ -7,7 +7,7 @@ export interface DataState<T> {
 }
 
 export interface UseApiResult {
-	health?: DataState<HealthStatus>;
+	health?: DataState<HealthResponse>;
 	deuro?: DataState<DeuroState>;
 	positions?: DataState<PositionResponse[]>;
 	collateral?: DataState<CollateralResponse[]>;
@@ -19,7 +19,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001
 const REFRESH_INTERVAL = 60000; // 1 minute
 
 export function useApi(): UseApiResult {
-	const [health, setHealth] = useState<DataState<HealthStatus>>();
+	const [health, setHealth] = useState<DataState<HealthResponse>>();
 	const [deuro, _setDeuro] = useState<DataState<DeuroState>>();
 	const [positions, setPositions] = useState<DataState<PositionResponse[]>>();
 	const [collateral, setCollateral] = useState<DataState<CollateralResponse[]>>();
