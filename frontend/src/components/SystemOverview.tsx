@@ -2,8 +2,38 @@ import type { DeuroState } from '../../../shared/types';
 import { colors, spacing } from '../lib/theme';
 import { formatNumber, formatPercent } from '../lib/formatters';
 import type { DataState } from '../lib/api.hook';
+import { useEffect, useState } from 'react';
+
+interface VerificationStatus {
+	minters: { blockchain: number; database: number; hasDiscrepancy: boolean };
+	positions: { blockchain: number; database: number; hasDiscrepancy: boolean };
+}
 
 export function SystemOverview({ data, error }: DataState<DeuroState>) {
+	const [verification, setVerification] = useState<VerificationStatus | null>(null);
+
+	useEffect(() => {
+		const apiUrl = import.meta.env.VITE_API_BASE_URL;
+		if (!apiUrl) return;
+
+		const fetchVerification = async () => {
+			try {
+				const response = await fetch(`${apiUrl}/verification`);
+				if (response.ok) {
+					const result = await response.json();
+					setVerification(result);
+				}
+			} catch (err) {
+				console.error('Failed to fetch verification status:', err);
+			}
+		};
+
+		fetchVerification();
+		// Refresh every minute
+		const interval = setInterval(fetchVerification, 60000);
+		return () => clearInterval(interval);
+	}, []);
+
 	if (error) return <div className={colors.critical}>{error}</div>;
 	if (!data) return null;
 
@@ -12,21 +42,60 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 	const netProfit = deuroProfit - BigInt(data.deuroLoss);
 
 	return (
-		<div className={`${colors.background} ${colors.table.border} border rounded-xl p-4`}>
-			<h2 className={`text-sm uppercase tracking-wider ${colors.text.primary} mb-4`}>SYSTEM OVERVIEW</h2>
+		<>
+			{verification?.minters.hasDiscrepancy && (
+				<div className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold text-center animate-pulse">
+					⚠️ WARNING: Minter database capture incomplete! Blockchain: {verification.minters.blockchain} | Database:{' '}
+					{verification.minters.database}
+				</div>
+			)}
+			{verification?.positions.hasDiscrepancy && (
+				<div className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold text-center animate-pulse">
+					⚠️ WARNING: Position database capture incomplete! Blockchain: {verification.positions.blockchain} | Database:{' '}
+					{verification.positions.database}
+				</div>
+			)}
+			<div className={`${colors.background} ${colors.table.border} border rounded-xl p-4`}>
+				<h2 className={`text-sm uppercase tracking-wider ${colors.text.primary} mb-4`}>SYSTEM OVERVIEW</h2>
 
-			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
-				<Section title="SUPPLY">
-					<Metric label="dEURO" value={formatNumber(data.deuroTotalSupply, 18, 2)} valueClass={colors.text.primary} />
-					<Metric label="nDEPS" value={formatNumber(data.equityShares, 18, 2)} />
-					<Metric label="DEPS" value={formatNumber(data.depsTotalSupply, 18, 2)} />
-				</Section>
+				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+					<Section title="SUPPLY">
+						<Metric label="dEURO" value={formatNumber(data.deuroTotalSupply, 18, 2)} valueClass={colors.text.primary} />
+						<Metric label="nDEPS" value={formatNumber(data.equityShares, 18, 2)} />
+						<Metric label="DEPS" value={formatNumber(data.depsTotalSupply, 18, 2)} />
+					</Section>
 
-				<Section title="RESERVES">
-					<Metric label="Total" value={formatNumber(data.reserveTotal, 18, 2)} />
-					<Metric label="Minter" value={formatNumber(data.reserveMinter, 18, 2)} />
-					<Metric label="Equity" value={formatNumber(data.reserveEquity, 18, 2)} valueClass={colors.success} />
-				</Section>
+					<Section title="MINTERS">
+						<Metric
+							label="Total Applications (Blockchain)"
+							value={verification?.minters.blockchain.toString() || '0'}
+							valueClass={colors.text.primary}
+						/>
+						<Metric
+							label="Captured in Database"
+							value={verification?.minters.database.toString() || '0'}
+							valueClass={colors.text.secondary}
+						/>
+					</Section>
+
+					<Section title="POSITIONS">
+						<Metric
+							label="Total Created (Blockchain)"
+							value={verification?.positions.blockchain.toString() || '0'}
+							valueClass={colors.text.primary}
+						/>
+						<Metric
+							label="Captured in Database"
+							value={verification?.positions.database.toString() || '0'}
+							valueClass={colors.text.secondary}
+						/>
+					</Section>
+
+					<Section title="RESERVES">
+						<Metric label="Total" value={formatNumber(data.reserveTotal, 18, 2)} />
+						<Metric label="Minter" value={formatNumber(data.reserveMinter, 18, 2)} />
+						<Metric label="Equity" value={formatNumber(data.reserveEquity, 18, 2)} valueClass={colors.success} />
+					</Section>
 
 				<Section title="24H ACTIVITY (dEURO)">
 					<Metric label="Volume" value={formatNumber(data.deuroVolume24h, 18, 2)} />
@@ -63,6 +132,7 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 				)}
 			</div>
 		</div>
+		</>
 	);
 }
 
