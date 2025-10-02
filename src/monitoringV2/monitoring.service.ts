@@ -113,6 +113,10 @@ export class MonitoringService implements OnModuleInit {
 		await this.telegramService.sendPendingAlerts(); // send pending telegram alerts
 	}
 
+	getConsecutiveFailures(): number {
+		return this.consecutiveFailures;
+	}
+
 	private async getBlockRangeToProcess(): Promise<{ fromBlock: number; currentBlock: number }> {
 		const lastProcessedBlock = await this.syncStateRepo.getLastProcessedBlock();
 		const fromBlock = (lastProcessedBlock ?? this.config.deploymentBlock) + 1;

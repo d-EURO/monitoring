@@ -27,11 +27,18 @@ export enum MinterType {
 	BRIDGE = 'BRIDGE',
 }
 
+export enum HealthState {
+	OK = 'OK',
+	OFFLINE = 'OFFLINE',
+	FAILING = 'FAILING',
+}
+
 export interface HealthResponse {
-	status: string;
+	status: HealthState;
+	consecutiveFailures: number;
 	lastProcessedBlock: number;
-	currentBlock: number;
-	blocksBehind: number;
+	currentBlock?: number;
+	blocksBehind?: number;
 	updatedAt: string; // Unix timestamp in milliseconds as string
 }
 
@@ -145,8 +152,3 @@ export interface MinterResponse {
 	bridgeMinted?: string;
 	bridgeHorizon?: string; // Unix timestamp in milliseconds as string
 }
-
-// Type aliases for frontend compatibility
-export type Position = PositionResponse;
-export type Challenge = ChallengeResponse;
-export type HealthStatus = HealthResponse;
