@@ -55,7 +55,10 @@ export class MonitoringService implements OnModuleInit {
 		let currentBlock: number, fromBlock: number;
 		try {
 			({ fromBlock, currentBlock } = await this.getBlockRangeToProcess());
-			if (fromBlock > currentBlock) return;
+			if (fromBlock > currentBlock) {
+				this.consecutiveFailures = 0;
+				return;
+			}
 
 			const startTime = Date.now();
 			await this.processBlocks(fromBlock, currentBlock);
@@ -64,26 +67,39 @@ export class MonitoringService implements OnModuleInit {
 			this.consecutiveFailures = 0;
 		} catch (error) {
 			this.consecutiveFailures++;
+			let errorMsg = typeof error?.message === 'string' && error.message;
+			if (!errorMsg) {
+				try { errorMsg = JSON.stringify(error); }
+				catch { errorMsg = String(error); }
+			}
 			this.logger.error(
-				`Error occurred while processing blocks (${this.consecutiveFailures} consecutive failures): ${error.message}`,
-				error.stack
+				`Error occurred while processing blocks (${this.consecutiveFailures} consecutive failures): ${errorMsg}`,
+				error?.stack || error
 			);
 
 			if (this.shouldAlertFailure()) {
 				try {
 					const lastProcessedBlock = await this.syncStateRepo.getLastProcessedBlock();
-					const currentBlockStr = currentBlock !== undefined ? currentBlock.toString() : 'unknown';
-					const blocksBehind = currentBlock !== undefined ? currentBlock - (lastProcessedBlock || 0) : 'unknown';
+					const currentBlockNow = await this.providerService.getBlockNumber().catch(() => undefined);
+					const currentBlockStr = currentBlockNow !== undefined ? currentBlockNow.toString() : 'unknown';
+					const blocksBehind = currentBlockNow !== undefined && lastProcessedBlock !== null
+						? currentBlockNow - lastProcessedBlock
+						: 'unknown';
 
 					await this.telegramService.sendCriticalAlert(
 						`Monitoring system stuck after ${this.consecutiveFailures} consecutive failures!\n\n` +
-							`Last processed block: ${lastProcessedBlock || 'none'}\n` +
+							`Last processed block: ${lastProcessedBlock ?? 'none'}\n` +
 							`Current block: ${currentBlockStr}\n` +
 							`Blocks behind: ${blocksBehind}\n\n` +
-							`Error: ${error.message}`
+							`Error: ${errorMsg}`
 					);
 				} catch (alertError) {
-					this.logger.error(`Failed to send critical alert: ${alertError.message}`);
+					let alertErrorMsg = typeof alertError?.message === 'string' && alertError.message;
+					if (!alertErrorMsg) {
+						try { alertErrorMsg = JSON.stringify(alertError); }
+						catch { alertErrorMsg = String(alertError); }
+					}
+					this.logger.error(`Failed to send critical alert: ${alertErrorMsg}`);
 				}
 			}
 		} finally {
