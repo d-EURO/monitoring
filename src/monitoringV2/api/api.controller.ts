@@ -13,8 +13,7 @@ import {
 	MinterType,
 } from '../../../shared/types';
 import type { Token, PositionState } from '@prisma/client';
-import { ADDRESS } from '@deuro/eurocoin';
-import { AppConfigService } from '../../config/config.service';
+import { ProviderService } from '../provider.service';
 
 const deuroDecimals = 18;
 
@@ -23,7 +22,7 @@ const deuroDecimals = 18;
 export class ApiController {
 	constructor(
 		private readonly prisma: PrismaClientService,
-		private readonly config: AppConfigService
+		private readonly providerService: ProviderService
 	) {}
 
 	@Get('health')
@@ -31,9 +30,15 @@ export class ApiController {
 	@ApiResponse({ status: 200, description: 'Service health information' })
 	async health(): Promise<HealthResponse> {
 		const lastBlock = await this.prisma.syncState.findFirst();
+		const currentBlock = await this.providerService.getBlockNumber();
+		const lastProcessedBlock = Number(lastBlock?.lastProcessedBlock || 0);
+		const blocksBehind = currentBlock - lastProcessedBlock;
+
 		return {
 			status: 'ok',
-			lastProcessedBlock: Number(lastBlock?.lastProcessedBlock || 0),
+			lastProcessedBlock,
+			currentBlock,
+			blocksBehind,
 			updatedAt: lastBlock?.timestamp?.getTime().toString() || '0',
 		};
 	}

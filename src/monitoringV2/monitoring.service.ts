@@ -15,6 +15,7 @@ import { TelegramService } from './telegram.service';
 @Injectable()
 export class MonitoringService implements OnModuleInit {
 	private isRunning = false;
+	private consecutiveFailures = 0;
 
 	private readonly logger = new Logger(MonitoringService.name);
 
@@ -51,15 +52,40 @@ export class MonitoringService implements OnModuleInit {
 
 		this.isRunning = true;
 
+		let currentBlock: number, fromBlock: number;
 		try {
-			const { fromBlock, currentBlock } = await this.getBlockRangeToProcess();
+			({ fromBlock, currentBlock } = await this.getBlockRangeToProcess());
 			if (fromBlock > currentBlock) return;
 
 			const startTime = Date.now();
 			await this.processBlocks(fromBlock, currentBlock);
 			this.logger.log(`Monitoring cycle completed in ${Date.now() - startTime}ms`);
+
+			this.consecutiveFailures = 0;
 		} catch (error) {
-			this.logger.error(`Error occurred while processing blocks: ${error.message}`, error.stack);
+			this.consecutiveFailures++;
+			this.logger.error(
+				`Error occurred while processing blocks (${this.consecutiveFailures} consecutive failures): ${error.message}`,
+				error.stack
+			);
+
+			if (this.consecutiveFailures === 3 || this.consecutiveFailures % 10 === 0) {
+				try {
+					const lastProcessedBlock = await this.syncStateRepo.getLastProcessedBlock();
+					const currentBlockStr = currentBlock !== undefined ? currentBlock.toString() : 'unknown';
+					const blocksBehind = currentBlock !== undefined ? currentBlock - (lastProcessedBlock || 0) : 'unknown';
+
+					await this.telegramService.sendCriticalAlert(
+						`Monitoring system stuck after ${this.consecutiveFailures} consecutive failures!\n\n` +
+							`Last processed block: ${lastProcessedBlock || 'none'}\n` +
+							`Current block: ${currentBlockStr}\n` +
+							`Blocks behind: ${blocksBehind}\n\n` +
+							`Error: ${error.message}`
+					);
+				} catch (alertError) {
+					this.logger.error(`Failed to send critical alert: ${alertError.message}`);
+				}
+			}
 		} finally {
 			this.isRunning = false;
 		}
@@ -90,8 +116,7 @@ export class MonitoringService implements OnModuleInit {
 	private async getBlockRangeToProcess(): Promise<{ fromBlock: number; currentBlock: number }> {
 		const lastProcessedBlock = await this.syncStateRepo.getLastProcessedBlock();
 		const fromBlock = (lastProcessedBlock ?? this.config.deploymentBlock) + 1;
-		const currentBlock = await this.providerService.provider.getBlockNumber();
-
+		const currentBlock = await this.providerService.getBlockNumber();
 		this.logger.log(`${currentBlock - fromBlock + 1} new blocks to process: ${fromBlock} to ${currentBlock}`);
 		return { fromBlock, currentBlock };
 	}

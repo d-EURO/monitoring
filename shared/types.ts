@@ -30,6 +30,8 @@ export enum MinterType {
 export interface HealthResponse {
 	status: string;
 	lastProcessedBlock: number;
+	currentBlock: number;
+	blocksBehind: number;
 	updatedAt: string; // Unix timestamp in milliseconds as string
 }
 
