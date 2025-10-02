@@ -11,10 +11,11 @@ import {
 	MinterResponse,
 	MinterStatus,
 	MinterType,
+	HealthState,
 } from '../../../shared/types';
 import type { Token, PositionState } from '@prisma/client';
-import { ADDRESS } from '@deuro/eurocoin';
-import { AppConfigService } from '../../config/config.service';
+import { ProviderService } from '../provider.service';
+import { MonitoringService } from '../monitoring.service';
 
 const deuroDecimals = 18;
 
@@ -23,7 +24,8 @@ const deuroDecimals = 18;
 export class ApiController {
 	constructor(
 		private readonly prisma: PrismaClientService,
-		private readonly config: AppConfigService
+		private readonly providerService: ProviderService,
+		private readonly monitoringService: MonitoringService
 	) {}
 
 	@Get('health')
@@ -31,9 +33,24 @@ export class ApiController {
 	@ApiResponse({ status: 200, description: 'Service health information' })
 	async health(): Promise<HealthResponse> {
 		const lastBlock = await this.prisma.syncState.findFirst();
+		const lastProcessedBlock = Number(lastBlock?.lastProcessedBlock || 0);
+		const consecutiveFailures = this.monitoringService.getConsecutiveFailures();
+
+		let currentBlock: number | undefined;
+		let blocksBehind: number | undefined;
+		try {
+			currentBlock = await this.providerService.getBlockNumber();
+			blocksBehind = currentBlock - lastProcessedBlock;
+		} catch (error) {
+			// RPC unavailable, can't get current block
+		}
+
 		return {
-			status: 'ok',
-			lastProcessedBlock: Number(lastBlock?.lastProcessedBlock || 0),
+			status: consecutiveFailures >= 3 ? HealthState.FAILING : HealthState.OK,
+			consecutiveFailures,
+			lastProcessedBlock,
+			currentBlock,
+			blocksBehind,
 			updatedAt: lastBlock?.timestamp?.getTime().toString() || '0',
 		};
 	}
