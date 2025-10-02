@@ -3,6 +3,39 @@ import { Injectable, Logger } from '@nestjs/common';
 import { MulticallWrapper, MulticallProvider } from 'ethers-multicall-provider';
 import { AppConfigService } from 'src/config/config.service';
 
+class RpcStats {
+	private stats = new Map<string, { calls: number; errors: number }>();
+
+	record(method: string, isError: boolean): void {
+		const stat = this.stats.get(method) || { calls: 0, errors: 0 };
+		stat.calls++;
+		if (isError) stat.errors++;
+		this.stats.set(method, stat);
+	}
+
+	getStats(): Record<string, { calls: number; errors: number }> {
+		return Object.fromEntries(this.stats);
+	}
+}
+
+class LoggingJsonRpcProvider extends ethers.JsonRpcProvider {
+	constructor(url: string, private rpcStats: RpcStats) {
+		super(url);
+	}
+
+	async send(method: string, params: Array<any>): Promise<any> {
+		let isError = false;
+		try {
+			return await super.send(method, params);
+		} catch (error) {
+			isError = true;
+			throw error;
+		} finally {
+			this.rpcStats.record(method, isError);
+		}
+	}
+}
+
 @Injectable()
 export class ProviderService {
 	private static readonly SERVER_STATUSES = new Set([500, 502, 503, 504, 520, 522, 524]);
@@ -44,13 +77,14 @@ export class ProviderService {
 	private ethersProvider: ethers.JsonRpcProvider;
 	private multicallProviderInstance: MulticallProvider<ethers.JsonRpcProvider>;
 	private blockCache = new Map<number, ethers.Block>();
+	private rpcStats = new RpcStats();
 
 	constructor(private readonly config: AppConfigService) {
 		this.initializeProvider();
 	}
 
 	private initializeProvider() {
-		this.ethersProvider = new ethers.JsonRpcProvider(this.config.rpcUrl);
+		this.ethersProvider = new LoggingJsonRpcProvider(this.config.rpcUrl, this.rpcStats);
 		this.multicallProviderInstance = MulticallWrapper.wrap(this.ethersProvider, 480_000); // 480KB call data limit - safe for Alchemy
 		this.logger.log('Multicall provider initialized with 480KB calldata limit');
 	}
@@ -85,6 +119,10 @@ export class ProviderService {
 
 	async getBlockNumber(): Promise<number> {
 		return await this.withRetry(() => this.ethersProvider.getBlockNumber());
+	}
+
+	getRpcStats(): Record<string, { calls: number; errors: number }> {
+		return this.rpcStats.getStats();
 	}
 
 	// Helper functions for retry logic

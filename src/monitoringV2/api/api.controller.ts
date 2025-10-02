@@ -52,6 +52,7 @@ export class ApiController {
 			currentBlock,
 			blocksBehind,
 			updatedAt: lastBlock?.timestamp?.getTime().toString() || '0',
+			rpcStats: this.providerService.getRpcStats(),
 		};
 	}
 

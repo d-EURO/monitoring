@@ -40,6 +40,7 @@ export interface HealthResponse {
 	currentBlock?: number;
 	blocksBehind?: number;
 	updatedAt: string; // Unix timestamp in milliseconds as string
+	rpcStats: Record<string, { calls: number; errors: number }>;
 }
 
 export interface PositionResponse {
