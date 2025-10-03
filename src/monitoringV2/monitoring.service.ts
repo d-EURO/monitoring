@@ -138,7 +138,7 @@ export class MonitoringService implements OnModuleInit {
 
 	private async getBlockRangeToProcess(): Promise<{ fromBlock: number; currentBlock: number }> {
 		const lastProcessedBlock = await this.syncStateRepo.getLastProcessedBlock();
-		const fromBlock = (lastProcessedBlock ?? this.config.deploymentBlock) + 1;
+		const fromBlock = lastProcessedBlock !== null ? lastProcessedBlock + 1 : this.config.deploymentBlock;
 		const currentBlock = await this.providerService.getBlockNumber();
 		this.logger.log(`${currentBlock - fromBlock + 1} new blocks to process: ${fromBlock} to ${currentBlock}`);
 		return { fromBlock, currentBlock };

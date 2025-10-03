@@ -5,8 +5,14 @@ import { AppConfigService } from 'src/config/config.service';
 
 class RpcStats {
 	private stats = new Map<string, { calls: number; errors: number }>();
+	private nextMidnightUtc: number = this.getNextMidnightUtc();
 
 	record(method: string, isError: boolean): void {
+		if (Date.now() >= this.nextMidnightUtc) {
+			this.stats.clear();
+			this.nextMidnightUtc = this.getNextMidnightUtc();
+		}
+
 		const stat = this.stats.get(method) || { calls: 0, errors: 0 };
 		stat.calls++;
 		if (isError) stat.errors++;
@@ -16,22 +22,35 @@ class RpcStats {
 	getStats(): Record<string, { calls: number; errors: number }> {
 		return Object.fromEntries(this.stats);
 	}
+
+	private getNextMidnightUtc(): number {
+		const tomorrow = new Date();
+		tomorrow.setUTCHours(24, 0, 0, 0);
+		return tomorrow.getTime();
+	}
 }
 
 class LoggingJsonRpcProvider extends ethers.JsonRpcProvider {
-	constructor(url: string, private rpcStats: RpcStats) {
+	constructor(
+		url: string,
+		private rpcStats: RpcStats
+	) {
 		super(url);
 	}
 
-	async send(method: string, params: Array<any>): Promise<any> {
+	// Handle both single and batch requests
+	async _send(payload: any | Array<any>): Promise<any> {
+		const payloads = Array.isArray(payload) ? payload : [payload];
+		const methods = payloads.map((p) => p.method);
+
 		let isError = false;
 		try {
-			return await super.send(method, params);
+			return await super._send(payload);
 		} catch (error) {
 			isError = true;
 			throw error;
 		} finally {
-			this.rpcStats.record(method, isError);
+			methods.forEach((method) => this.rpcStats.record(method, isError));
 		}
 	}
 }
