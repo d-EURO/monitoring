@@ -113,11 +113,11 @@ export function getStatusColor(status: PositionStatus | MinterStatus | Challenge
 		case MinterStatus.PROPOSED:
 		case ChallengeStatus.AUCTION:
 			return colors.critical;
-		case PositionStatus.EXPIRED:
 		case PositionStatus.DENIED:
 		case ChallengeStatus.AVERTING:
 			return colors.highlight;
 		case PositionStatus.CLOSED:
+		case PositionStatus.EXPIRED:
 		case MinterStatus.DENIED:
 		case ChallengeStatus.ENDED:
 			return colors.text.secondary;

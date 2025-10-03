@@ -52,6 +52,29 @@ export class ContractRepository {
 		}
 	}
 
+	async getMinterContracts(): Promise<Contract[]> {
+		try {
+			const contracts = await this.prisma.contract.findMany({
+				where: {
+					type: {
+						in: [
+							ContractType.MINTER,
+							ContractType.BRIDGE,
+							ContractType.SAVINGS,
+							ContractType.FRONTEND_GATEWAY,
+							ContractType.MINTING_HUB,
+							ContractType.ROLLER,
+						],
+					},
+				},
+			});
+			return contracts.map(this.mapToContract);
+		} catch (error) {
+			this.logger.error(`Failed to fetch minter contracts: ${error.message}`);
+			throw error;
+		}
+	}
+
 	private mapToContract = (contract: any): Contract => ({
 		address: contract.address,
 		type: contract.type as ContractType,

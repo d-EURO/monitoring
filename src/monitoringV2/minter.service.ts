@@ -28,8 +28,9 @@ export class MinterService {
 	}
 
 	async syncMinters(): Promise<void> {
-		const bridges = await this.contractRepo.getContractsByType(ContractType.BRIDGE);
-		const genericMinters = await this.contractRepo.getContractsByType(ContractType.MINTER);
+		const minterContracts = await this.contractRepo.getMinterContracts();
+		const bridges = minterContracts.filter((c) => c.type === ContractType.BRIDGE);
+		const genericMinters = minterContracts.filter((c) => c.type !== ContractType.BRIDGE);
 		const allMinters = [...bridges, ...genericMinters];
 		if (!allMinters.length) return;
 
@@ -45,7 +46,9 @@ export class MinterService {
 		}
 
 		const results = await this.providerService.callBatch(calls, 3);
+		const existingMinters = await this.minterRepo.findAll();
 		const deniedMinters = await this.eventsRepo.getDeniedMinters();
+		const existingMinterMap = new Map(existingMinters.map((m) => [m.address.toLowerCase(), m]));
 
 		let resultIndex = 0;
 		const minterStates: MinterState[] = [];
@@ -55,10 +58,11 @@ export class MinterService {
 			const address = minter.address.toLowerCase();
 			const metadata = minter.metadata || {};
 			const isBridge = minter.type === ContractType.BRIDGE;
+			const existing = existingMinterMap.get(address);
 
-			const bridgeToken = isBridge ? results[resultIndex++] : undefined;
-			const bridgeHorizon = isBridge ? results[resultIndex++] : undefined;
-			const bridgeLimit = isBridge ? results[resultIndex++] : undefined;
+			const bridgeToken = isBridge ? (results[resultIndex++] ?? existing?.bridgeToken) : undefined;
+			const bridgeHorizon = isBridge ? (results[resultIndex++] ?? existing?.bridgeHorizon) : undefined;
+			const bridgeLimit = isBridge ? (results[resultIndex++] ?? existing?.bridgeLimit) : undefined;
 			const bridgeMinted = isBridge ? results[resultIndex++] : undefined;
 
 			const applicationTimestamp = BigInt(minter.timestamp);

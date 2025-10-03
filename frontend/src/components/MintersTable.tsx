@@ -88,6 +88,7 @@ export function MintersTable({ data }: MinterTableProps) {
 			columns={columns}
 			getRowKey={(minter) => minter.address}
 			hidden={(minter) => minter.status === MinterStatus.DENIED || minter.status === MinterStatus.EXPIRED}
+			sort={(a, b) => Number(b.applicationTimestamp) - Number(a.applicationTimestamp)}
 			emptyMessage="No minters found"
 		/>
 	);

@@ -8,6 +8,9 @@ import { ProviderService } from './provider.service';
 
 @Injectable()
 export class EventService {
+	private static readonly MAX_LOGS_PER_CALL = 7500; // Below Alchemy's 10,000 log limit
+	private static readonly MAX_SPLIT_DEPTH = 10; // Prevent infinite recursion
+
 	private readonly logger = new Logger(EventService.name);
 	private readonly eventTopics: string[];
 
@@ -36,12 +39,7 @@ export class EventService {
 		}
 
 		try {
-			const logs = await this.providerService.provider.getLogs({
-				address: contracts.map((c) => c.address),
-				fromBlock,
-				toBlock,
-				topics: this.eventTopics.length > 0 ? [this.eventTopics] : undefined,
-			});
+			const logs = await this.collectLogsWithPagination(contracts.map((c) => c.address), fromBlock, toBlock);
 
 			const events: Event[] = [];
 			for (const log of logs) {
@@ -57,6 +55,46 @@ export class EventService {
 			this.logger.error(`Failed to collect events: ${error.message}`);
 			throw error;
 		}
+	}
+
+	/**
+	 * Recursively fetches logs with automatic pagination to prevent RPC truncation.
+	 * Most RPC providers have a 10,000 log limit - we split ranges approaching this limit.
+	 */
+	private async collectLogsWithPagination(
+		addresses: string[],
+		fromBlock: number,
+		toBlock: number,
+		depth: number = 0
+	): Promise<ethers.Log[]> {
+		if (depth > EventService.MAX_SPLIT_DEPTH) {
+			throw new Error(`Max recursion depth exceeded fetching blocks ${fromBlock}-${toBlock}`);
+		}
+
+		const logs = await this.providerService.provider.getLogs({
+			address: addresses,
+			fromBlock,
+			toBlock,
+			topics: this.eventTopics.length > 0 ? [this.eventTopics] : undefined,
+		});
+
+		if (logs.length < EventService.MAX_LOGS_PER_CALL) return logs;
+
+		if (fromBlock === toBlock) {
+			this.logger.error(`Block ${fromBlock} has ${logs.length} logs (at limit) - possible truncation`);
+			return logs;
+		}
+
+		const mid = Math.floor((fromBlock + toBlock) / 2);
+		this.logger.warn(`Splitting ${fromBlock}-${toBlock} (${logs.length} logs) at block ${mid}`);
+
+		const [firstHalf, secondHalf] = await Promise.all([
+			this.collectLogsWithPagination(addresses, fromBlock, mid, depth + 1),
+			this.collectLogsWithPagination(addresses, mid + 1, toBlock, depth + 1),
+		]);
+
+		this.logger.log(`✓ Merged ${fromBlock}-${mid} (${firstHalf.length}) + ${mid + 1}-${toBlock} (${secondHalf.length})`);
+		return [...firstHalf, ...secondHalf];
 	}
 
 	private async persistEvents(events: Event[]): Promise<void> {
