@@ -44,7 +44,7 @@ class LoggingJsonRpcProvider extends ethers.JsonRpcProvider {
 	// Handle both single and batch requests
 	async _send(payload: any | Array<any>): Promise<any> {
 		const payloads = Array.isArray(payload) ? payload : [payload];
-		const methods = payloads.map((p) => p.method);
+		const methods = payloads.map((p) => p?.method ?? 'unknown');
 
 		let isError = false;
 		try {
@@ -108,6 +108,9 @@ export class ProviderService {
 
 	private initializeProvider() {
 		this.ethersProvider = new LoggingJsonRpcProvider(this.config.rpcUrl, this.rpcStats, this.config.rpcTimeoutMs);
+		this.logger.log(
+			`LoggingJsonRpcProvider initialized with _send() override for RPC call tracking (timeout: ${this.config.rpcTimeoutMs}ms)`
+		);
 		this.multicallProviderInstance = MulticallWrapper.wrap(this.ethersProvider, ProviderService.CALLEDATA_LIMIT);
 		this.logger.log(
 			`Multicall provider initialized with ${ProviderService.CALLEDATA_LIMIT} bytes calldata limit and ${this.config.rpcTimeoutMs}ms timeout`
