@@ -79,16 +79,16 @@ export class MonitoringService implements OnModuleInit {
 
 			if (this.shouldAlertFailure()) {
 				try {
-					const lastProcessedBlock = await this.syncStateRepo.getLastProcessedBlock();
+					const lastCompletedBlock = await this.syncStateRepo.getLastCompletedBlock();
 					const currentBlockNow = await this.providerService.getBlockNumber().catch(() => undefined);
 					const currentBlockStr = currentBlockNow !== undefined ? currentBlockNow.toString() : 'unknown';
-					const blocksBehind = currentBlockNow !== undefined && lastProcessedBlock !== null
-						? currentBlockNow - lastProcessedBlock
+					const blocksBehind = currentBlockNow !== undefined && lastCompletedBlock !== null
+						? currentBlockNow - lastCompletedBlock
 						: 'unknown';
 
 					await this.telegramService.sendCriticalAlert(
 						`Monitoring system stuck after ${this.consecutiveFailures} consecutive failures!\n\n` +
-							`Last processed block: ${lastProcessedBlock ?? 'none'}\n` +
+							`Last processed block: ${lastCompletedBlock ?? 'none'}\n` +
 							`Current block: ${currentBlockStr}\n` +
 							`Blocks behind: ${blocksBehind}\n\n` +
 							`Error: ${errorMsg}`
@@ -131,6 +131,9 @@ export class MonitoringService implements OnModuleInit {
 		await this.collateralService.syncCollaterals(); // sync collateral states
 		await this.minterService.syncMinters(); // sync minter states
 		await this.telegramService.sendPendingAlerts(); // send pending telegram alerts
+
+		// Mark full cycle as completed
+		await this.syncStateRepo.updateLastCompletedBlock(currentBlock);
 	}
 
 	private async getBlockRangeToProcess(): Promise<{ fromBlock: number; currentBlock: number }> {

@@ -37,6 +37,7 @@ export interface HealthResponse {
 	status: HealthState;
 	consecutiveFailures: number;
 	lastProcessedBlock: number;
+	lastCompletedBlock: number;
 	currentBlock?: number;
 	blocksBehind?: number;
 	updatedAt: string; // Unix timestamp in milliseconds as string

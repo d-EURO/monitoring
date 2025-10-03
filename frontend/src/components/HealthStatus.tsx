@@ -3,6 +3,16 @@ import type { DataState } from '../lib/api.hook';
 import { colors } from '../lib/theme';
 import { useState } from 'react';
 
+const CYCLE_INTERVAL_MIN = 5; // Monitoring runs every 5 minutes (Cron job)
+
+function formatFailureTime(failures: number): string {
+	const minutes = failures * CYCLE_INTERVAL_MIN;
+	if (minutes < 60) return `${minutes} min`;
+	const hours = Math.floor(minutes / 60);
+	const mins = minutes % 60;
+	return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
 export function HealthStatus({ data, error }: DataState<HealthResponse>) {
 	const [isReloading, setIsReloading] = useState(false);
 
@@ -34,7 +44,7 @@ export function HealthStatus({ data, error }: DataState<HealthResponse>) {
 	const getStatusText = () => {
 		if (error) return `OFFLINE: ${error}`;
 		if (!data) return 'Loading...';
-		if (data.status === HealthState.FAILING) return `FAILING (${data.consecutiveFailures} cycles)`;
+		if (data.status === HealthState.FAILING) return `FAILING (${formatFailureTime(data.consecutiveFailures)})`;
 		return data.status;
 	};
 
