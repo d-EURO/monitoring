@@ -43,6 +43,13 @@ export class MonitoringConfig {
 	@Min(1)
 	blockPerBatch?: number;
 
+	@Transform(({ value }) => parseInt(value))
+	@IsOptional()
+	@IsNumber()
+	@Min(5000)
+	@Max(300000)
+	rpcTimeoutMs?: number;
+
 	@IsOptional()
 	@IsString()
 	telegramBotToken?: string;
@@ -74,6 +81,7 @@ export default registerAs('monitoring', () => {
 	config.pgMaxClients = parseInt(process.env.PG_MAX_CLIENTS || '10');
 	config.priceCacheTtlMs = parseInt(process.env.PRICE_CACHE_TTL_MS || '120000');
 	config.blockPerBatch = parseInt(process.env.MAX_BLOCKS_PER_BATCH || '500');
+	config.rpcTimeoutMs = parseInt(process.env.RPC_TIMEOUT_MS || '60000');
 
 	config.telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || '';
 	config.telegramChatId = process.env.TELEGRAM_CHAT_ID || '';
