@@ -33,9 +33,12 @@ class RpcStats {
 class LoggingJsonRpcProvider extends ethers.JsonRpcProvider {
 	constructor(
 		url: string,
-		private rpcStats: RpcStats
+		private rpcStats: RpcStats,
+		timeoutMs?: number
 	) {
-		super(url);
+		const connection = new ethers.FetchRequest(url);
+		if (timeoutMs) connection.timeout = timeoutMs;
+		super(connection);
 	}
 
 	// Handle both single and batch requests
@@ -57,6 +60,7 @@ class LoggingJsonRpcProvider extends ethers.JsonRpcProvider {
 
 @Injectable()
 export class ProviderService {
+	private static readonly CALLEDATA_LIMIT = 480_000; // 480KB call data limit - safe for Alchemy
 	private static readonly SERVER_STATUSES = new Set([500, 502, 503, 504, 520, 522, 524]);
 	private static readonly NET_CODES = new Set([
 		'ETIMEDOUT',
@@ -103,9 +107,11 @@ export class ProviderService {
 	}
 
 	private initializeProvider() {
-		this.ethersProvider = new LoggingJsonRpcProvider(this.config.rpcUrl, this.rpcStats);
-		this.multicallProviderInstance = MulticallWrapper.wrap(this.ethersProvider, 480_000); // 480KB call data limit - safe for Alchemy
-		this.logger.log('Multicall provider initialized with 480KB calldata limit');
+		this.ethersProvider = new LoggingJsonRpcProvider(this.config.rpcUrl, this.rpcStats, this.config.rpcTimeoutMs);
+		this.multicallProviderInstance = MulticallWrapper.wrap(this.ethersProvider, ProviderService.CALLEDATA_LIMIT);
+		this.logger.log(
+			`Multicall provider initialized with ${ProviderService.CALLEDATA_LIMIT} bytes calldata limit and ${this.config.rpcTimeoutMs}ms timeout`
+		);
 	}
 
 	get provider(): ethers.JsonRpcProvider {
@@ -116,7 +122,7 @@ export class ProviderService {
 		return this.multicallProviderInstance;
 	}
 
-	async callBatch<T>(thunks: Array<() => Promise<T>>, retries = 3): Promise<T[]> {
+	async callBatch<T>(thunks: Array<() => Promise<T>>, retries = 5): Promise<T[]> {
 		return this.withRetry(() => Promise.all(thunks.map((fn) => fn())), { retries });
 	}
 
@@ -166,7 +172,7 @@ export class ProviderService {
 		fn: () => Promise<T>,
 		options: { retries?: number; baseMs?: number; factor?: number; maxMs?: number } = {}
 	): Promise<T> {
-		const { retries = 3, baseMs = 200, factor = 2, maxMs = 2000 } = options;
+		const { retries = 5, baseMs = 200, factor = 2, maxMs = 5000 } = options;
 		let attempt = 0;
 		let delay = baseMs;
 
