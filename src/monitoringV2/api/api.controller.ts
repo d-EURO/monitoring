@@ -16,6 +16,7 @@ import {
 import type { Token, PositionState } from '@prisma/client';
 import { ProviderService } from '../provider.service';
 import { MonitoringService } from '../monitoring.service';
+import { AppConfigService } from 'src/config/config.service';
 
 const deuroDecimals = 18;
 
@@ -25,33 +26,28 @@ export class ApiController {
 	constructor(
 		private readonly prisma: PrismaClientService,
 		private readonly providerService: ProviderService,
-		private readonly monitoringService: MonitoringService
+		private readonly monitoringService: MonitoringService,
+		private readonly config: AppConfigService
 	) {}
 
 	@Get('health')
 	@ApiOperation({ summary: 'Get service health status' })
 	@ApiResponse({ status: 200, description: 'Service health information' })
 	async health(): Promise<HealthResponse> {
-		const lastBlock = await this.prisma.syncState.findFirst();
-		const lastProcessedBlock = Number(lastBlock?.lastProcessedBlock || 0);
+		const syncState = await this.prisma.syncState.findFirst();
+		const lastProcessedBlock = Number(syncState?.lastProcessedBlock || this.config.deploymentBlock);
+		const lastCompletedBlock = Number(syncState?.lastCompletedBlock || this.config.deploymentBlock);
 		const consecutiveFailures = this.monitoringService.getConsecutiveFailures();
-
-		let currentBlock: number | undefined;
-		let blocksBehind: number | undefined;
-		try {
-			currentBlock = await this.providerService.getBlockNumber();
-			blocksBehind = currentBlock - lastProcessedBlock;
-		} catch (error) {
-			// RPC unavailable, can't get current block
-		}
+		const currentBlock = await this.providerService.getBlockNumber().catch(() => undefined);
 
 		return {
 			status: consecutiveFailures >= 3 ? HealthState.FAILING : HealthState.OK,
 			consecutiveFailures,
 			lastProcessedBlock,
+			lastCompletedBlock,
 			currentBlock,
-			blocksBehind,
-			updatedAt: lastBlock?.timestamp?.getTime().toString() || '0',
+			blocksBehind: currentBlock !== undefined ? currentBlock - lastCompletedBlock : undefined,
+			updatedAt: syncState?.timestamp?.getTime().toString() || '0',
 			rpcStats: this.providerService.getRpcStats(),
 		};
 	}

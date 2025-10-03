@@ -39,4 +39,37 @@ export class SyncStateRepository {
 			throw error;
 		}
 	}
+
+	async getLastCompletedBlock(): Promise<number | null> {
+		const syncState = await this.prisma.syncState.findUnique({
+			where: { id: 1 },
+			select: { lastCompletedBlock: true },
+		});
+
+		const blockNumber = syncState?.lastCompletedBlock ? Number(syncState.lastCompletedBlock) : null;
+		this.logger.debug(`Retrieved last completed block: ${blockNumber}`);
+		return blockNumber;
+	}
+
+	async updateLastCompletedBlock(blockNumber: number): Promise<void> {
+		try {
+			await this.prisma.syncState.upsert({
+				where: { id: 1 },
+				create: {
+					id: 1,
+					lastCompletedBlock: blockNumber,
+					timestamp: new Date(),
+				},
+				update: {
+					lastCompletedBlock: blockNumber,
+					timestamp: new Date(),
+				},
+			});
+
+			this.logger.debug(`Updated last completed block to: ${blockNumber}`);
+		} catch (error) {
+			this.logger.error(`Failed to update last completed block: ${error.message}`);
+			throw error;
+		}
+	}
 }

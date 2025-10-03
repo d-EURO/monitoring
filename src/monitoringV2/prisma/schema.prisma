@@ -30,7 +30,8 @@ model RawEvent {
 // Single-row table tracking blockchain sync progress
 model SyncState {
   id                 Int      @id @default(1)
-  lastProcessedBlock BigInt   @map("last_processed_block")
+  lastProcessedBlock BigInt?  @map("last_processed_block")
+  lastCompletedBlock BigInt?  @map("last_completed_block")
   timestamp          DateTime @default(now()) @map("timestamp") @db.Timestamptz
 
   @@map("sync_state")
