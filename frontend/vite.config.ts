@@ -8,4 +8,13 @@ export default defineConfig({
     tailwindcss(),
     react(),
   ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://dev.monitoring.deuro.com',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  }
 })

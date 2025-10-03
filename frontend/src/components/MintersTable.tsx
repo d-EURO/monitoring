@@ -87,7 +87,7 @@ export function MintersTable({ data }: MinterTableProps) {
 			error={data?.error}
 			columns={columns}
 			getRowKey={(minter) => minter.address}
-			hidden={(minter) => minter.status === MinterStatus.DENIED}
+			hidden={(minter) => minter.status === MinterStatus.DENIED || minter.status === MinterStatus.EXPIRED}
 			emptyMessage="No minters found"
 		/>
 	);

@@ -15,6 +15,7 @@ import { TelegramService } from './telegram.service';
 @Injectable()
 export class MonitoringService implements OnModuleInit {
 	private isRunning = false;
+	private consecutiveFailures = 0;
 
 	private readonly logger = new Logger(MonitoringService.name);
 
@@ -51,18 +52,63 @@ export class MonitoringService implements OnModuleInit {
 
 		this.isRunning = true;
 
+		let currentBlock: number, fromBlock: number;
 		try {
-			const { fromBlock, currentBlock } = await this.getBlockRangeToProcess();
-			if (fromBlock > currentBlock) return;
+			({ fromBlock, currentBlock } = await this.getBlockRangeToProcess());
+			if (fromBlock > currentBlock) {
+				this.consecutiveFailures = 0;
+				return;
+			}
 
 			const startTime = Date.now();
 			await this.processBlocks(fromBlock, currentBlock);
 			this.logger.log(`Monitoring cycle completed in ${Date.now() - startTime}ms`);
+
+			this.consecutiveFailures = 0;
 		} catch (error) {
-			this.logger.error(`Error occurred while processing blocks: ${error.message}`, error.stack);
+			this.consecutiveFailures++;
+			let errorMsg = typeof error?.message === 'string' && error.message;
+			if (!errorMsg) {
+				try { errorMsg = JSON.stringify(error); }
+				catch { errorMsg = String(error); }
+			}
+			this.logger.error(
+				`Error occurred while processing blocks (${this.consecutiveFailures} consecutive failures): ${errorMsg}`,
+				error?.stack || error
+			);
+
+			if (this.shouldAlertFailure()) {
+				try {
+					const lastCompletedBlock = await this.syncStateRepo.getLastCompletedBlock();
+					const currentBlockNow = await this.providerService.getBlockNumber().catch(() => undefined);
+					const currentBlockStr = currentBlockNow !== undefined ? currentBlockNow.toString() : 'unknown';
+					const blocksBehind = currentBlockNow !== undefined && lastCompletedBlock !== null
+						? currentBlockNow - lastCompletedBlock
+						: 'unknown';
+
+					await this.telegramService.sendCriticalAlert(
+						`Monitoring system stuck after ${this.consecutiveFailures} consecutive failures!\n\n` +
+							`Last processed block: ${lastCompletedBlock ?? 'none'}\n` +
+							`Current block: ${currentBlockStr}\n` +
+							`Blocks behind: ${blocksBehind}\n\n` +
+							`Error: ${errorMsg}`
+					);
+				} catch (alertError) {
+					let alertErrorMsg = typeof alertError?.message === 'string' && alertError.message;
+					if (!alertErrorMsg) {
+						try { alertErrorMsg = JSON.stringify(alertError); }
+						catch { alertErrorMsg = String(alertError); }
+					}
+					this.logger.error(`Failed to send critical alert: ${alertErrorMsg}`);
+				}
+			}
 		} finally {
 			this.isRunning = false;
 		}
+	}
+
+	getConsecutiveFailures(): number {
+		return this.consecutiveFailures;
 	}
 
 	private async processBlocks(fromBlock: number, currentBlock: number): Promise<void> {
@@ -85,14 +131,23 @@ export class MonitoringService implements OnModuleInit {
 		await this.collateralService.syncCollaterals(); // sync collateral states
 		await this.minterService.syncMinters(); // sync minter states
 		await this.telegramService.sendPendingAlerts(); // send pending telegram alerts
+
+		// Mark full cycle as completed
+		await this.syncStateRepo.updateLastCompletedBlock(currentBlock);
 	}
 
 	private async getBlockRangeToProcess(): Promise<{ fromBlock: number; currentBlock: number }> {
 		const lastProcessedBlock = await this.syncStateRepo.getLastProcessedBlock();
 		const fromBlock = (lastProcessedBlock ?? this.config.deploymentBlock) + 1;
-		const currentBlock = await this.providerService.provider.getBlockNumber();
-
+		const currentBlock = await this.providerService.getBlockNumber();
 		this.logger.log(`${currentBlock - fromBlock + 1} new blocks to process: ${fromBlock} to ${currentBlock}`);
 		return { fromBlock, currentBlock };
+	}
+
+	private shouldAlertFailure() {
+		return (
+			this.consecutiveFailures > 0 &&
+			(this.consecutiveFailures === 3 || this.consecutiveFailures === 12 || this.consecutiveFailures % 72 === 0) // ~ 6 hour heartbeat
+		);
 	}
 }

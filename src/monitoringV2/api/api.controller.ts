@@ -11,10 +11,12 @@ import {
 	MinterResponse,
 	MinterStatus,
 	MinterType,
+	HealthState,
 } from '../../../shared/types';
 import type { Token, PositionState } from '@prisma/client';
-import { ADDRESS } from '@deuro/eurocoin';
-import { AppConfigService } from '../../config/config.service';
+import { ProviderService } from '../provider.service';
+import { MonitoringService } from '../monitoring.service';
+import { AppConfigService } from 'src/config/config.service';
 
 const deuroDecimals = 18;
 
@@ -23,6 +25,8 @@ const deuroDecimals = 18;
 export class ApiController {
 	constructor(
 		private readonly prisma: PrismaClientService,
+		private readonly providerService: ProviderService,
+		private readonly monitoringService: MonitoringService,
 		private readonly config: AppConfigService
 	) {}
 
@@ -30,11 +34,21 @@ export class ApiController {
 	@ApiOperation({ summary: 'Get service health status' })
 	@ApiResponse({ status: 200, description: 'Service health information' })
 	async health(): Promise<HealthResponse> {
-		const lastBlock = await this.prisma.syncState.findFirst();
+		const syncState = await this.prisma.syncState.findFirst();
+		const lastProcessedBlock = Number(syncState?.lastProcessedBlock || this.config.deploymentBlock);
+		const lastCompletedBlock = Number(syncState?.lastCompletedBlock || this.config.deploymentBlock);
+		const consecutiveFailures = this.monitoringService.getConsecutiveFailures();
+		const currentBlock = await this.providerService.getBlockNumber().catch(() => undefined);
+
 		return {
-			status: 'ok',
-			lastProcessedBlock: Number(lastBlock?.lastProcessedBlock || 0),
-			updatedAt: lastBlock?.timestamp?.getTime().toString() || '0',
+			status: consecutiveFailures >= 3 ? HealthState.FAILING : HealthState.OK,
+			consecutiveFailures,
+			lastProcessedBlock,
+			lastCompletedBlock,
+			currentBlock,
+			blocksBehind: currentBlock !== undefined ? currentBlock - lastCompletedBlock : undefined,
+			updatedAt: syncState?.timestamp?.getTime().toString() || '0',
+			rpcStats: this.providerService.getRpcStats(),
 		};
 	}
 

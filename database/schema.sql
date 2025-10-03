@@ -37,7 +37,8 @@ CREATE INDEX IF NOT EXISTS idx_contracts_metadata ON contracts USING GIN(metadat
 -- Processing State
 CREATE TABLE IF NOT EXISTS sync_state (
     id INTEGER PRIMARY KEY DEFAULT 1,
-    last_processed_block BIGINT NOT NULL,
+    last_processed_block BIGINT,
+    last_completed_block BIGINT,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     CONSTRAINT single_row CHECK (id = 1)
 );

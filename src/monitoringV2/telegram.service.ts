@@ -138,6 +138,18 @@ export class TelegramService {
 		return lines.join('\n');
 	}
 
+	async sendCriticalAlert(message: string): Promise<void> {
+		if (!this.enabled) return;
+
+		try {
+			const formattedMessage = `🚨 *CRITICAL ALERT*\n\n${message}\n\n_Timestamp: ${new Date().toISOString()}_`;
+			await this.sendMessage(formattedMessage);
+			this.logger.log('Critical alert sent via Telegram');
+		} catch (error) {
+			this.logger.error(`Failed to send critical Telegram alert: ${error.message}`);
+		}
+	}
+
 	private sleep(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
 	}
