@@ -6,6 +6,12 @@ on:
     paths-ignore:
       - 'frontend/**'
   workflow_dispatch:
+    inputs:
+      reset_database:
+        description: 'Reset Database (DESTRUCTIVE - drops all data)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   DOCKER_TAGS: dfxswiss/deuro-monitoring:latest
@@ -51,3 +57,32 @@ jobs:
       - name: Logout from Azure
         run: az logout
         if: always()
+
+  reset-db:
+    name: Reset PRD Database
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: inputs.reset_database == true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Reset Database
+        run: |
+          set -euo pipefail
+          echo "PRODUCTION DATABASE RESET INITIATED"
+          psql "$DATABASE_URL" <<'EOF'
+          DROP SCHEMA public CASCADE;
+          CREATE SCHEMA public;
+          GRANT ALL ON SCHEMA public TO PUBLIC;
+          EOF
+          psql "$DATABASE_URL" -f database/schema.sql
+          echo "Production database reset complete"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PRD }}

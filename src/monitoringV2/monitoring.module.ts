@@ -10,6 +10,7 @@ import { PositionRepository } from './prisma/repositories/position.repository';
 import { ChallengeRepository } from './prisma/repositories/challenge.repository';
 import { CollateralRepository } from './prisma/repositories/collateral.repository';
 import { MinterRepository } from './prisma/repositories/minter.repository';
+import { DeuroRepository } from './prisma/repositories/deuro.repository';
 import { ContractService } from './contract.service';
 import { EventService } from './event.service';
 import { TokenService } from './token.service';
@@ -17,6 +18,7 @@ import { PositionService } from './position.service';
 import { ChallengeService } from './challenge.service';
 import { CollateralService } from './collateral.service';
 import { MinterService } from './minter.service';
+import { DeuroService } from './deuro.service';
 import { MonitoringService } from './monitoring.service';
 import { SchemaInitService } from './schema-init.service';
 import { PriceService } from './price.service';
@@ -39,6 +41,7 @@ import { ApiModule } from './api/api.module';
 		ChallengeRepository,
 		CollateralRepository,
 		MinterRepository,
+		DeuroRepository,
 		ContractService,
 		EventService,
 		TokenService,
@@ -46,6 +49,7 @@ import { ApiModule } from './api/api.module';
 		ChallengeService,
 		CollateralService,
 		MinterService,
+		DeuroService,
 		TelegramService,
 		MonitoringService,
 	],

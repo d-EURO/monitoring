@@ -146,4 +146,47 @@ export class EventsRepository {
 			throw error;
 		}
 	}
+
+	async aggregateEventData(topic: string, arg: string, since?: number): Promise<bigint> {
+		const events = await this.prisma.rawEvent.findMany({
+			where: {
+				topic,
+				...(since && { timestamp: { gte: BigInt(since) } }),
+			},
+			select: { args: true },
+		});
+
+		return events.reduce((sum, e) => {
+			const args = e.args as any;
+			const amount = args?.[arg] || 0;
+			return sum + BigInt(amount);
+		}, BigInt(0));
+	}
+
+	async getEventCount(topic: string, since?: number): Promise<number> {
+		return this.prisma.rawEvent.count({
+			where: {
+				topic,
+				...(since && { timestamp: { gte: BigInt(since) } }),
+			},
+		});
+	}
+
+	async calculateEquityTradeFees(since?: number): Promise<bigint> {
+		const tradeEvents = await this.prisma.rawEvent.findMany({
+			where: {
+				topic: 'Trade',
+				...(since && { timestamp: { gte: BigInt(since) } }),
+			},
+			select: { args: true },
+		});
+
+		return tradeEvents.reduce((totalFees, event) => {
+			const args = event.args as any;
+			const totPrice = BigInt(args?.totPrice || 0);
+			const amount = BigInt(args?.amount || 0);
+			const tradingFee = amount > 0n ? (totPrice * 2n) / 100n : totPrice / 49n;
+			return totalFees + tradingFee;
+		}, 0n);
+	}
 }

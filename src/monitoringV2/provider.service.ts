@@ -5,8 +5,14 @@ import { AppConfigService } from 'src/config/config.service';
 
 class RpcStats {
 	private stats = new Map<string, { calls: number; errors: number }>();
+	private nextMidnightUtc: number = this.getNextMidnightUtc();
 
 	record(method: string, isError: boolean): void {
+		if (Date.now() >= this.nextMidnightUtc) {
+			this.stats.clear();
+			this.nextMidnightUtc = this.getNextMidnightUtc();
+		}
+
 		const stat = this.stats.get(method) || { calls: 0, errors: 0 };
 		stat.calls++;
 		if (isError) stat.errors++;
@@ -16,28 +22,45 @@ class RpcStats {
 	getStats(): Record<string, { calls: number; errors: number }> {
 		return Object.fromEntries(this.stats);
 	}
+
+	private getNextMidnightUtc(): number {
+		const tomorrow = new Date();
+		tomorrow.setUTCHours(24, 0, 0, 0);
+		return tomorrow.getTime();
+	}
 }
 
 class LoggingJsonRpcProvider extends ethers.JsonRpcProvider {
-	constructor(url: string, private rpcStats: RpcStats) {
-		super(url);
+	constructor(
+		url: string,
+		private rpcStats: RpcStats,
+		timeoutMs?: number
+	) {
+		const connection = new ethers.FetchRequest(url);
+		if (timeoutMs) connection.timeout = timeoutMs;
+		super(connection);
 	}
 
-	async send(method: string, params: Array<any>): Promise<any> {
+	// Handle both single and batch requests
+	async _send(payload: any | Array<any>): Promise<any> {
+		const payloads = Array.isArray(payload) ? payload : [payload];
+		const methods = payloads.map((p) => p?.method ?? 'unknown');
+
 		let isError = false;
 		try {
-			return await super.send(method, params);
+			return await super._send(payload);
 		} catch (error) {
 			isError = true;
 			throw error;
 		} finally {
-			this.rpcStats.record(method, isError);
+			methods.forEach((method) => this.rpcStats.record(method, isError));
 		}
 	}
 }
 
 @Injectable()
 export class ProviderService {
+	private static readonly CALLEDATA_LIMIT = 480_000; // 480KB call data limit - safe for Alchemy
 	private static readonly SERVER_STATUSES = new Set([500, 502, 503, 504, 520, 522, 524]);
 	private static readonly NET_CODES = new Set([
 		'ETIMEDOUT',
@@ -84,9 +107,14 @@ export class ProviderService {
 	}
 
 	private initializeProvider() {
-		this.ethersProvider = new LoggingJsonRpcProvider(this.config.rpcUrl, this.rpcStats);
-		this.multicallProviderInstance = MulticallWrapper.wrap(this.ethersProvider, 480_000); // 480KB call data limit - safe for Alchemy
-		this.logger.log('Multicall provider initialized with 480KB calldata limit');
+		this.ethersProvider = new LoggingJsonRpcProvider(this.config.rpcUrl, this.rpcStats, this.config.rpcTimeoutMs);
+		this.logger.log(
+			`LoggingJsonRpcProvider initialized with _send() override for RPC call tracking (timeout: ${this.config.rpcTimeoutMs}ms)`
+		);
+		this.multicallProviderInstance = MulticallWrapper.wrap(this.ethersProvider, ProviderService.CALLEDATA_LIMIT);
+		this.logger.log(
+			`Multicall provider initialized with ${ProviderService.CALLEDATA_LIMIT} bytes calldata limit and ${this.config.rpcTimeoutMs}ms timeout`
+		);
 	}
 
 	get provider(): ethers.JsonRpcProvider {
@@ -97,8 +125,20 @@ export class ProviderService {
 		return this.multicallProviderInstance;
 	}
 
-	async callBatch<T>(thunks: Array<() => Promise<T>>, retries = 3): Promise<T[]> {
-		return this.withRetry(() => Promise.all(thunks.map((fn) => fn())), { retries });
+	async callBatch<T>(thunks: Array<() => Promise<T>>, retries = 5): Promise<T[]> {
+		const BATCH_SIZE = 50;
+		const results: T[] = [];
+
+		for (let i = 0; i < thunks.length; i += BATCH_SIZE) {
+			const chunk = thunks.slice(i, i + BATCH_SIZE);
+			const chunkResults = await this.withRetry(
+				() => Promise.all(chunk.map((fn) => fn())),
+				{ retries }
+			);
+			results.push(...chunkResults);
+		}
+
+		return results;
 	}
 
 	async getBlock(blockNumber: number): Promise<ethers.Block | null> {
@@ -147,7 +187,7 @@ export class ProviderService {
 		fn: () => Promise<T>,
 		options: { retries?: number; baseMs?: number; factor?: number; maxMs?: number } = {}
 	): Promise<T> {
-		const { retries = 3, baseMs = 200, factor = 2, maxMs = 2000 } = options;
+		const { retries = 5, baseMs = 200, factor = 2, maxMs = 5000 } = options;
 		let attempt = 0;
 		let delay = baseMs;
 

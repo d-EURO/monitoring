@@ -7,9 +7,8 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 	if (error) return <div className={colors.critical}>{error}</div>;
 	if (!data) return null;
 
-	// 300'000 dEURO manually added to Equity contract during liquidiation of WFPS postions (26.06.2025-29.06.2025)
-	const deuroProfit = BigInt(data.deuroProfit) + 300_000n * 10n ** 18n;
-	const netProfit = deuroProfit - BigInt(data.deuroLoss);
+	const deuroProfit = parseFloat(data.deuroProfit);
+	const netProfit = deuroProfit - parseFloat(data.deuroLoss);
 
 	return (
 		<div className={`${colors.background} ${colors.table.border} border rounded-xl p-4`}>
@@ -17,43 +16,54 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
 				<Section title="SUPPLY">
-					<Metric label="dEURO" value={formatNumber(data.deuroTotalSupply, 18, 2)} valueClass={colors.text.primary} />
-					<Metric label="nDEPS" value={formatNumber(data.equityShares, 18, 2)} />
-					<Metric label="DEPS" value={formatNumber(data.depsTotalSupply, 18, 2)} />
+					<Metric label="dEURO" value={formatNumber(data.deuroTotalSupply, 0, 2)} valueClass={colors.text.primary} />
+					<Metric label="nDEPS" value={formatNumber(data.equityShares, 0, 2)} />
+					<Metric label="DEPS" value={formatNumber(data.depsTotalSupply, 0, 2)} />
 				</Section>
 
 				<Section title="RESERVES">
-					<Metric label="Total" value={formatNumber(data.reserveTotal, 18, 2)} />
-					<Metric label="Minter" value={formatNumber(data.reserveMinter, 18, 2)} />
-					<Metric label="Equity" value={formatNumber(data.reserveEquity, 18, 2)} valueClass={colors.success} />
+					<Metric label="Total" value={formatNumber(data.reserveTotal, 0, 2)} />
+					<Metric label="Minter" value={formatNumber(data.reserveMinter, 0, 2)} />
+					<Metric label="Equity" value={formatNumber(data.reserveEquity, 0, 2)} valueClass={colors.success} />
 				</Section>
 
-				<Section title="24H ACTIVITY (dEURO)">
-					<Metric label="Volume" value={formatNumber(data.deuroVolume24h, 18, 2)} />
-					<Metric label="Transfers" value={data.deuroTransferCount24h.toLocaleString()} />
-					<Metric label="Addresses" value={data.deuroUniqueAddresses24h.toLocaleString()} />
-				</Section>
+				{data.deuroVolume24h && (
+					<Section title="24H ACTIVITY (dEURO)">
+						<Metric label="Volume" value={formatNumber(data.deuroVolume24h, 0, 2)} />
+						{data.deuroTransferCount24h !== undefined && <Metric label="Transfers" value={data.deuroTransferCount24h.toLocaleString()} />}
+						{data.deuroUniqueAddresses24h !== undefined && <Metric label="Addresses" value={data.deuroUniqueAddresses24h.toLocaleString()} />}
+					</Section>
+				)}
 
 				<Section title="EQUITY">
-					<Metric label="Price" value={`${formatNumber(data.equityPrice, 18, 4)}`} valueClass={colors.text.primary} />
-					<Metric label="Profit" value={formatNumber(netProfit, 18, 2)} valueClass={colors.success} />
-					<Metric label="24h Vol" value={formatNumber(data.equityTradeVolume24h, 18, 2) + ` (${data.equityTradeCount24h.toLocaleString()})`} />
+					<Metric label="Price" value={`${formatNumber(data.equityPrice, 0, 4)}`} valueClass={colors.text.primary} />
+					<Metric label="Profit" value={formatNumber(netProfit, 0, 2)} valueClass={colors.success} />
+					<Metric label="24h Vol" value={formatNumber(data.equityTradeVolume24h, 0, 2) + ` (${data.equityTradeCount24h.toLocaleString()})`} />
+					<Metric label="24h Delegations" value={data.equityDelegations24h.toLocaleString()} />
 				</Section>
 
 				<Section title="SAVINGS">
-					<Metric label="Total" value={formatNumber(data.savingsTotal, 18, 2)} valueClass={colors.text.primary} />
-					<Metric label="Interest" value={formatNumber(data.savingsInterestCollected, 18, 2)} />
+					<Metric label="Total" value={formatNumber(data.savingsTotal, 0, 2)} valueClass={colors.text.primary} />
+					<Metric label="Interest" value={formatNumber(data.savingsInterestCollected, 0, 2)} />
 					<Metric label="Rate" value={formatPercent(Number(data.savingsRate) / 10_000, 2)} />
 				</Section>
 
-				<Section title="24H MINT/BURN (dEURO)">
-					<Metric label="Minted" value={formatNumber(data.deuroMinted24h || '0', 18, 2)} />
-					<Metric label="Burned" value={formatNumber(data.deuroBurned24h || '0', 18, 2)} />
-					<Metric
-						label="Net"
-						value={formatNumber((BigInt(data.deuroMinted24h || '0') - BigInt(data.deuroBurned24h || '0')).toString(), 18, 2)}
-					/>
+				<Section title="SAVINGS 24H">
+					<Metric label="Interest" value={formatNumber(data.savingsInterestCollected24h, 0, 2)} />
+					<Metric label="Added" value={formatNumber(data.savingsAdded24h, 0, 2)} />
+					<Metric label="Withdrawn" value={formatNumber(data.savingsWithdrawn24h, 0, 2)} />
 				</Section>
+
+				{(data.deuroMinted24h || data.deuroBurned24h) && (
+					<Section title="24H MINT/BURN (dEURO)">
+						<Metric label="Minted" value={formatNumber(data.deuroMinted24h || '0', 0, 2)} />
+						<Metric label="Burned" value={formatNumber(data.deuroBurned24h || '0', 0, 2)} />
+						<Metric
+							label="Net"
+							value={formatNumber((parseFloat(data.deuroMinted24h || '0') - parseFloat(data.deuroBurned24h || '0')), 0, 2)}
+						/>
+					</Section>
+				)}
 
 				{(data.usdToEurRate || data.usdToChfRate) && (
 					<Section title="CURRENCY RATES">

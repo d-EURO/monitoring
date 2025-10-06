@@ -75,7 +75,7 @@ export class PositionService {
 			calls.push(() => position.virtualPrice());
 			calls.push(() => position.getCollateralRequirement());
 			calls.push(() => position.principal());
-			calls.push(() => position.interest());
+			calls.push(() => position.getInterest());
 			calls.push(() => position.getDebt());
 			calls.push(() => position.fixedAnnualRatePPM());
 			calls.push(() => position.lastAccrual());

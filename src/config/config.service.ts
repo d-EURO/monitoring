@@ -45,6 +45,10 @@ export class AppConfigService {
 		return this.monitoringConfig.priceCacheTtlMs || 120000;
 	}
 
+	get rpcTimeoutMs(): number {
+		return this.monitoringConfig.rpcTimeoutMs || 60000;
+	}
+
 	get telegramBotToken(): string | undefined {
 		return this.monitoringConfig.telegramBotToken;
 	}

@@ -168,3 +168,53 @@ model MinterState {
   @@index([bridgeToken], map: "idx_minter_states_bridge_token")
   @@map("minter_states")
 }
+
+// Single-row table for global dEURO protocol state
+model DeuroState {
+  id Int @id @default(1)
+
+  // Token supplies
+  deuroTotalSupply Decimal @default(0) @map("deuro_total_supply") @db.Decimal(78, 0)
+  depsTotalSupply  Decimal @default(0) @map("deps_total_supply") @db.Decimal(78, 0)
+
+  // Equity metrics
+  equityShares Decimal @default(0) @map("equity_shares") @db.Decimal(78, 0)
+  equityPrice  Decimal @default(0) @map("equity_price") @db.Decimal(78, 0)
+
+  // Reserve metrics
+  reserveTotal  Decimal @default(0) @map("reserve_total") @db.Decimal(78, 0)
+  reserveMinter Decimal @default(0) @map("reserve_minter") @db.Decimal(78, 0)
+  reserveEquity Decimal @default(0) @map("reserve_equity") @db.Decimal(78, 0)
+
+  // Savings metrics
+  savingsTotal             Decimal @default(0) @map("savings_total") @db.Decimal(78, 0)
+  savingsInterestCollected Decimal @default(0) @map("savings_interest_collected") @db.Decimal(78, 0)
+  savingsRate              Int     @default(0) @map("savings_rate")
+
+  // Profit/Loss tracking
+  deuroLoss               Decimal @default(0) @map("deuro_loss") @db.Decimal(78, 0)
+  deuroProfit             Decimal @default(0) @map("deuro_profit") @db.Decimal(78, 0)
+  deuroProfitDistributed  Decimal @default(0) @map("deuro_profit_distributed") @db.Decimal(78, 0)
+
+  // Frontend metrics
+  frontendFeesCollected Decimal @default(0) @map("frontend_fees_collected") @db.Decimal(78, 0)
+  frontendsActive       Int     @default(0) @map("frontends_active")
+
+  // Currency rates
+  usdToEurRate Decimal @default(0) @map("usd_to_eur_rate") @db.Decimal(10, 6)
+  usdToChfRate Decimal @default(0) @map("usd_to_chf_rate") @db.Decimal(10, 6)
+
+  // 24h metrics
+  savingsInterestCollected24h Decimal @default(0) @map("savings_interest_collected_24h") @db.Decimal(78, 0)
+  savingsAdded24h             Decimal @default(0) @map("savings_added_24h") @db.Decimal(78, 0)
+  savingsWithdrawn24h         Decimal @default(0) @map("savings_withdrawn_24h") @db.Decimal(78, 0)
+  equityTradeVolume24h        Decimal @default(0) @map("equity_trade_volume_24h") @db.Decimal(78, 0)
+  equityTradeCount24h         Int     @default(0) @map("equity_trade_count_24h")
+  equityDelegations24h        Int     @default(0) @map("equity_delegations_24h")
+
+  // Metadata
+  blockNumber BigInt   @default(0) @map("block_number")
+  timestamp   DateTime @default(now()) @db.Timestamptz
+
+  @@map("deuro_state")
+}
