@@ -6,6 +6,12 @@ on:
     paths-ignore:
       - 'frontend/**'
   workflow_dispatch:
+    inputs:
+      reset_database:
+        description: 'Reset Database (DESTRUCTIVE - drops all data)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   DOCKER_TAGS: dfxswiss/deuro-monitoring:beta
@@ -47,6 +53,22 @@ jobs:
         with:
           inlineScript: |
             az containerapp update --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_APP }} --image ${{ env.DOCKER_TAGS }} --set-env-vars DEPLOY_INFO=${{ env.DEPLOY_INFO }}
+
+      - name: Reset Database (if requested)
+        if: inputs.reset_database == true
+        run: |
+          set -euo pipefail
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          echo "DATABASE RESET INITIATED"
+          psql "$DATABASE_URL" <<'EOF'
+          DROP SCHEMA public CASCADE;
+          CREATE SCHEMA public;
+          GRANT ALL ON SCHEMA public TO PUBLIC;
+          EOF
+          psql "$DATABASE_URL" -f database/schema.sql
+          echo "Database reset complete"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
 
       - name: Logout from Azure
         run: az logout
