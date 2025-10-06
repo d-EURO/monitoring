@@ -126,7 +126,19 @@ export class ProviderService {
 	}
 
 	async callBatch<T>(thunks: Array<() => Promise<T>>, retries = 5): Promise<T[]> {
-		return this.withRetry(() => Promise.all(thunks.map((fn) => fn())), { retries });
+		const BATCH_SIZE = 50;
+		const results: T[] = [];
+
+		for (let i = 0; i < thunks.length; i += BATCH_SIZE) {
+			const chunk = thunks.slice(i, i + BATCH_SIZE);
+			const chunkResults = await this.withRetry(
+				() => Promise.all(chunk.map((fn) => fn())),
+				{ retries }
+			);
+			results.push(...chunkResults);
+		}
+
+		return results;
 	}
 
 	async getBlock(blockNumber: number): Promise<ethers.Block | null> {
