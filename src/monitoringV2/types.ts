@@ -155,3 +155,48 @@ export interface MinterState {
 	// Metadata
 	timestamp: Date;
 }
+
+export interface DeuroState {
+	// Token supplies
+	deuroTotalSupply: bigint;
+	depsTotalSupply: bigint;
+
+	// Equity metrics
+	equityShares: bigint;
+	equityPrice: bigint;
+
+	// Reserve metrics
+	reserveTotal: bigint;
+	reserveMinter: bigint;
+	reserveEquity: bigint;
+
+	// Savings metrics
+	savingsTotal: bigint;
+	savingsInterestCollected: bigint;
+	savingsRate: number;
+
+	// Profit/Loss tracking
+	deuroLoss: bigint;
+	deuroProfit: bigint;
+	deuroProfitDistributed: bigint;
+
+	// Frontend metrics
+	frontendFeesCollected: bigint;
+	frontendsActive: number;
+
+	// Currency rates
+	usdToEurRate: number;
+	usdToChfRate: number;
+
+	// 24h metrics
+	savingsInterestCollected24h: bigint;
+	savingsAdded24h: bigint;
+	savingsWithdrawn24h: bigint;
+	equityTradeVolume24h: bigint;
+	equityTradeCount24h: number;
+	equityDelegations24h: number;
+
+	// Metadata
+	blockNumber: bigint;
+	timestamp: Date;
+}

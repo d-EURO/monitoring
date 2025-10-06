@@ -20,7 +20,7 @@ const REFRESH_INTERVAL = 60000; // 1 minute
 
 export function useApi(): UseApiResult {
 	const [health, setHealth] = useState<DataState<HealthResponse>>();
-	const [deuro, _setDeuro] = useState<DataState<DeuroState>>();
+	const [deuro, setDeuro] = useState<DataState<DeuroState>>();
 	const [positions, setPositions] = useState<DataState<PositionResponse[]>>();
 	const [collateral, setCollateral] = useState<DataState<CollateralResponse[]>>();
 	const [challenges, setChallenges] = useState<DataState<ChallengeResponse[]>>();
@@ -37,8 +37,7 @@ export function useApi(): UseApiResult {
 		if (!healthResult) return;
 
 		await Promise.all([
-			// TODO: Uncomment when backend tables are ready
-			// fetchData('deuro', setDeuro),
+			fetchData('deuro', setDeuro),
 			fetchData('positions', setPositions),
 			fetchData('collateral', setCollateral),
 			fetchData('challenges', setChallenges),
@@ -58,7 +57,6 @@ export function useApi(): UseApiResult {
 	}
 
 	async function fetchApi<T>(endpoint: string): Promise<T> {
-		console.log(`Fetching ${endpoint}...`);
 		const response = await fetch(`${API_BASE_URL}${endpoint}`);
 		if (!response?.ok) throw new Error(`API Error: ${response.statusText}`);
 		return await response.json();

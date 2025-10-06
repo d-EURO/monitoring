@@ -163,50 +163,49 @@ CREATE INDEX IF NOT EXISTS idx_minter_states_status ON minter_states(status);
 CREATE INDEX IF NOT EXISTS idx_minter_states_bridge_token ON minter_states(bridge_token) WHERE bridge_token IS NOT NULL;
 
 -- System State (single row for global metrics)
--- CREATE TABLE IF NOT EXISTS system_state (
---     id INTEGER PRIMARY KEY DEFAULT 1,
---     -- Token supplies
---     deuro_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.totalSupply
---     deps_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DEPSWrapper.totalSupply
+CREATE TABLE IF NOT EXISTS deuro_state (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    -- Token supplies
+    deuro_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.totalSupply
+    deps_total_supply NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DEPSWrapper.totalSupply
     
---     -- Equity metrics
---     equity_shares NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: Equity.totalSupply
---     equity_price NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: Equity.price
+    -- Equity metrics
+    equity_shares NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: Equity.totalSupply
+    equity_price NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: Equity.price
 
---     -- Reserve metrics
---     reserve_total NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.reserve
---     reserve_minter NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.minterReserve
---     reserve_equity NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.equity
+    -- Reserve metrics
+    reserve_total NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.reserve
+    reserve_minter NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.minterReserve
+    reserve_equity NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.equity
 
---     -- Savings metrics
---     savings_total NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.balanceOf(SavingsGateway.address)
---     savings_interest_collected NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: sum over SavingsGateway.InterestCollected events
---     savings_rate NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: SavingsGateway.currentRatePPM
+    -- Savings metrics
+    savings_total NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: DecentralizedEURO.balanceOf(SavingsGateway.address)
+    savings_interest_collected NUMERIC(78, 0) NOT NULL DEFAULT 0, -- dynamic: sum over SavingsGateway.InterestCollected events
+    savings_rate INTEGER NOT NULL DEFAULT 0, -- dynamic: SavingsGateway.currentRatePPM
 
---     -- Profit/Loss tracking
---     deuro_loss NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.Loss events
---     deuro_profit NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.Profit events
---     deuro_profit_distributed NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.ProfitDistributed events
+    -- Profit/Loss tracking
+    deuro_loss NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.Loss events
+    deuro_profit NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.Profit events
+    deuro_profit_distributed NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over DecentralizedEURO.ProfitDistributed events
 
---     -- Frontend metrics
---     frontend_fees_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over FrontendGateway.FrontendCodeRewardsWithdrawn
---     frontends_active INTEGER DEFAULT 0 NOT NULL, -- dynamic: count over FrontendCodeRegistered events
+    -- Frontend metrics
+    frontend_fees_collected NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over FrontendGateway.FrontendCodeRewardsWithdrawn
+    frontends_active INTEGER DEFAULT 0 NOT NULL, -- dynamic: count over FrontendCodeRegistered events
 
---     -- Currency rates
---     usd_to_eur_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL, -- dynamic: getExchangeRate('USD', 'EUR')
---     usd_to_chf_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL, -- dynamic: getExchangeRate('USD', 'CHF')
+    -- Currency rates
+    usd_to_eur_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL, -- dynamic: getExchangeRate('USD', 'EUR')
+    usd_to_chf_rate NUMERIC(10, 6) DEFAULT 0 NOT NULL, -- dynamic: getExchangeRate('USD', 'CHF')
 
---     -- metadata
---     block_number BIGINT NOT NULL DEFAULT 0,
---     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
---     CONSTRAINT system_single_row CHECK (id = 1)
--- );
+    -- 24h metrics
+    savings_interest_collected_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over last 24h InterestCollected events
+    savings_added_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over last 24h Saved events
+    savings_withdrawn_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over last 24h Withdrawn events
+    equity_trade_volume_24h NUMERIC(78, 0) DEFAULT 0 NOT NULL, -- dynamic: sum over last 24h Trade events (totPrice)
+    equity_trade_count_24h INTEGER DEFAULT 0 NOT NULL, -- dynamic: count over last 24h Trade events
+    equity_delegations_24h INTEGER DEFAULT 0 NOT NULL, -- dynamic: count over last 24h Delegation events
 
--- =============================================================================
--- INITIALIZATION
--- =============================================================================
-
--- Initialize system state (required for UPDATE queries to work)
--- INSERT INTO system_state (id)
--- VALUES (1)
--- ON CONFLICT (id) DO NOTHING;
+    -- metadata
+    block_number BIGINT NOT NULL DEFAULT 0,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT system_single_row CHECK (id = 1)
+);

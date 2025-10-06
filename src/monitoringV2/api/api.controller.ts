@@ -14,6 +14,7 @@ import {
 	HealthState,
 } from '../../../shared/types';
 import type { Token, PositionState } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { ProviderService } from '../provider.service';
 import { MonitoringService } from '../monitoring.service';
 import { AppConfigService } from 'src/config/config.service';
@@ -60,13 +61,18 @@ export class ApiController {
 		const tokens = await this.prisma.token.findMany();
 		const tokenMap = new Map<string, Token>(tokens.map((t) => [t.address.toLowerCase(), t]));
 
+		const deuroDivisor = new Decimal(10).pow(deuroDecimals);
+
 		return positions.map((p) => {
 			const token = tokenMap.get(p.collateral.toLowerCase());
 			const collateralDecimals = token?.decimals || 18;
 			const pricePrecision = 36 - collateralDecimals;
 
+			const collateralDivisor = new Decimal(10).pow(collateralDecimals);
+			const priceDivisor = new Decimal(10).pow(pricePrecision);
+
 			const marketPrice = token?.price ? Number(token.price.toString()) : 0;
-			const formattedVirtualPrice = Number(p.virtualPrice.toFixed(0)) / Math.pow(10, pricePrecision);
+			const formattedVirtualPrice = Number(p.virtualPrice.div(priceDivisor).toString());
 			const collateralizationRatio =
 				formattedVirtualPrice > 0 && marketPrice > 0 ? ((marketPrice / formattedVirtualPrice) * 100).toFixed(2) : '0';
 
@@ -94,19 +100,19 @@ export class ApiController {
 				original: p.original,
 				collateral: p.collateral,
 				collateralSymbol: token?.symbol || 'UNKNOWN',
-				collateralBalance: (Number(p.collateralAmount.toFixed(0)) / Math.pow(10, collateralDecimals)).toString(),
-				minimumCollateral: (Number(p.minimumCollateral.toFixed(0)) / Math.pow(10, collateralDecimals)).toString(),
-				price: (Number(p.price.toFixed(0)) / Math.pow(10, pricePrecision)).toString(),
+				collateralBalance: p.collateralAmount.div(collateralDivisor).toString(),
+				minimumCollateral: p.minimumCollateral.div(collateralDivisor).toString(),
+				price: p.price.div(priceDivisor).toString(),
 				virtualPrice: formattedVirtualPrice.toString(),
-				expiredPurchasePrice: (Number(p.expiredPurchasePrice.toFixed(0)) / Math.pow(10, pricePrecision)).toString(),
-				collateralRequirement: (Number(p.collateralRequirement.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
-				debt: (Number(p.debt.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
-				interest: (Number(p.interest.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
-				principal: (Number(p.principal.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
-				limitAmount: (Number(p.limit.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
-				availableForMinting: (Number(p.availableForMinting.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
-				availableForClones: (Number(p.availableForClones.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
-				challengedAmount: (Number(p.challengedAmount.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
+				expiredPurchasePrice: p.expiredPurchasePrice.div(priceDivisor).toString(),
+				collateralRequirement: p.collateralRequirement.div(deuroDivisor).toString(),
+				debt: p.debt.div(deuroDivisor).toString(),
+				interest: p.interest.div(deuroDivisor).toString(),
+				principal: p.principal.div(deuroDivisor).toString(),
+				limitAmount: p.limit.div(deuroDivisor).toString(),
+				availableForMinting: p.availableForMinting.div(deuroDivisor).toString(),
+				availableForClones: p.availableForClones.div(deuroDivisor).toString(),
+				challengedAmount: p.challengedAmount.div(deuroDivisor).toString(),
 				riskPremiumPpm: p.riskPremiumPpm,
 				reserveContribution: p.reserveContribution,
 				fixedAnnualRatePpm: p.fixedAnnualRatePpm,
@@ -139,6 +145,9 @@ export class ApiController {
 			const collateralDecimals = token?.decimals || 18;
 			const pricePrecision = 36 - collateralDecimals;
 
+			const collateralDivisor = new Decimal(10).pow(collateralDecimals);
+			const priceDivisor = new Decimal(10).pow(pricePrecision);
+
 			const currentTime = Math.floor(Date.now() / 1000);
 			const challengePeriod = position ? Number(position.challengePeriod.toString()) : 0;
 			const auctionStart = c.startTimestamp + BigInt(challengePeriod);
@@ -154,15 +163,14 @@ export class ApiController {
 				id: c.challengeId,
 				challenger: c.challengerAddress,
 				position: c.positionAddress,
-				initialSize: (Number(c.initialSize.toFixed(0)) / Math.pow(10, collateralDecimals)).toString(),
-				size: (Number(c.size.toFixed(0)) / Math.pow(10, collateralDecimals)).toString(),
-				currentPrice: (Number(c.currentPrice.toFixed(0)) / Math.pow(10, pricePrecision)).toString(),
+				initialSize: c.initialSize.div(collateralDivisor).toString(),
+				size: c.size.div(collateralDivisor).toString(),
+				currentPrice: c.currentPrice.div(priceDivisor).toString(),
 				start: (Number(c.startTimestamp) * 1000).toString(),
-				liquidationPrice: position ? (Number(position.virtualPrice.toFixed(0)) / Math.pow(10, pricePrecision)).toString() : '0',
+				liquidationPrice: position ? position.virtualPrice.div(priceDivisor).toString() : '0',
 				collateral: position?.collateral || '0x0',
 				collateralSymbol: token?.symbol || 'UNKNOWN',
-				collateralBalance:
-					position && token ? (Number(position.collateralAmount.toFixed(0)) / Math.pow(10, collateralDecimals)).toString() : '0',
+				collateralBalance: position && token ? position.collateralAmount.div(collateralDivisor).toString() : '0',
 				challengePeriod: challengePeriod.toString(),
 				status,
 			};
@@ -177,28 +185,79 @@ export class ApiController {
 		const collaterals = await this.prisma.collateralState.findMany();
 		const tokenMap = new Map<string, Token>(tokens.map((t) => [t.address.toLowerCase(), t]));
 
+		const deuroDivisor = new Decimal(10).pow(deuroDecimals);
+
 		return collaterals.map((c) => {
 			const token = tokenMap.get(c.tokenAddress.toLowerCase());
 			const tokenMarketPrice = token?.price ? Number(token.price.toString()) : 0;
+			const collateralDivisor = new Decimal(10).pow(token?.decimals || 18);
+
 			return {
 				collateral: c.tokenAddress,
 				symbol: token?.symbol || 'UNKNOWN',
 				price: tokenMarketPrice.toString(),
-				totalCollateral: (Number(c.totalCollateral.toFixed(0)) / Math.pow(10, token?.decimals || 18)).toString(),
-				totalLimit: (Number(c.totalLimit.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
-				totalAvailableForMinting: (Number(c.totalAvailableForMinting.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
+				totalCollateral: c.totalCollateral.div(collateralDivisor).toString(),
+				totalLimit: c.totalLimit.div(deuroDivisor).toString(),
+				totalAvailableForMinting: c.totalAvailableForMinting.div(deuroDivisor).toString(),
 				positionCount: c.positionCount,
 				updatedAt: c.timestamp.getTime().toString(),
 			};
 		});
 	}
 
-	// TODO: Implement these endpoints when we have the necessary tables
 	@Get('deuro')
-	@ApiOperation({ summary: 'Get dEURO token information' })
-	@ApiResponse({ status: 200, description: 'dEURO token contract and metadata' })
+	@ApiOperation({ summary: 'Get dEURO protocol state' })
+	@ApiResponse({ status: 200, description: 'Global dEURO protocol metrics and state' })
 	async getDeuroState() {
-		return null; // Needs system_state table
+		const state = await this.prisma.deuroState.findUnique({ where: { id: 1 } });
+		if (!state) return null;
+
+		const divisor = new Decimal(10).pow(deuroDecimals);
+
+		return {
+			// Token supplies (in dEURO units)
+			deuroTotalSupply: state.deuroTotalSupply.div(divisor).toFixed(2),
+			depsTotalSupply: state.depsTotalSupply.div(divisor).toFixed(2),
+
+			// Equity metrics
+			equityShares: state.equityShares.div(divisor).toFixed(2),
+			equityPrice: state.equityPrice.div(divisor).toFixed(6),
+
+			// Reserve metrics (in dEURO units)
+			reserveTotal: state.reserveTotal.div(divisor).toFixed(2),
+			reserveMinter: state.reserveMinter.div(divisor).toFixed(2),
+			reserveEquity: state.reserveEquity.div(divisor).toFixed(2),
+
+			// Savings metrics (in dEURO units)
+			savingsTotal: state.savingsTotal.div(divisor).toFixed(2),
+			savingsInterestCollected: state.savingsInterestCollected.div(divisor).toFixed(2),
+			savingsRate: state.savingsRate, // PPM value
+
+			// Profit/Loss tracking (in dEURO units)
+			deuroLoss: state.deuroLoss.div(divisor).toFixed(2),
+			deuroProfit: state.deuroProfit.div(divisor).add(300000).toFixed(2), // 300'000 added via direkt transfer to Equity contract (WFPS liquidation 26.06.2025-29.06.2025)
+			deuroProfitDistributed: state.deuroProfitDistributed.div(divisor).toFixed(2),
+
+			// Frontend metrics
+			frontendFeesCollected: state.frontendFeesCollected.div(divisor).toFixed(2),
+			frontendsActive: state.frontendsActive,
+
+			// Currency rates
+			usdToEurRate: Number(state.usdToEurRate),
+			usdToChfRate: Number(state.usdToChfRate),
+
+			// 24h metrics
+			savingsInterestCollected24h: state.savingsInterestCollected24h.div(divisor).toFixed(2),
+			savingsAdded24h: state.savingsAdded24h.div(divisor).toFixed(2),
+			savingsWithdrawn24h: state.savingsWithdrawn24h.div(divisor).toFixed(2),
+			equityTradeVolume24h: state.equityTradeVolume24h.div(divisor).toFixed(2),
+			equityTradeCount24h: state.equityTradeCount24h,
+			equityDelegations24h: state.equityDelegations24h,
+
+			// Metadata
+			blockNumber: state.blockNumber.toString(),
+			timestamp: state.timestamp.getTime().toString(),
+		};
 	}
 
 	@Get('minters')
@@ -209,19 +268,21 @@ export class ApiController {
 		const tokens = await this.prisma.token.findMany();
 		const tokenMap = new Map<string, Token>(tokens.map((t) => [t.address.toLowerCase(), t]));
 
+		const deuroDivisor = new Decimal(10).pow(deuroDecimals);
+
 		return minters.map((m) => ({
 			address: m.address,
 			type: m.type as MinterType,
 			status: m.status as MinterStatus,
 			applicationTimestamp: (Number(m.applicationTimestamp) * 1000).toString(),
 			applicationPeriod: m.applicationPeriod.toString(),
-			applicationFee: (Number(m.applicationFee.toFixed(0)) / Math.pow(10, deuroDecimals)).toString(),
+			applicationFee: m.applicationFee.div(deuroDivisor).toString(),
 			message: m.message || '',
 
 			bridgeToken: m.bridgeToken || undefined,
 			bridgeTokenSymbol: tokenMap.get(m.bridgeToken?.toLowerCase() || '')?.symbol || undefined,
-			bridgeLimit: m.bridgeLimit ? (Number(m.bridgeLimit.toFixed(0)) / Math.pow(10, deuroDecimals)).toFixed(2) : undefined,
-			bridgeMinted: m.bridgeMinted ? (Number(m.bridgeMinted.toFixed(0)) / Math.pow(10, deuroDecimals)).toFixed(4) : undefined,
+			bridgeLimit: m.bridgeLimit ? m.bridgeLimit.div(deuroDivisor).toFixed(2) : undefined,
+			bridgeMinted: m.bridgeMinted ? m.bridgeMinted.div(deuroDivisor).toFixed(4) : undefined,
 			bridgeHorizon: m.bridgeHorizon ? (Number(m.bridgeHorizon) * 1000).toString() : undefined,
 		}));
 	}
