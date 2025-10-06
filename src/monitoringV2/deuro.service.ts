@@ -7,6 +7,7 @@ import { AppConfigService } from '../config/config.service';
 import { ethers } from 'ethers';
 import { DecentralizedEUROABI, EquityABI, DEPSWrapperABI, SavingsGatewayABI, ADDRESS } from '@deuro/eurocoin';
 import { EventsRepository } from './prisma/repositories/events.repository';
+import { PositionRepository } from './prisma/repositories/position.repository';
 
 @Injectable()
 export class DeuroService {
@@ -17,6 +18,7 @@ export class DeuroService {
 		private readonly deuroRepo: DeuroRepository,
 		private readonly providerService: ProviderService,
 		private readonly eventsRepo: EventsRepository,
+		private readonly positionRepo: PositionRepository,
 		private readonly priceService: PriceService
 	) {}
 
@@ -63,6 +65,8 @@ export class DeuroService {
 			savingsInterestCollected,
 			deuroLoss,
 			deuroProfit,
+			equityTradeFees,
+			positionInterest,
 			deuroProfitDistributed,
 			frontendFeesCollected,
 			frontendsActive,
@@ -79,6 +83,8 @@ export class DeuroService {
 			this.eventsRepo.aggregateEventData('InterestCollected', 'interest'),
 			this.eventsRepo.aggregateEventData('Loss', 'amount'),
 			this.eventsRepo.aggregateEventData('Profit', 'amount'),
+			this.eventsRepo.calculateEquityTradeFees(),
+			this.positionRepo.getTotalPositionInterest(),
 			this.eventsRepo.aggregateEventData('ProfitDistributed', 'amount'),
 			this.eventsRepo.aggregateEventData('FrontendCodeRewardsWithdrawn', 'amount'),
 			this.eventsRepo.getEventCount('FrontendCodeRegistered'),
@@ -106,7 +112,7 @@ export class DeuroService {
 			savingsInterestCollected,
 			savingsRate,
 			deuroLoss,
-			deuroProfit,
+			deuroProfit: deuroProfit + equityTradeFees + positionInterest,
 			deuroProfitDistributed,
 			frontendFeesCollected,
 			frontendsActive,

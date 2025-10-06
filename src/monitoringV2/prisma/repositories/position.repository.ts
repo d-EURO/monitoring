@@ -155,4 +155,18 @@ export class PositionRepository {
 			timestamp,
 		}));
 	}
+
+	async getTotalPositionInterest(): Promise<bigint> {
+		const result = await this.prisma.positionState.aggregate({
+			where: {
+				isClosed: false,
+				isDenied: false,
+			},
+			_sum: {
+				interest: true,
+			},
+		});
+
+		return BigInt(result._sum.interest?.toFixed(0) || '0');
+	}
 }
