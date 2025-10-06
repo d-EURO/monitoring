@@ -10,6 +10,7 @@ import { PositionService } from './position.service';
 import { ChallengeService } from './challenge.service';
 import { CollateralService } from './collateral.service';
 import { MinterService } from './minter.service';
+import { DeuroService } from './deuro.service';
 import { TelegramService } from './telegram.service';
 
 @Injectable()
@@ -30,6 +31,7 @@ export class MonitoringService implements OnModuleInit {
 		private readonly challengeService: ChallengeService,
 		private readonly collateralService: CollateralService,
 		private readonly minterService: MinterService,
+		private readonly deuroService: DeuroService,
 		private readonly telegramService: TelegramService
 	) {}
 
@@ -40,6 +42,7 @@ export class MonitoringService implements OnModuleInit {
 		await this.positionService.initialize();
 		await this.challengeService.initialize();
 		await this.minterService.initialize();
+		await this.deuroService.initialize();
 		setTimeout(() => this.runMonitoring(), 5000);
 	}
 
@@ -130,6 +133,7 @@ export class MonitoringService implements OnModuleInit {
 		await this.challengeService.syncChallenges(); // sync challenge states
 		await this.collateralService.syncCollaterals(); // sync collateral states
 		await this.minterService.syncMinters(); // sync minter states
+		await this.deuroService.syncState(); // sync dEURO global state
 		await this.telegramService.sendPendingAlerts(); // send pending telegram alerts
 
 		// Mark full cycle as completed
