@@ -15,7 +15,7 @@ export interface UseApiResult {
 	minters?: DataState<MinterResponse[]>;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const REFRESH_INTERVAL = 60000; // 1 minute
 
 export function useApi(): UseApiResult {
@@ -47,7 +47,7 @@ export function useApi(): UseApiResult {
 
 	async function fetchData<T>(endpoint: string, setState: (state: DataState<T>) => void) {
 		try {
-			const data: T = await fetchApi(`/${endpoint}`);
+			const data: T = await fetchApi(endpoint);
 			setState({ data });
 			return true;
 		} catch (error: any) {
@@ -57,7 +57,7 @@ export function useApi(): UseApiResult {
 	}
 
 	async function fetchApi<T>(endpoint: string): Promise<T> {
-		const response = await fetch(`${API_BASE_URL}${endpoint}`);
+		const response = await fetch(`${API_BASE_URL}/${endpoint}`);
 		if (!response?.ok) throw new Error(`API Error: ${response.statusText}`);
 		return await response.json();
 	}
