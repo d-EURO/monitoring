@@ -30,9 +30,10 @@ interface TableProps<T> {
 	getRowKey: (row: T) => string;
 	hidden?: (row: T) => boolean;
 	emptyMessage?: string;
+	onExport?: () => void;
 }
 
-export function Table<T>({ title, data, sort, error, columns, getRowKey, hidden, emptyMessage = 'No data found' }: TableProps<T>) {
+export function Table<T>({ title, data, sort, error, columns, getRowKey, hidden, emptyMessage = 'No data found', onExport }: TableProps<T>) {
 	const [showHidden, setShowHidden] = useState(false);
 
 	const sortedData = useMemo(() => (data && sort ? [...data].sort(sort) : data), [data, sort]);
@@ -55,13 +56,24 @@ export function Table<T>({ title, data, sort, error, columns, getRowKey, hidden,
 				<h2 className={`text-sm ${typography.tableHeader} ${colors.text.primary}`}>
 					{title} ({filteredData?.length})
 				</h2>
-				<button
-					hidden={!hiddenCount}
-					onClick={() => setShowHidden((prev) => !prev)}
-					className={`text-xs ${colors.text.secondary} hover:text-gray-300 transition-colors cursor-pointer`}
-				>
-					{showHidden ? `Hide ${hiddenCount}` : `Show ${hiddenCount} more`}
-				</button>
+				<div className="flex gap-3 items-center">
+					{onExport && (
+						<button
+							onClick={onExport}
+							className={`text-xs ${colors.text.secondary} hover:text-gray-300 transition-colors cursor-pointer`}
+							title="Export to CSV"
+						>
+							↓ CSV
+						</button>
+					)}
+					<button
+						hidden={!hiddenCount}
+						onClick={() => setShowHidden((prev) => !prev)}
+						className={`text-xs ${colors.text.secondary} hover:text-gray-300 transition-colors cursor-pointer`}
+					>
+						{showHidden ? `Hide ${hiddenCount}` : `Show ${hiddenCount} more`}
+					</button>
+				</div>
 			</div>
 
 			{/* table */}
