@@ -6,9 +6,13 @@ import { Logger } from '@nestjs/common';
 async function bootstrap() {
 	const logger = new Logger('Bootstrap');
 
-	const allowedOrigins = process.env.ALLOWED_ORIGINS
-		? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
-		: ['http://localhost:3000', 'http://localhost:5173', 'https://dev.monitoring.deuro.com', 'https://monitoring.deuro.com'];
+	const allowedOrigins = [
+		'http://localhost:3000',
+		'http://localhost:5173',
+		...(process.env.ALLOWED_ORIGINS
+			? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+			: ['https://dev.monitoring.deuro.com', 'https://monitoring.deuro.com'])
+	];
 
 	const app = await NestFactory.create(AppModule, {
 		cors: {
