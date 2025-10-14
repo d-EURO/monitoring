@@ -5,12 +5,43 @@ import { colors } from '../lib/theme';
 import { formatNumber, formatPercent, formatDateTime, formatCountdown, getStatusColor } from '../lib/formatters';
 import { AddressLink } from './AddressLink';
 import type { DataState } from '../lib/api.hook';
+import { exportToCSV } from '../lib/csv-export';
 
 interface PositionsTableProps {
 	data?: DataState<PositionResponse[]>;
 }
 
 export function PositionsTable({ data }: PositionsTableProps) {
+	const handleExport = () => {
+		if (!data?.data) return;
+
+		const activePositions = data.data.filter(p => !p.isClosed);
+		const timestamp = new Date().toISOString().split('T')[0];
+
+		exportToCSV(
+			activePositions,
+			[
+				{ header: 'Created', getValue: (p) => p.created ? formatDateTime(Number(p.created)) : '-' },
+				{ header: 'Status', getValue: (p) => p.status },
+				{ header: 'Position Address', getValue: (p) => p.address },
+				{ header: 'Owner Address', getValue: (p) => p.owner },
+				{ header: 'Collateral Symbol', getValue: (p) => p.collateralSymbol },
+				{ header: 'Collateral Address', getValue: (p) => p.collateral },
+				{ header: 'Collateral Balance', getValue: (p) => Number(p.collateralBalance) },
+				{ header: 'Liquidation Price', getValue: (p) => Number(p.virtualPrice) },
+				{ header: 'Market Price', getValue: (p) => p.marketPrice ? Number(p.marketPrice) : '-' },
+				{ header: 'Principal', getValue: (p) => Number(p.principal) },
+				{ header: 'Interest', getValue: (p) => Number(p.interest) },
+				{ header: 'Debt', getValue: (p) => Number(p.debt) },
+				{ header: 'Collateralization Ratio (%)', getValue: (p) => Number(p.collateralizationRatio || 0) },
+				{ header: 'Reserve Contribution (%)', getValue: (p) => (p.reserveContribution / 10000).toFixed(2) },
+				{ header: 'Expiry', getValue: (p) => p.expiration ? formatDateTime(Number(p.expiration)) : '-' },
+				{ header: 'Time Until Expiry', getValue: (p) => p.cooldown ? formatCountdown(p.expiration) : '-' },
+			],
+			`deuro-positions-${timestamp}.csv`
+		);
+	};
+
 	const columns: Column<PositionResponse>[] = [
 		{
 			header: { primary: 'CREATED', secondary: 'STATUS' },
@@ -95,6 +126,7 @@ export function PositionsTable({ data }: PositionsTableProps) {
 			getRowKey={(position) => position.address}
 			hidden={(position) => position.isClosed}
 			emptyMessage="No positions found"
+			onExport={handleExport}
 		/>
 	);
 }
