@@ -5,6 +5,8 @@ Monitoring dashboard for the dEURO protocol.
 ## Run it
 ```bash
 npm install
+
+# adjust VITE_API_BASE_URL in .env as needed (see .env.example), then
 npm run dev
 ```
 
