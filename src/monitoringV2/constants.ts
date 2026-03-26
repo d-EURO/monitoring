@@ -1,14 +1,18 @@
 import {
 	ERC20ABI,
 	PositionV2ABI,
-	SavingsGatewayABI,
-	FrontendGatewayABI,
-	MintingHubGatewayABI,
+	SavingsGatewayV2ABI,
+	SavingsV3ABI,
+	FrontendGatewayV2ABI,
+	MintingHubGatewayV2ABI,
+	MintingHubV2ABI,
+	MintingHubV3ABI,
 	DEPSWrapperABI,
 	DecentralizedEUROABI,
 	EquityABI,
 	StablecoinBridgeABI,
-	PositionRollerABI,
+	PositionRollerV2ABI,
+	PositionRollerV3ABI,
 } from '@deuro/eurocoin';
 import { ContractType } from './types';
 
@@ -43,9 +47,11 @@ export const EVENT_SIGNATURES: Record<string, string> = {
 	Loss: 'Loss(address,uint256)',
 	ProfitDistributed: 'ProfitDistributed(address,uint256)',
 
-	// Savings events (SavingsGateway.sol)
+	// Savings events (SavingsGateway.sol + V3 Savings.sol)
 	Saved: 'Saved(address,uint192)',
 	InterestCollected: 'InterestCollected(address,uint256)',
+	InterestCollectedV3: 'InterestCollected(address,uint256,bool)',
+	InterestClaimed: 'InterestClaimed(address,uint192)',
 	Withdrawn: 'Withdrawn(address,uint192)',
 
 	// Frontend Gateway events (FrontendGateway.sol)
@@ -74,11 +80,14 @@ export const CONTRACT_ABI_MAP: Record<ContractType, any | undefined> = {
 	[ContractType.DEURO]: DecentralizedEUROABI,
 	[ContractType.EQUITY]: EquityABI,
 	[ContractType.DEPS]: DEPSWrapperABI,
-	[ContractType.SAVINGS]: SavingsGatewayABI,
-	[ContractType.FRONTEND_GATEWAY]: FrontendGatewayABI,
-	[ContractType.MINTING_HUB]: MintingHubGatewayABI,
+	[ContractType.SAVINGS]: SavingsGatewayV2ABI,
+	[ContractType.SAVINGS_V3]: SavingsV3ABI,
+	[ContractType.FRONTEND_GATEWAY]: FrontendGatewayV2ABI,
+	[ContractType.MINTING_HUB]: MintingHubGatewayV2ABI,
+	[ContractType.MINTING_HUB_V3]: MintingHubV3ABI,
 	[ContractType.POSITION]: PositionV2ABI,
-	[ContractType.ROLLER]: PositionRollerABI,
+	[ContractType.ROLLER]: PositionRollerV2ABI,
+	[ContractType.ROLLER_V3]: PositionRollerV3ABI,
 	[ContractType.COLLATERAL]: ERC20ABI,
 	[ContractType.BRIDGE]: StablecoinBridgeABI,
 	[ContractType.MINTER]: undefined,

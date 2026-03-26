@@ -16,6 +16,7 @@ export class ChallengeRepository {
 				this.prisma.challengeState.create({
 					data: {
 						challengeId: c.challengeId!,
+						hubAddress: c.hubAddress!.toLowerCase(),
 						challengerAddress: c.challengerAddress!.toLowerCase(),
 						positionAddress: c.positionAddress!.toLowerCase(),
 						startTimestamp: c.startTimestamp!,
@@ -37,7 +38,12 @@ export class ChallengeRepository {
 		await this.prisma.$transaction(
 			challenges.map((c) =>
 				this.prisma.challengeState.update({
-					where: { challengeId: c.challengeId! },
+					where: {
+						challengeId_hubAddress: {
+							challengeId: c.challengeId!,
+							hubAddress: c.hubAddress!.toLowerCase(),
+						},
+					},
 					data: {
 						size: c.size!.toString(),
 						currentPrice: c.currentPrice!.toString(),
@@ -50,10 +56,10 @@ export class ChallengeRepository {
 		this.logger.log(`Successfully updated ${challenges.length} existing challenge states`);
 	}
 
-	async findAllChallengeIds(): Promise<number[]> {
+	async findAllChallengeKeys(): Promise<{ challengeId: number; hubAddress: string }[]> {
 		const challenges = await this.prisma.challengeState.findMany({
-			select: { challengeId: true },
+			select: { challengeId: true, hubAddress: true },
 		});
-		return challenges.map((c) => c.challengeId);
+		return challenges;
 	}
 }

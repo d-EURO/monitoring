@@ -13,12 +13,15 @@ export enum ContractType {
 	EQUITY = 'EQUITY',
 	DEPS = 'DEPS',
 	SAVINGS = 'SAVINGS',
+	SAVINGS_V3 = 'SAVINGS_V3',
 	POSITION = 'POSITION',
 	MINTER = 'MINTER',
 	BRIDGE = 'BRIDGE',
 	FRONTEND_GATEWAY = 'FRONTEND_GATEWAY',
 	MINTING_HUB = 'MINTING_HUB',
+	MINTING_HUB_V3 = 'MINTING_HUB_V3',
 	ROLLER = 'ROLLER',
+	ROLLER_V3 = 'ROLLER_V3',
 	COLLATERAL = 'COLLATERAL',
 }
 
@@ -65,6 +68,7 @@ export interface ChallengeStartedEvent {
 	position: string;
 	size: bigint;
 	timestamp: bigint; // Unix timestamp in seconds from blockchain event
+	hubAddress: string; // MintingHub contract that emitted the event
 }
 
 export interface PositionState {
@@ -107,6 +111,7 @@ export interface PositionState {
 export interface ChallengeState {
 	// Fixed fields
 	challengeId: number;
+	hubAddress: string; // MintingHub contract that owns this challenge
 	challengerAddress: string;
 	positionAddress: string;
 	startTimestamp: bigint;
