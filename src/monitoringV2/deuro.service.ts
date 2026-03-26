@@ -5,7 +5,7 @@ import { ProviderService } from './provider.service';
 import { PriceService } from './price.service';
 import { AppConfigService } from '../config/config.service';
 import { ethers } from 'ethers';
-import { DecentralizedEUROABI, EquityABI, DEPSWrapperABI, SavingsGatewayABI, ADDRESS } from '@deuro/eurocoin';
+import { DecentralizedEUROABI, EquityABI, DEPSWrapperABI, SavingsGatewayV2ABI, SavingsV3ABI, ADDRESS } from '@deuro/eurocoin';
 import { EventsRepository } from './prisma/repositories/events.repository';
 import { PositionRepository } from './prisma/repositories/position.repository';
 
@@ -32,7 +32,13 @@ export class DeuroService {
 		const deuro = new ethers.Contract(ADDRESS[chainId].decentralizedEURO, DecentralizedEUROABI, multicallProvider);
 		const equity = new ethers.Contract(ADDRESS[chainId].equity, EquityABI, multicallProvider);
 		const deps = new ethers.Contract(ADDRESS[chainId].DEPSwrapper, DEPSWrapperABI, multicallProvider);
-		const savings = new ethers.Contract(ADDRESS[chainId].savingsGateway, SavingsGatewayABI, multicallProvider);
+		const savings = new ethers.Contract(ADDRESS[chainId].savingsGateway, SavingsGatewayV2ABI, multicallProvider);
+
+		// V3 Savings contract (if available on this chain)
+		const hasV3 = !!ADDRESS[chainId].savings;
+		const v3Savings = hasV3
+			? new ethers.Contract(ADDRESS[chainId].savings, SavingsV3ABI, multicallProvider)
+			: null;
 
 		// Contract calls
 		const calls: Array<() => Promise<any>> = [];
@@ -45,6 +51,9 @@ export class DeuroService {
 		calls.push(() => deuro.equity());
 		calls.push(() => deuro.balanceOf(ADDRESS[chainId].savingsGateway));
 		calls.push(() => savings.currentRatePPM());
+		if (v3Savings) {
+			calls.push(() => deuro.balanceOf(ADDRESS[chainId].savings));
+		}
 		const results = await this.providerService.callBatch(calls);
 
 		let idx = 0;
@@ -55,8 +64,10 @@ export class DeuroService {
 		const reserveTotal = BigInt(results[idx++]);
 		const reserveMinter = BigInt(results[idx++]);
 		const reserveEquity = BigInt(results[idx++]);
-		const savingsTotal = BigInt(results[idx++]);
+		const gatewaySavingsTotal = BigInt(results[idx++]);
 		const savingsRate = Number(results[idx++]);
+		const v3SavingsTotal = v3Savings ? BigInt(results[idx++]) : 0n;
+		const savingsTotal = gatewaySavingsTotal + v3SavingsTotal;
 
 		// Event aggregations and other data
 		const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;

@@ -161,6 +161,7 @@ export class ApiController {
 
 			return {
 				id: c.challengeId,
+				hubAddress: c.hubAddress,
 				challenger: c.challengerAddress,
 				position: c.positionAddress,
 				initialSize: c.initialSize.div(collateralDivisor).toString(),

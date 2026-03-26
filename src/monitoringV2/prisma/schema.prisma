@@ -108,7 +108,8 @@ model PositionState {
 // Challenge states - tracks all challenge states
 model ChallengeState {
   // Fixed fields
-  challengeId       Int     @id @map("challenge_id")
+  challengeId       Int     @map("challenge_id")
+  hubAddress        String  @map("hub_address") @db.VarChar(42)
   challengerAddress String  @map("challenger_address") @db.VarChar(42)
   positionAddress   String  @map("position_address") @db.VarChar(42)
   startTimestamp    BigInt  @map("start_timestamp")
@@ -121,6 +122,7 @@ model ChallengeState {
   // Metadata
   timestamp DateTime @db.Timestamptz
 
+  @@id([challengeId, hubAddress])
   @@index([positionAddress], map: "idx_challenge_states_position")
   @@index([challengerAddress], map: "idx_challenge_states_challenger")
   @@map("challenge_states")

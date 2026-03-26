@@ -125,7 +125,7 @@ export class EventsRepository {
 		try {
 			const events = await this.prisma.rawEvent.findMany({
 				where: { topic: 'ChallengeStarted' },
-				select: { args: true, blockNumber: true, timestamp: true },
+				select: { args: true, blockNumber: true, timestamp: true, contractAddress: true },
 				orderBy: { timestamp: 'asc' },
 			});
 
@@ -138,6 +138,7 @@ export class EventsRepository {
 						position: data.position?.toLowerCase(),
 						size: data.size ? BigInt(data.size) : undefined,
 						timestamp: event.timestamp,
+						hubAddress: event.contractAddress.toLowerCase(),
 					};
 				})
 				.filter((c) => c.challengeId !== undefined);

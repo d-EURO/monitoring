@@ -45,6 +45,8 @@ export const EVENT_CONFIG: Record<string, EventConfig> = {
 	// Savings events
 	Saved: { severity: EventSeverity.LOW, enabled: false },
 	InterestCollected: { severity: EventSeverity.LOW, enabled: false },
+	InterestCollectedV3: { severity: EventSeverity.LOW, enabled: false },
+	InterestClaimed: { severity: EventSeverity.LOW, enabled: false },
 	Withdrawn: { severity: EventSeverity.LOW, enabled: false },
 
 	// Frontend Gateway events
