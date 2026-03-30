@@ -4,13 +4,6 @@
   "sourceRoot": "src",
   "entryFile": "monitoring.main",
   "compilerOptions": {
-    "deleteOutDir": true,
-    "assets": [
-      {
-        "include": "../database/schema.sql",
-        "outDir": "dist/database",
-        "watchAssets": true
-      }
-    ]
+    "deleteOutDir": true
   }
 }

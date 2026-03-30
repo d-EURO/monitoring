@@ -36,11 +36,11 @@ cp .env.example .env
 # - RPC_URL: Ethereum mainnet RPC endpoint
 # - BLOCKCHAIN_ID: Must be 1 (Ethereum mainnet)
 
-# Initialize database schema
-psql $DATABASE_URL < database/schema.sql
-
 # Generate Prisma client
 npm run prisma:generate
+
+# Run database migrations
+node src/monitoringV2/prisma/migrate.js
 
 # Start the service
 npm run build
