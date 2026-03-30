@@ -8,4 +8,3 @@ export * from './challenge.service';
 export * from './monitoring.module';
 export * from './price.service';
 export * from './provider.service';
-export * from './schema-init.service';
