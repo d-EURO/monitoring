@@ -34,9 +34,11 @@ interface PriceCacheEntry {
 
 @Injectable()
 export class PriceService {
+	private static readonly FX_CACHE_TTL_MS = 3_600_000; // 1 hour — FX rates change slowly
 	private readonly CACHE_TTL_MS: number;
 	private readonly logger = new Logger(PriceService.name);
 	private priceCache = new Map<string, PriceCacheEntry>();
+	private pendingFxRates: Promise<{ eur: number; chf: number }> | null = null;
 
 	constructor(
 		private readonly providerService: ProviderService,
@@ -145,63 +147,63 @@ export class PriceService {
 		return { ...cached, ...prices };
 	}
 
-	/**
-	 * Fetches USD to EUR conversion rate
-	 * @returns USD to EUR exchange rate
-	 */
 	async getUsdToEur(): Promise<number> {
-		const cacheKey = 'usd-eur-rate';
-		const cached = this.priceCache.get(cacheKey);
+		return (await this.getFxRates()).eur;
+	}
 
-		if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
-			return Number(cached.value);
+	async getUsdToChf(): Promise<number> {
+		return (await this.getFxRates()).chf;
+	}
+
+	private async getFxRates(): Promise<{ eur: number; chf: number }> {
+		const eurCached = this.priceCache.get('usd-eur-rate');
+		const chfCached = this.priceCache.get('usd-chf-rate');
+		const now = Date.now();
+
+		if (
+			eurCached &&
+			chfCached &&
+			now - eurCached.timestamp < PriceService.FX_CACHE_TTL_MS &&
+			now - chfCached.timestamp < PriceService.FX_CACHE_TTL_MS
+		) {
+			return { eur: Number(eurCached.value), chf: Number(chfCached.value) };
 		}
 
+		// Deduplicate concurrent requests
+		if (this.pendingFxRates) return this.pendingFxRates;
+
+		this.pendingFxRates = this.fetchFxRates(eurCached, chfCached);
 		try {
-			const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=usd&vs_currencies=eur', {
-				headers: { accept: 'application/json' },
-				timeout: 10000,
-			});
-
-			const rate = Number(response.data.usd.eur);
-			this.priceCache.set(cacheKey, { value: String(rate), timestamp: Date.now() });
-
-			this.logger.debug(`USD to EUR rate: ${rate}`);
-			return rate;
-		} catch (error) {
-			this.logger.error('Failed to fetch USD to EUR rate:', error);
-			if (cached) return Number(cached.value);
-			return 1;
+			return await this.pendingFxRates;
+		} finally {
+			this.pendingFxRates = null;
 		}
 	}
 
-	/**
-	 * Fetches USD to CHF conversion rate
-	 * @returns USD to CHF exchange rate
-	 */
-	async getUsdToChf(): Promise<number> {
-		const cacheKey = 'usd-chf-rate';
-		const cached = this.priceCache.get(cacheKey);
-
-		if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
-			return Number(cached.value);
-		}
-
+	private async fetchFxRates(
+		eurCached: PriceCacheEntry | undefined,
+		chfCached: PriceCacheEntry | undefined
+	): Promise<{ eur: number; chf: number }> {
 		try {
-			const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=usd&vs_currencies=chf', {
+			const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=usd&vs_currencies=eur,chf', {
 				headers: { accept: 'application/json' },
 				timeout: 10000,
 			});
 
-			const rate = Number(response.data.usd.chf);
-			this.priceCache.set(cacheKey, { value: String(rate), timestamp: Date.now() });
+			const now = Date.now();
+			const eur = Number(response.data.usd.eur);
+			const chf = Number(response.data.usd.chf);
+			this.priceCache.set('usd-eur-rate', { value: String(eur), timestamp: now });
+			this.priceCache.set('usd-chf-rate', { value: String(chf), timestamp: now });
 
-			this.logger.debug(`USD to CHF rate: ${rate}`);
-			return rate;
+			this.logger.debug(`FX rates: USD/EUR=${eur}, USD/CHF=${chf}`);
+			return { eur, chf };
 		} catch (error) {
-			this.logger.error('Failed to fetch USD to CHF rate:', error);
-			if (cached) return Number(cached.value);
-			return 1;
+			this.logger.error('Failed to fetch FX rates:', error.message || error);
+			return {
+				eur: eurCached ? Number(eurCached.value) : 1,
+				chf: chfCached ? Number(chfCached.value) : 1,
+			};
 		}
 	}
 
