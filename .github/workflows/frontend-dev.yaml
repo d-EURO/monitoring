@@ -1,4 +1,4 @@
-name: dEURO Frontend DEV CI/CD
+name: dEURO Monitoring Frontend DEV CI/CD
 
 on:
   push:
@@ -12,35 +12,32 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_ACCOUNT_NAME: stdfxdemdev
-  AZURE_CDN_PROFILE: afd-dfx-api-dev
-  AZURE_CDN_ENDPOINT: fde-dfx-dem-dev
-  AZURE_RESOURCE_GROUP: rg-dfx-api-dev
+  DOCKER_TAGS: dfxswiss/deuro-monitoring-web:beta
+  DEPLOY_HOST: ssh-dfxdev.dfxserve.com
+  DEPLOY_USER: dfxdev
+  DEPLOY_SERVICE: deuro-monitoring-web
 
 jobs:
   build:
-    name: Build and test Frontend
+    name: Build Frontend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-        working-directory: frontend
-
-      - name: Build frontend
-        run: npm run build
-        working-directory: frontend
-        env:
-          VITE_API_BASE_URL: https://dev.monitoring.deuro.com/api
+          context: ./frontend
+          push: false
+          load: true
+          tags: ${{ env.DOCKER_TAGS }}
 
   deploy:
     name: Deploy Frontend to DEV
@@ -51,40 +48,41 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Install dependencies
-        run: npm ci
-        working-directory: frontend
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: Build frontend
-        run: npm run build
-        working-directory: frontend
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ env.DOCKER_TAGS }}
+          platforms: linux/amd64,linux/arm64
+
+      - name: Install cloudflared
+        run: |
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared
+          chmod +x /usr/local/bin/cloudflared
+
+      - name: Deploy to dfxdev
         env:
-          VITE_API_BASE_URL: https://dev.monitoring.deuro.com/api
-
-      - name: Log in to Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.DFX_DEV_CREDENTIALS }}
-
-      - name: Upload to Azure Storage
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            az storage blob upload-batch --account-name ${{ env.AZURE_ACCOUNT_NAME }} -d '$web' -s ./frontend/dist --overwrite
-
-      - name: Purge CDN endpoint
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            az afd endpoint purge --content-paths "/*" --profile-name ${{ env.AZURE_CDN_PROFILE }} --endpoint-name ${{ env.AZURE_CDN_ENDPOINT }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
-
-      - name: Logout from Azure
-        run: az logout
-        if: always()
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DFXDEV_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.DFXDEV_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key \
+            -o ProxyCommand="cloudflared access ssh --hostname ${{ env.DEPLOY_HOST }}" \
+            ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} \
+            "${{ env.DEPLOY_SERVICE }}"
