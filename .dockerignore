@@ -47,8 +47,8 @@ Dockerfile
 docker-compose.yml
 .dockerignore
 
-# Frontend (not needed in backend container)
-frontend/
+# Note: frontend/ is NOT excluded — the frontend Dockerfile
+# builds from repo root context and needs access to frontend/ and shared/
 
 # Test files
 test/
