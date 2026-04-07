@@ -190,9 +190,18 @@ export class PriceService {
 				timeout: 10000,
 			});
 
-			const now = Date.now();
 			const eur = Number(response.data.usd.eur);
 			const chf = Number(response.data.usd.chf);
+
+			if (Number.isNaN(eur) || Number.isNaN(chf)) {
+				this.logger.error('CoinGecko returned non-numeric FX rates', response.data);
+				return {
+					eur: !Number.isNaN(eur) ? eur : eurCached ? Number(eurCached.value) : 1,
+					chf: !Number.isNaN(chf) ? chf : chfCached ? Number(chfCached.value) : 1,
+				};
+			}
+
+			const now = Date.now();
 			this.priceCache.set('usd-eur-rate', { value: String(eur), timestamp: now });
 			this.priceCache.set('usd-chf-rate', { value: String(chf), timestamp: now });
 
