@@ -42,7 +42,6 @@ export class ApiController {
 		const currentBlock = await this.providerService.getBlockNumber().catch(() => undefined);
 
 		return {
-			deployTest: true,
 			status: consecutiveFailures >= 3 ? HealthState.FAILING : HealthState.OK,
 			consecutiveFailures,
 			lastProcessedBlock,
