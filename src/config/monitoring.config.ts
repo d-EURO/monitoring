@@ -66,6 +66,10 @@ export class MonitoringConfig {
 	@IsNumber()
 	@Min(1)
 	alertTimeframeHours?: number;
+
+	@IsOptional()
+	@IsString()
+	coingeckoApiKey?: string;
 }
 
 export default registerAs('monitoring', () => {
@@ -87,6 +91,7 @@ export default registerAs('monitoring', () => {
 	config.telegramChatId = process.env.TELEGRAM_CHAT_ID || '';
 	config.telegramAlertsEnabled = (process.env.TELEGRAM_ALERTS_ENABLED || 'false').toLowerCase() === 'true';
 	config.alertTimeframeHours = parseInt(process.env.ALERT_TIMEFRAME_HOURS || '12');
+	config.coingeckoApiKey = process.env.COINGECKO_API_KEY || '';
 
 	const errors = validateSync(plainToClass(MonitoringConfig, config));
 	if (errors.length > 0) throw new Error(`Config validation failed: ${errors}`);
