@@ -64,4 +64,8 @@ export class AppConfigService {
 	get alertTimeframeHours(): number {
 		return this.monitoringConfig.alertTimeframeHours || 12;
 	}
+
+	get coingeckoApiKey(): string | undefined {
+		return this.monitoringConfig.coingeckoApiKey || undefined;
+	}
 }

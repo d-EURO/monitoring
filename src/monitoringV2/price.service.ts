@@ -185,8 +185,12 @@ export class PriceService {
 		chfCached: PriceCacheEntry | undefined
 	): Promise<{ eur: number; chf: number }> {
 		try {
+			const apiKey = this.appConfigService.coingeckoApiKey;
+			const headers: Record<string, string> = { accept: 'application/json' };
+			if (apiKey) headers['x-cg-demo-api-key'] = apiKey;
+
 			const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=usd&vs_currencies=eur,chf', {
-				headers: { accept: 'application/json' },
+				headers,
 				timeout: 10000,
 			});
 
