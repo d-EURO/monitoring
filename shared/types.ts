@@ -34,7 +34,6 @@ export enum HealthState {
 }
 
 export interface HealthResponse {
-	deployTest: boolean;
 	status: HealthState;
 	consecutiveFailures: number;
 	lastProcessedBlock: number;
