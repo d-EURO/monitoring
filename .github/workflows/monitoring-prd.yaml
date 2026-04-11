@@ -18,7 +18,7 @@ on:
         default: false
 
 env:
-  DOCKER_TAGS: dfxswiss/deuro-monitoring:latest
+  DOCKER_TAGS: deurocom/monitoring:latest
   DEPLOY_SERVICE: deuro-monitoring
 
 jobs:
@@ -86,25 +86,20 @@ jobs:
     name: Reset PRD Database
     needs: deploy
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 15
     if: github.event_name == 'workflow_dispatch' && inputs.reset_database == true
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Reset Database
+      - name: Install cloudflared
         run: |
-          set -euo pipefail
-          echo "PRODUCTION DATABASE RESET INITIATED"
-          npx prisma migrate reset --force --schema=./src/monitoringV2/prisma/schema.prisma
-          echo "Production database reset complete"
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_PRD }}
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/download/2025.4.0/cloudflared-linux-arm64 -o /usr/local/bin/cloudflared
+          chmod +x /usr/local/bin/cloudflared
+
+      - name: Reset monitoring database
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_PRD_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.DEPLOY_PRD_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key \
+            -o ProxyCommand="cloudflared access ssh --hostname ${{ secrets.DEPLOY_PRD_HOST }}" \
+            ${{ secrets.DEPLOY_PRD_USER }}@${{ secrets.DEPLOY_PRD_HOST }} \
+            "reset-monitoring-db"
