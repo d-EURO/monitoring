@@ -18,7 +18,7 @@ on:
         default: false
 
 env:
-  DOCKER_TAGS: dfxswiss/deuro-monitoring:latest
+  DOCKER_TAGS: deurocom/monitoring:latest
   DEPLOY_SERVICE: deuro-monitoring
 
 jobs:
