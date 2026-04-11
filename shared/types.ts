@@ -79,6 +79,7 @@ export interface PositionResponse {
 
 export interface ChallengeResponse {
 	id: number;
+	hubAddress: string;
 	challenger: string;
 	position: string;
 	start: string; // Unix timestamp in milliseconds as string

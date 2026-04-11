@@ -73,11 +73,32 @@ export class ContractService {
 				timestamp: deploymentTimestamp,
 			},
 			{
-				address: ADDRESS[chainId].roller,
+				address: ADDRESS[chainId].rollerV2,
 				type: ContractType.ROLLER,
 				timestamp: deploymentTimestamp,
 			},
 		];
+
+		// V3 standalone contracts (not Gateway-wrapped)
+		if (ADDRESS[chainId].savings) {
+			coreContracts.push(
+				{
+					address: ADDRESS[chainId].savings,
+					type: ContractType.SAVINGS_V3,
+					timestamp: deploymentTimestamp,
+				},
+				{
+					address: ADDRESS[chainId].mintingHub,
+					type: ContractType.MINTING_HUB_V3,
+					timestamp: deploymentTimestamp,
+				},
+				{
+					address: ADDRESS[chainId].rollerV3,
+					type: ContractType.ROLLER_V3,
+					timestamp: deploymentTimestamp,
+				},
+			);
+		}
 
 		await this.contractRepo.createMany(coreContracts);
 		this.logger.log(`Registry initialized with ${coreContracts.length} core contracts`);

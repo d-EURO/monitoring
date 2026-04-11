@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ChallengeState, ChallengeStartedEvent } from './types';
 import { AppConfigService } from '../config/config.service';
-import { MintingHubV2ABI, ADDRESS } from '@deuro/eurocoin';
+import { MintingHubV2ABI, MintingHubV3ABI, ADDRESS } from '@deuro/eurocoin';
 import { ethers } from 'ethers';
 import { ProviderService } from './provider.service';
 import { ChallengeRepository } from './prisma/repositories/challenge.repository';
@@ -10,7 +10,7 @@ import { EventsRepository } from './prisma/repositories/events.repository';
 @Injectable()
 export class ChallengeService {
 	private readonly logger = new Logger(ChallengeService.name);
-	private existingChallenges = new Set<number>();
+	private existingChallenges = new Set<string>(); // composite key: "challengeId:hubAddress"
 
 	constructor(
 		private readonly config: AppConfigService,
@@ -19,9 +19,13 @@ export class ChallengeService {
 		private readonly providerService: ProviderService
 	) {}
 
+	private static challengeKey(challengeId: number, hubAddress: string): string {
+		return `${challengeId}:${hubAddress.toLowerCase()}`;
+	}
+
 	async initialize(): Promise<void> {
-		const challengeIds = await this.challengeRepo.findAllChallengeIds();
-		this.existingChallenges = new Set(challengeIds);
+		const keys = await this.challengeRepo.findAllChallengeKeys();
+		this.existingChallenges = new Set(keys.map((k) => ChallengeService.challengeKey(k.challengeId, k.hubAddress)));
 		this.logger.log(`Loaded ${this.existingChallenges.size} existing challenges`);
 	}
 
@@ -39,20 +43,34 @@ export class ChallengeService {
 		if (existingStates.length > 0) await this.challengeRepo.updateMany(existingStates);
 
 		// Update cache
-		for (const challenge of challengeStates) this.existingChallenges.add(challenge.challengeId);
+		for (const challenge of challengeStates) {
+			this.existingChallenges.add(ChallengeService.challengeKey(challenge.challengeId!, challenge.hubAddress!));
+		}
 		this.logger.log(`Successfully synced ${challengeStates.length} challenge states`);
 	}
 
 	private async fetchChallengeData(challengeStartedEvents: ChallengeStartedEvent[]): Promise<Partial<ChallengeState>[]> {
 		const multicallProvider = this.providerService.multicallProvider;
-		const mintingHub = new ethers.Contract(ADDRESS[this.config.blockchainId].mintingHubGateway, MintingHubV2ABI, multicallProvider);
 		const timestamp = new Date();
 
-		// Fetch on-chain data
+		// Create hub contract instances (one per unique hub address) with the correct ABI
+		const chainId = this.config.blockchainId;
+		const v3HubAddress = ADDRESS[chainId].mintingHub?.toLowerCase();
+		const hubContracts = new Map<string, ethers.Contract>();
+		for (const event of challengeStartedEvents) {
+			const hub = event.hubAddress.toLowerCase();
+			if (!hubContracts.has(hub)) {
+				const abi = hub === v3HubAddress ? MintingHubV3ABI : MintingHubV2ABI;
+				hubContracts.set(hub, new ethers.Contract(hub, abi, multicallProvider));
+			}
+		}
+
+		// Fetch on-chain data — query each challenge on its correct hub
 		const calls: Array<() => Promise<any>> = [];
 		for (const event of challengeStartedEvents) {
-			calls.push(() => mintingHub.challenges(event.challengeId));
-			calls.push(() => mintingHub.price(event.challengeId));
+			const hub = hubContracts.get(event.hubAddress.toLowerCase())!;
+			calls.push(() => hub.challenges(event.challengeId));
+			calls.push(() => hub.price(event.challengeId));
 		}
 
 		// Execute multicall
@@ -61,11 +79,13 @@ export class ChallengeService {
 		let responseIndex = 0;
 		const challenges: Partial<ChallengeState>[] = [];
 		for (const event of challengeStartedEvents) {
-			const isNew = !this.existingChallenges.has(event.challengeId);
+			const key = ChallengeService.challengeKey(event.challengeId, event.hubAddress);
+			const isNew = !this.existingChallenges.has(key);
 			const challengeData = responses[responseIndex++];
 			const currentPrice = BigInt(responses[responseIndex++]);
 			const state: Partial<ChallengeState> = {
 				challengeId: event.challengeId,
+				hubAddress: event.hubAddress.toLowerCase(),
 				size: BigInt(challengeData.size),
 				currentPrice,
 				timestamp,

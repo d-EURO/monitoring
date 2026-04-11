@@ -18,15 +18,13 @@ on:
         default: false
 
 env:
-  DOCKER_TAGS: dfxswiss/deuro-monitoring:beta
-  AZURE_RESOURCE_GROUP: rg-dfx-api-dev
-  AZURE_CONTAINER_APP: ca-dfx-dem-dev
-  DEPLOY_INFO: ${{ github.ref_name }}-${{ github.sha }}
+  DOCKER_TAGS: deurocom/monitoring:beta
+  DEPLOY_SERVICE: deuro-monitoring
 
 jobs:
   build:
     name: Build and test Monitoring
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,7 +42,7 @@ jobs:
 
   deploy:
     name: Deploy Monitoring to DEV
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     steps:
@@ -66,42 +64,42 @@ jobs:
           context: .
           push: true
           tags: ${{ env.DOCKER_TAGS }}
+          platforms: linux/arm64
 
-      - name: Log in to Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.DFX_DEV_CREDENTIALS }}
+      - name: Install cloudflared
+        run: |
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/download/2025.4.0/cloudflared-linux-arm64 -o /usr/local/bin/cloudflared
+          chmod +x /usr/local/bin/cloudflared
 
-      - name: Update Azure Container App
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            az containerapp update --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CONTAINER_APP }} --image ${{ env.DOCKER_TAGS }} --set-env-vars DEPLOY_INFO=${{ env.DEPLOY_INFO }}
-
-      - name: Logout from Azure
-        run: az logout
-        if: always()
+      - name: Deploy to server
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_DEV_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.DEPLOY_DEV_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key \
+            -o ProxyCommand="cloudflared access ssh --hostname ${{ secrets.DEPLOY_DEV_HOST }}" \
+            ${{ secrets.DEPLOY_DEV_USER }}@${{ secrets.DEPLOY_DEV_HOST }} \
+            "${{ env.DEPLOY_SERVICE }}"
 
   reset-database:
     name: Reset Database
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     needs: deploy
     if: github.event_name == 'workflow_dispatch' && inputs.reset_database == true
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Reset Database
+      - name: Install cloudflared
         run: |
-          set -euo pipefail
-          sudo apt-get update && sudo apt-get install -y postgresql-client
-          echo "DATABASE RESET INITIATED"
-          psql "$DATABASE_URL" <<'EOF'
-          DROP SCHEMA public CASCADE;
-          CREATE SCHEMA public;
-          GRANT ALL ON SCHEMA public TO PUBLIC;
-          EOF
-          psql "$DATABASE_URL" -f database/schema.sql
-          echo "Database reset complete"
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/download/2025.4.0/cloudflared-linux-arm64 -o /usr/local/bin/cloudflared
+          chmod +x /usr/local/bin/cloudflared
+
+      - name: Reset monitoring database
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_DEV_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.DEPLOY_DEV_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key \
+            -o ProxyCommand="cloudflared access ssh --hostname ${{ secrets.DEPLOY_DEV_HOST }}" \
+            ${{ secrets.DEPLOY_DEV_USER }}@${{ secrets.DEPLOY_DEV_HOST }} \
+            "reset-monitoring-db"

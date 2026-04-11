@@ -20,7 +20,6 @@ import { CollateralService } from './collateral.service';
 import { MinterService } from './minter.service';
 import { DeuroService } from './deuro.service';
 import { MonitoringService } from './monitoring.service';
-import { SchemaInitService } from './schema-init.service';
 import { PriceService } from './price.service';
 import { TelegramService } from './telegram.service';
 import { ApiModule } from './api/api.module';
@@ -28,7 +27,6 @@ import { ApiModule } from './api/api.module';
 @Module({
 	imports: [ApiModule],
 	providers: [
-		SchemaInitService, // Initialize schema first
 		AppConfigService,
 		ProviderService,
 		PrismaClientService,
