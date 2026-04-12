@@ -71,6 +71,9 @@ export const EVENT_SIGNATURES: Record<string, string> = {
 	PostponedReturn: 'PostponedReturn(address,address,uint256)',
 	ForcedSale: 'ForcedSale(address,uint256,uint256)',
 
+	// StablecoinBridge events
+	EmergencyStopped: 'EmergencyStopped(address,string)',
+
 	// Position events (Position.sol)
 	MintingUpdate: 'MintingUpdate(uint256,uint256,uint256)',
 	PositionDenied: 'PositionDenied(address,string)',
