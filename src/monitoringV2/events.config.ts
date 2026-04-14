@@ -64,6 +64,9 @@ export const EVENT_CONFIG: Record<string, EventConfig> = {
 	// MintingHub events
 	PostponedReturn: { severity: EventSeverity.LOW, enabled: false },
 	ForcedSale: { severity: EventSeverity.MEDIUM, enabled: true },
+
+	// StablecoinBridge events
+	EmergencyStopped: { severity: EventSeverity.HIGH, enabled: true },
 };
 
 // Helper to get enabled events
