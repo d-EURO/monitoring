@@ -213,10 +213,16 @@ export class PriceService {
 			return { eur, chf };
 		} catch (error) {
 			this.logger.error('Failed to fetch FX rates:', error.message || error);
-			return {
-				eur: eurCached ? Number(eurCached.value) : 1,
-				chf: chfCached ? Number(chfCached.value) : 1,
-			};
+
+			const eur = eurCached ? Number(eurCached.value) : 1;
+			const chf = chfCached ? Number(chfCached.value) : 1;
+
+			// Refresh cache timestamps so we don't retry on every call while rate-limited
+			const now = Date.now();
+			this.priceCache.set('usd-eur-rate', { value: String(eur), timestamp: now });
+			this.priceCache.set('usd-chf-rate', { value: String(chf), timestamp: now });
+
+			return { eur, chf };
 		}
 	}
 
