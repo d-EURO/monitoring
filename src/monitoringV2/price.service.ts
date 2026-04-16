@@ -187,9 +187,10 @@ export class PriceService {
 		try {
 			const apiKey = this.appConfigService.coingeckoApiKey;
 			const headers: Record<string, string> = { accept: 'application/json' };
-			if (apiKey) headers['x-cg-demo-api-key'] = apiKey;
+			const baseUrl = apiKey ? 'https://pro-api.coingecko.com' : 'https://api.coingecko.com';
+			if (apiKey) headers['x-cg-pro-api-key'] = apiKey;
 
-			const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=usd&vs_currencies=eur,chf', {
+			const response = await axios.get(`${baseUrl}/api/v3/simple/price?ids=usd&vs_currencies=eur,chf`, {
 				headers,
 				timeout: 10000,
 			});
