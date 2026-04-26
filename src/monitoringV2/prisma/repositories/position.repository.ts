@@ -188,6 +188,7 @@ export class PositionRepository {
 				isClosed: false,
 				isDenied: false,
 				expiration: { lt: now },
+				principal: { gt: 0 },
 			},
 			select: {
 				address: true,
@@ -201,20 +202,17 @@ export class PositionRepository {
 				phase2AlertedAt: true,
 			},
 		});
-		// Filter principal>0 in JS (Prisma Decimal comparison via raw value)
-		return rows
-			.filter((r) => BigInt(r.principal.toFixed(0)) > 0n)
-			.map((r) => ({
-				address: r.address,
-				expiration: r.expiration,
-				challengePeriod: r.challengePeriod,
-				principal: r.principal.toFixed(0),
-				collateral: r.collateral,
-				collateralAmount: r.collateralAmount.toFixed(0),
-				price: r.price.toFixed(0),
-				expiredPurchasePrice: r.expiredPurchasePrice.toFixed(0),
-				phase2AlertedAt: r.phase2AlertedAt,
-			}));
+		return rows.map((r) => ({
+			address: r.address,
+			expiration: r.expiration,
+			challengePeriod: r.challengePeriod,
+			principal: r.principal.toFixed(0),
+			collateral: r.collateral,
+			collateralAmount: r.collateralAmount.toFixed(0),
+			price: r.price.toFixed(0),
+			expiredPurchasePrice: r.expiredPurchasePrice.toFixed(0),
+			phase2AlertedAt: r.phase2AlertedAt,
+		}));
 	}
 
 	async findUnalertedMiniLifetime(thresholdSeconds: bigint): Promise<

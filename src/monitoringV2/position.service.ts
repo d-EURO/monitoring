@@ -157,21 +157,26 @@ export class PositionService {
 		const now = BigInt(Math.floor(Date.now() / 1000));
 		for (const c of candidates) {
 			const lifetime = c.expiration - c.created;
-			const principalDeuro = Number(BigInt(c.principal) / 10n ** 18n);
+			const principalDeuro = formatDeuro(c.principal);
 			const message =
 				`Suspicious clone detected\n\n` +
 				`Position: \`${c.address}\`\n` +
 				`Owner: \`${c.owner}\`\n` +
 				`Collateral: \`${c.collateral}\`\n` +
 				`Lifetime: *${lifetime}s*  (threshold: ${MINI_LIFETIME_THRESHOLD_SECONDS}s)\n` +
-				`Principal: ${principalDeuro.toLocaleString()} dEURO\n\n` +
+				`Principal: ${principalDeuro} dEURO\n\n` +
 				`This pattern matches the WFPS forced-sale attack vector (clone with sub-day lifetime, ` +
 				`waiting for decay to drain the equity reserve).\n\n` +
-				`Mitigation: open a challenge or call \`buyExpiredCollateral\` once the position enters phase 2.`;
+				`Mitigation: open a challenge or call \`buyExpiredCollateral\` once the position enters phase 2.\n\n` +
+				`[Etherscan](https://etherscan.io/address/${c.address})`;
 
-			await telegramService.sendCriticalAlert(message);
-			await this.positionRepo.markMiniLifetimeAlerted(c.address, now);
-			this.logger.warn(`Mini-lifetime alert sent for ${c.address} (lifetime=${lifetime}s)`);
+			try {
+				await telegramService.sendCriticalAlert(message);
+				await this.positionRepo.markMiniLifetimeAlerted(c.address, now);
+				this.logger.warn(`Mini-lifetime alert sent for ${c.address} (lifetime=${lifetime}s)`);
+			} catch (error) {
+				this.logger.error(`Failed to send mini-lifetime alert for ${c.address}: ${error?.message}`);
+			}
 		}
 	}
 
@@ -187,32 +192,45 @@ export class PositionService {
 
 		for (const p of expired) {
 			if (p.phase2AlertedAt !== null) continue; // already alerted
-
 			const timePassed = now - p.expiration;
 			if (timePassed < p.challengePeriod) continue; // still in phase 1 (price > liq)
 
-			// In phase 2 — useful arbitrage window
-			const principalDeuro = Number(BigInt(p.principal) / 10n ** 18n);
+			// In phase 2 — useful arbitrage window. Clamp progress at 100% in case the cycle
+			// runs after both decay phases have fully elapsed (decay price = 0).
+			const principalDeuro = formatDeuro(p.principal);
 			const decayPrice = BigInt(p.expiredPurchasePrice);
 			const liqPrice = BigInt(p.price);
 			const decayPct = liqPrice > 0n ? Number((decayPrice * 10000n) / liqPrice) / 100 : 0;
-			const phase2Pct = Number(((timePassed - p.challengePeriod) * 100n) / p.challengePeriod);
+			const rawPhase2Pct = Number(((timePassed - p.challengePeriod) * 100n) / p.challengePeriod);
+			const phase2Pct = Math.min(rawPhase2Pct, 100);
+			const phaseLabel = rawPhase2Pct >= 100 ? 'phase 2 complete (decay reached 0)' : `phase 2 progress: ${phase2Pct}%`;
 
 			const message =
-				`Expired position in phase 2 (decay window open)\n\n` +
+				`Expired position in forced-sale decay\n\n` +
 				`Position: \`${p.address}\`\n` +
 				`Collateral: \`${p.collateral}\`\n` +
-				`Principal: ${principalDeuro.toLocaleString()} dEURO\n` +
+				`Principal: ${principalDeuro} dEURO\n` +
 				`Time past expiration: ${timePassed}s  (challengePeriod: ${p.challengePeriod}s)\n` +
-				`Phase 2 progress: ${phase2Pct}% — price decays linearly from liq to 0\n` +
+				`${phaseLabel} — price decays linearly from liq to 0\n` +
 				`Current decay price: ${decayPct.toFixed(2)}% of liq\n\n` +
 				`Without intervention, the equity reserve covers the gap between forced-sale ` +
 				`proceeds and outstanding principal. A defender can call ` +
-				`\`MintingHub.buyExpiredCollateral\` now to repay the debt at decay price.`;
+				`\`MintingHub.buyExpiredCollateral\` now to repay the debt at decay price.\n\n` +
+				`[Etherscan](https://etherscan.io/address/${p.address})`;
 
-			await telegramService.sendCriticalAlert(message);
-			await this.positionRepo.markPhase2Alerted(p.address, now);
-			this.logger.warn(`Phase-2 alert sent for ${p.address} (timePassed=${timePassed}s)`);
+			try {
+				await telegramService.sendCriticalAlert(message);
+				await this.positionRepo.markPhase2Alerted(p.address, now);
+				this.logger.warn(`Phase-2 alert sent for ${p.address} (timePassed=${timePassed}s)`);
+			} catch (error) {
+				this.logger.error(`Failed to send phase-2 alert for ${p.address}: ${error?.message}`);
+			}
 		}
 	}
+}
+
+/** Format an 18-decimal dEURO principal string with two decimal places and locale separators. */
+function formatDeuro(principalRaw: string): string {
+	const cents = BigInt(principalRaw) / 10n ** 16n;
+	return (Number(cents) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
