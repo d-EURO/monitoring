@@ -170,7 +170,7 @@ export class PositionRepository {
 		return BigInt(result._sum.interest?.toFixed(0) || '0');
 	}
 
-	async findExpiredWithDebt(now: bigint): Promise<
+	async findUnalertedPhase2(now: bigint): Promise<
 		Array<{
 			address: string;
 			owner: string;
@@ -181,15 +181,17 @@ export class PositionRepository {
 			collateralAmount: string;
 			price: string;
 			expiredPurchasePrice: string;
-			phase2AlertedAt: bigint | null;
 		}>
 	> {
 		const rows = await this.prisma.positionState.findMany({
 			where: {
+				phase2AlertedAt: null,
 				isClosed: false,
 				isDenied: false,
 				expiration: { lt: now },
 				principal: { gt: 0 },
+				// Phase-2 condition (now - expiration >= challengePeriod) cannot be expressed as
+				// a Prisma column-column comparison; the service-side caller filters that.
 			},
 			select: {
 				address: true,
@@ -201,7 +203,6 @@ export class PositionRepository {
 				collateralAmount: true,
 				price: true,
 				expiredPurchasePrice: true,
-				phase2AlertedAt: true,
 			},
 		});
 		return rows.map((r) => ({
@@ -214,7 +215,6 @@ export class PositionRepository {
 			collateralAmount: r.collateralAmount.toFixed(0),
 			price: r.price.toFixed(0),
 			expiredPurchasePrice: r.expiredPurchasePrice.toFixed(0),
-			phase2AlertedAt: r.phase2AlertedAt,
 		}));
 	}
 

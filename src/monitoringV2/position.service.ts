@@ -261,11 +261,10 @@ export class PositionService {
 	 */
 	async checkExpiredInPhase2(telegramService: TelegramService): Promise<void> {
 		const now = BigInt(Math.floor(Date.now() / 1000));
-		const expired = await this.positionRepo.findExpiredWithDebt(now);
-		if (expired.length === 0) return;
+		const candidates = await this.positionRepo.findUnalertedPhase2(now);
+		if (candidates.length === 0) return;
 
-		for (const p of expired) {
-			if (p.phase2AlertedAt !== null) continue; // already alerted
+		for (const p of candidates) {
 			const timePassed = now - p.expiration;
 			if (timePassed < p.challengePeriod) continue; // still in phase 1 (price > liq)
 
