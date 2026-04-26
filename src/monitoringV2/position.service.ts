@@ -6,6 +6,10 @@ import { ethers } from 'ethers';
 import { ProviderService } from './provider.service';
 import { PositionRepository } from './prisma/repositories/position.repository';
 import { EventsRepository } from './prisma/repositories/events.repository';
+import { TelegramService } from './telegram.service';
+
+// Anything below is suspicious for a clone — the WFPS attacker used a 36-second clone.
+const MINI_LIFETIME_THRESHOLD_SECONDS = 86_400n; // 1 day
 
 @Injectable()
 export class PositionService {
@@ -139,5 +143,76 @@ export class PositionService {
 
 		this.logger.log(`Fetched position data for ${results.length} positions via multicall`);
 		return results;
+	}
+
+	/**
+	 * Detect newly created positions whose (expiration - created) is below the mini-lifetime threshold.
+	 * The WFPS forced-sale attack on 2026-04-25 used a clone with a 36-second lifetime — this would
+	 * fire a HIGH-severity alert ~5 minutes after such a clone is created.
+	 */
+	async checkMiniLifetimeClones(telegramService: TelegramService): Promise<void> {
+		const candidates = await this.positionRepo.findUnalertedMiniLifetime(MINI_LIFETIME_THRESHOLD_SECONDS);
+		if (candidates.length === 0) return;
+
+		const now = BigInt(Math.floor(Date.now() / 1000));
+		for (const c of candidates) {
+			const lifetime = c.expiration - c.created;
+			const principalDeuro = Number(BigInt(c.principal) / 10n ** 18n);
+			const message =
+				`Suspicious clone detected\n\n` +
+				`Position: \`${c.address}\`\n` +
+				`Owner: \`${c.owner}\`\n` +
+				`Collateral: \`${c.collateral}\`\n` +
+				`Lifetime: *${lifetime}s*  (threshold: ${MINI_LIFETIME_THRESHOLD_SECONDS}s)\n` +
+				`Principal: ${principalDeuro.toLocaleString()} dEURO\n\n` +
+				`This pattern matches the WFPS forced-sale attack vector (clone with sub-day lifetime, ` +
+				`waiting for decay to drain the equity reserve).\n\n` +
+				`Mitigation: open a challenge or call \`buyExpiredCollateral\` once the position enters phase 2.`;
+
+			await telegramService.sendCriticalAlert(message);
+			await this.positionRepo.markMiniLifetimeAlerted(c.address, now);
+			this.logger.warn(`Mini-lifetime alert sent for ${c.address} (lifetime=${lifetime}s)`);
+		}
+	}
+
+	/**
+	 * Detect open positions that are past their expiration with positive debt and have entered
+	 * phase 2 of the forced-sale decay (where price drops from 1× to 0× liq-price). Sends one
+	 * HIGH-severity alert per position via the dedup column phase2_alerted_at.
+	 */
+	async checkExpiredInPhase2(telegramService: TelegramService): Promise<void> {
+		const now = BigInt(Math.floor(Date.now() / 1000));
+		const expired = await this.positionRepo.findExpiredWithDebt(now);
+		if (expired.length === 0) return;
+
+		for (const p of expired) {
+			if (p.phase2AlertedAt !== null) continue; // already alerted
+
+			const timePassed = now - p.expiration;
+			if (timePassed < p.challengePeriod) continue; // still in phase 1 (price > liq)
+
+			// In phase 2 — useful arbitrage window
+			const principalDeuro = Number(BigInt(p.principal) / 10n ** 18n);
+			const decayPrice = BigInt(p.expiredPurchasePrice);
+			const liqPrice = BigInt(p.price);
+			const decayPct = liqPrice > 0n ? Number((decayPrice * 10000n) / liqPrice) / 100 : 0;
+			const phase2Pct = Number(((timePassed - p.challengePeriod) * 100n) / p.challengePeriod);
+
+			const message =
+				`Expired position in phase 2 (decay window open)\n\n` +
+				`Position: \`${p.address}\`\n` +
+				`Collateral: \`${p.collateral}\`\n` +
+				`Principal: ${principalDeuro.toLocaleString()} dEURO\n` +
+				`Time past expiration: ${timePassed}s  (challengePeriod: ${p.challengePeriod}s)\n` +
+				`Phase 2 progress: ${phase2Pct}% — price decays linearly from liq to 0\n` +
+				`Current decay price: ${decayPct.toFixed(2)}% of liq\n\n` +
+				`Without intervention, the equity reserve covers the gap between forced-sale ` +
+				`proceeds and outstanding principal. A defender can call ` +
+				`\`MintingHub.buyExpiredCollateral\` now to repay the debt at decay price.`;
+
+			await telegramService.sendCriticalAlert(message);
+			await this.positionRepo.markPhase2Alerted(p.address, now);
+			this.logger.warn(`Phase-2 alert sent for ${p.address} (timePassed=${timePassed}s)`);
+		}
 	}
 }

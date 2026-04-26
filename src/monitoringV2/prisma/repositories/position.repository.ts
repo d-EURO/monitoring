@@ -169,4 +169,104 @@ export class PositionRepository {
 
 		return BigInt(result._sum.interest?.toFixed(0) || '0');
 	}
+
+	async findExpiredWithDebt(now: bigint): Promise<
+		Array<{
+			address: string;
+			expiration: bigint;
+			challengePeriod: bigint;
+			principal: string;
+			collateral: string;
+			collateralAmount: string;
+			price: string;
+			expiredPurchasePrice: string;
+			phase2AlertedAt: bigint | null;
+		}>
+	> {
+		const rows = await this.prisma.positionState.findMany({
+			where: {
+				isClosed: false,
+				isDenied: false,
+				expiration: { lt: now },
+			},
+			select: {
+				address: true,
+				expiration: true,
+				challengePeriod: true,
+				principal: true,
+				collateral: true,
+				collateralAmount: true,
+				price: true,
+				expiredPurchasePrice: true,
+				phase2AlertedAt: true,
+			},
+		});
+		// Filter principal>0 in JS (Prisma Decimal comparison via raw value)
+		return rows
+			.filter((r) => BigInt(r.principal.toFixed(0)) > 0n)
+			.map((r) => ({
+				address: r.address,
+				expiration: r.expiration,
+				challengePeriod: r.challengePeriod,
+				principal: r.principal.toFixed(0),
+				collateral: r.collateral,
+				collateralAmount: r.collateralAmount.toFixed(0),
+				price: r.price.toFixed(0),
+				expiredPurchasePrice: r.expiredPurchasePrice.toFixed(0),
+				phase2AlertedAt: r.phase2AlertedAt,
+			}));
+	}
+
+	async findUnalertedMiniLifetime(thresholdSeconds: bigint): Promise<
+		Array<{
+			address: string;
+			created: bigint;
+			expiration: bigint;
+			principal: string;
+			collateral: string;
+			owner: string;
+		}>
+	> {
+		const rows = await this.prisma.positionState.findMany({
+			where: {
+				miniLifetimeAlertedAt: null,
+				isClosed: false,
+				isDenied: false,
+				// expiration - created < threshold expressed as expiration < created + threshold
+				// Prisma can't subtract two columns; we filter in JS below
+			},
+			select: {
+				address: true,
+				created: true,
+				expiration: true,
+				principal: true,
+				collateral: true,
+				owner: true,
+			},
+		});
+		return rows
+			.filter((r) => r.expiration - r.created < thresholdSeconds)
+			.map((r) => ({
+				address: r.address,
+				created: r.created,
+				expiration: r.expiration,
+				principal: r.principal.toFixed(0),
+				collateral: r.collateral,
+				owner: r.owner,
+			}));
+	}
+
+	async markPhase2Alerted(address: string, timestamp: bigint): Promise<void> {
+		await this.prisma.positionState.update({
+			where: { address: address.toLowerCase() },
+			data: { phase2AlertedAt: timestamp },
+		});
+	}
+
+	async markMiniLifetimeAlerted(address: string, timestamp: bigint): Promise<void> {
+		await this.prisma.positionState.update({
+			where: { address: address.toLowerCase() },
+			data: { miniLifetimeAlertedAt: timestamp },
+		});
+	}
 }

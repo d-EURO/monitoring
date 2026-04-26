@@ -134,6 +134,8 @@ export class MonitoringService implements OnModuleInit {
 		await this.collateralService.syncCollaterals(); // sync collateral states
 		await this.minterService.syncMinters(); // sync minter states
 		await this.deuroService.syncState(); // sync dEURO global state
+		await this.positionService.checkMiniLifetimeClones(this.telegramService); // alert on suspicious short-lifetime clones
+		await this.positionService.checkExpiredInPhase2(this.telegramService); // alert on expired positions in forced-sale decay
 		await this.telegramService.sendPendingAlerts(); // send pending telegram alerts
 
 		// Mark full cycle as completed
