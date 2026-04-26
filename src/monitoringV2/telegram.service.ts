@@ -138,15 +138,22 @@ export class TelegramService {
 		return lines.join('\n');
 	}
 
-	async sendCriticalAlert(message: string): Promise<void> {
-		if (!this.enabled) return;
+	/**
+	 * Send a critical alert. Returns true if delivered (or telegram disabled — nothing to
+	 * deliver to). Returns false on Telegram API failure (429, network drop, parse error)
+	 * so callers can skip persisting "alerted" state and retry next cycle.
+	 */
+	async sendCriticalAlert(message: string): Promise<boolean> {
+		if (!this.enabled) return true;
 
 		try {
 			const formattedMessage = `🚨 *CRITICAL ALERT*\n\n${message}\n\n_Timestamp: ${new Date().toISOString()}_`;
 			await this.sendMessage(formattedMessage);
 			this.logger.log('Critical alert sent via Telegram');
+			return true;
 		} catch (error) {
 			this.logger.error(`Failed to send critical Telegram alert: ${error.message}`);
+			return false;
 		}
 	}
 

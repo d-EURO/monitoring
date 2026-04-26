@@ -11,6 +11,9 @@ import { TelegramService } from './telegram.service';
 // Anything below is suspicious for a clone — the WFPS attacker used a 36-second clone.
 const MINI_LIFETIME_THRESHOLD_SECONDS = 86_400n; // 1 day
 const EXPIRING_SOON_WINDOW_SECONDS = 86_400n; // 24 h heads-up before expiration
+const TELEGRAM_THROTTLE_MS = 100; // stay under per-chat rate limit (~30 msg/s) when bursting
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 @Injectable()
 export class PositionService {
@@ -171,13 +174,13 @@ export class PositionService {
 				`Mitigation: open a challenge or call \`buyExpiredCollateral\` once the position enters phase 2.\n\n` +
 				`[Etherscan](https://etherscan.io/address/${c.address})`;
 
-			try {
-				await telegramService.sendCriticalAlert(message);
+			const delivered = await telegramService.sendCriticalAlert(message);
+			if (delivered) {
 				await this.positionRepo.markMiniLifetimeAlerted(c.address, now);
 				this.logger.warn(`Mini-lifetime alert sent for ${c.address} (lifetime=${lifetime}s)`);
-			} catch (error) {
-				this.logger.error(`Failed to send mini-lifetime alert for ${c.address}: ${error?.message}`);
 			}
+			// On delivery failure: do not mark — next cycle will retry.
+			await sleep(TELEGRAM_THROTTLE_MS);
 		}
 	}
 
@@ -205,13 +208,12 @@ export class PositionService {
 				`phase 2 (after one challenge period) if needed.\n\n` +
 				`[Etherscan](https://etherscan.io/address/${c.address})`;
 
-			try {
-				await telegramService.sendCriticalAlert(message);
+			const delivered = await telegramService.sendCriticalAlert(message);
+			if (delivered) {
 				await this.positionRepo.markExpiringSoonAlerted(c.address, now);
 				this.logger.warn(`Expiring-soon alert sent for ${c.address}`);
-			} catch (error) {
-				this.logger.error(`Failed to send expiring-soon alert for ${c.address}: ${error?.message}`);
 			}
+			await sleep(TELEGRAM_THROTTLE_MS);
 		}
 	}
 
@@ -251,13 +253,12 @@ export class PositionService {
 				`A defender can call \`MintingHub.buyExpiredCollateral\` to repay the debt at decay price.\n\n` +
 				`[Etherscan](https://etherscan.io/address/${p.address})`;
 
-			try {
-				await telegramService.sendCriticalAlert(message);
+			const delivered = await telegramService.sendCriticalAlert(message);
+			if (delivered) {
 				await this.positionRepo.markExpiredAlerted(p.address, now);
 				this.logger.warn(`Expired alert sent for ${p.address}`);
-			} catch (error) {
-				this.logger.error(`Failed to send expired alert for ${p.address}: ${error?.message}`);
 			}
+			await sleep(TELEGRAM_THROTTLE_MS);
 		}
 	}
 
@@ -299,13 +300,12 @@ export class PositionService {
 				`\`MintingHub.buyExpiredCollateral\` now to repay the debt at decay price.\n\n` +
 				`[Etherscan](https://etherscan.io/address/${p.address})`;
 
-			try {
-				await telegramService.sendCriticalAlert(message);
+			const delivered = await telegramService.sendCriticalAlert(message);
+			if (delivered) {
 				await this.positionRepo.markPhase2Alerted(p.address, now);
 				this.logger.warn(`Phase-2 alert sent for ${p.address} (timePassed=${timePassed}s)`);
-			} catch (error) {
-				this.logger.error(`Failed to send phase-2 alert for ${p.address}: ${error?.message}`);
 			}
+			await sleep(TELEGRAM_THROTTLE_MS);
 		}
 	}
 }
