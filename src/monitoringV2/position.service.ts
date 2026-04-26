@@ -64,7 +64,6 @@ export class PositionService {
 			// Fixed fields
 			if (isNew) {
 				calls.push(() => position.limit());
-				calls.push(() => position.owner());
 				calls.push(() => position.original());
 				calls.push(() => position.collateral());
 				calls.push(() => position.minimumCollateral());
@@ -75,7 +74,8 @@ export class PositionService {
 				calls.push(() => position.expiration());
 			}
 
-			// Dynamic fields
+			// Dynamic fields (owner is here because it can change via transferOwnership)
+			calls.push(() => position.owner());
 			calls.push(() => position.price());
 			calls.push(() => position.virtualPrice());
 			calls.push(() => position.getCollateralRequirement());
@@ -109,7 +109,6 @@ export class PositionService {
 			if (isNew) {
 				// Fixed fields
 				state.limit = BigInt(responses[idx++]);
-				state.owner = responses[idx++];
 				state.original = responses[idx++];
 				state.collateral = responses[idx++];
 				state.minimumCollateral = BigInt(responses[idx++]);
@@ -121,7 +120,8 @@ export class PositionService {
 				state.created = event.timestamp;
 			}
 
-			// Dynamic fields
+			// Dynamic fields (owner can change via transferOwnership; sync every cycle)
+			state.owner = responses[idx++];
 			state.price = BigInt(responses[idx++]);
 			state.virtualPrice = BigInt(responses[idx++]);
 			state.collateralRequirement = BigInt(responses[idx++]);
@@ -225,6 +225,13 @@ export class PositionService {
 		if (expired.length === 0) return;
 
 		for (const p of expired) {
+			// If a position is first seen already in phase 2 (e.g. service was down longer
+			// than one challengePeriod past expiration), skip the expired alert — the phase-2
+			// watcher fires in the same cycle with more actionable info.
+			if (now - p.expiration >= p.challengePeriod) {
+				await this.positionRepo.markExpiredAlerted(p.address, now);
+				continue;
+			}
 			const principalDeuro = formatDeuro(p.principal);
 			const begin = new Date(Number(p.expiration) * 1000);
 			const phase2Start = new Date(Number(p.expiration + p.challengePeriod) * 1000);

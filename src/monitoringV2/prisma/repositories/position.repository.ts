@@ -60,6 +60,7 @@ export class PositionRepository {
 				this.prisma.positionState.update({
 					where: { address: p.address!.toLowerCase() },
 					data: {
+						owner: p.owner!.toLowerCase(),
 						price: p.price!.toString(),
 						virtualPrice: p.virtualPrice!.toString(),
 						collateralAmount: p.collateralAmount!.toString(),
