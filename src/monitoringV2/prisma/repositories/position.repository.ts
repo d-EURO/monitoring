@@ -173,6 +173,7 @@ export class PositionRepository {
 	async findExpiredWithDebt(now: bigint): Promise<
 		Array<{
 			address: string;
+			owner: string;
 			expiration: bigint;
 			challengePeriod: bigint;
 			principal: string;
@@ -192,6 +193,7 @@ export class PositionRepository {
 			},
 			select: {
 				address: true,
+				owner: true,
 				expiration: true,
 				challengePeriod: true,
 				principal: true,
@@ -204,6 +206,7 @@ export class PositionRepository {
 		});
 		return rows.map((r) => ({
 			address: r.address,
+			owner: r.owner,
 			expiration: r.expiration,
 			challengePeriod: r.challengePeriod,
 			principal: r.principal.toFixed(0),

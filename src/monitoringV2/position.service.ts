@@ -282,6 +282,7 @@ export class PositionService {
 			const message =
 				`Expired position in forced-sale decay\n\n` +
 				`Position: \`${p.address}\`\n` +
+				`Owner: \`${p.owner}\`\n` +
 				`Collateral: \`${p.collateral}\`\n` +
 				`Principal: ${principalDeuro} dEURO\n` +
 				`Time past expiration: ${timePassed}s  (challengePeriod: ${p.challengePeriod}s)\n` +
