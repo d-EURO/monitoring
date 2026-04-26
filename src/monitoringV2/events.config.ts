@@ -39,7 +39,7 @@ export const EVENT_CONFIG: Record<string, EventConfig> = {
 
 	// Profit/Loss events
 	Profit: { severity: EventSeverity.LOW, enabled: false },
-	Loss: { severity: EventSeverity.MEDIUM, enabled: true },
+	Loss: { severity: EventSeverity.HIGH, enabled: true },
 	ProfitDistributed: { severity: EventSeverity.LOW, enabled: false },
 
 	// Savings events
