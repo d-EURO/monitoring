@@ -139,12 +139,17 @@ export class TelegramService {
 	}
 
 	/**
-	 * Send a critical alert. Returns true if delivered (or telegram disabled — nothing to
-	 * deliver to). Returns false on Telegram API failure (429, network drop, parse error)
-	 * so callers can skip persisting "alerted" state and retry next cycle.
+	 * Send a critical alert. Returns true only on confirmed delivery. Returns false when
+	 * telegram is disabled (config / token rotation) or on Telegram API failure (429,
+	 * network drop, parse error) so callers do not persist "alerted" state. This way an
+	 * outage / disabled period does not silently drop alerts: positions stay unalerted
+	 * in the DB and are retried every cycle until delivery succeeds.
+	 *
+	 * The trade-off is some log volume while telegram is disabled, but disabled is
+	 * expected to be a configuration/operator state, not the steady state.
 	 */
 	async sendCriticalAlert(message: string): Promise<boolean> {
-		if (!this.enabled) return true;
+		if (!this.enabled) return false;
 
 		try {
 			const formattedMessage = `🚨 *CRITICAL ALERT*\n\n${message}\n\n_Timestamp: ${new Date().toISOString()}_`;
