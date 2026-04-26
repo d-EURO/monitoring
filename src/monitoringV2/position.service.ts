@@ -10,6 +10,7 @@ import { TelegramService } from './telegram.service';
 
 // Anything below is suspicious for a clone — the WFPS attacker used a 36-second clone.
 const MINI_LIFETIME_THRESHOLD_SECONDS = 86_400n; // 1 day
+const EXPIRING_SOON_WINDOW_SECONDS = 86_400n; // 24 h heads-up before expiration
 
 @Injectable()
 export class PositionService {
@@ -176,6 +177,79 @@ export class PositionService {
 				this.logger.warn(`Mini-lifetime alert sent for ${c.address} (lifetime=${lifetime}s)`);
 			} catch (error) {
 				this.logger.error(`Failed to send mini-lifetime alert for ${c.address}: ${error?.message}`);
+			}
+		}
+	}
+
+	/**
+	 * Detect open positions whose expiration is within the next EXPIRING_SOON_WINDOW. One alert
+	 * per position via expiring_soon_alerted_at.
+	 */
+	async checkExpiringSoon(telegramService: TelegramService): Promise<void> {
+		const now = BigInt(Math.floor(Date.now() / 1000));
+		const candidates = await this.positionRepo.findUnalertedExpiringSoon(now + EXPIRING_SOON_WINDOW_SECONDS);
+		if (candidates.length === 0) return;
+
+		for (const c of candidates) {
+			const principalDeuro = formatDeuro(c.principal);
+			const hoursToExpiration = Number(c.expiration - now) / 3600;
+			const message =
+				`Position will expire soon\n\n` +
+				`Position: \`${c.address}\`\n` +
+				`Owner: \`${c.owner}\`\n` +
+				`Collateral: \`${c.collateral}\`\n` +
+				`Principal: ${principalDeuro} dEURO\n` +
+				`Expires in: ${hoursToExpiration.toFixed(1)} hours\n` +
+				`Challenge period: ${Number(c.challengePeriod) / 3600} hours\n\n` +
+				`Forced-sale window opens at expiration. Plan to monitor and intervene during ` +
+				`phase 2 (after one challenge period) if needed.\n\n` +
+				`[Etherscan](https://etherscan.io/address/${c.address})`;
+
+			try {
+				await telegramService.sendCriticalAlert(message);
+				await this.positionRepo.markExpiringSoonAlerted(c.address, now);
+				this.logger.warn(`Expiring-soon alert sent for ${c.address}`);
+			} catch (error) {
+				this.logger.error(`Failed to send expiring-soon alert for ${c.address}: ${error?.message}`);
+			}
+		}
+	}
+
+	/**
+	 * Detect open positions that just transitioned past expiration with positive debt. Fires once
+	 * per position via expired_alerted_at; the phase-2 watcher takes over after one challenge period.
+	 */
+	async checkExpired(telegramService: TelegramService): Promise<void> {
+		const now = BigInt(Math.floor(Date.now() / 1000));
+		const expired = await this.positionRepo.findUnalertedExpired(now);
+		if (expired.length === 0) return;
+
+		for (const p of expired) {
+			const principalDeuro = formatDeuro(p.principal);
+			const begin = new Date(Number(p.expiration) * 1000);
+			const phase2Start = new Date(Number(p.expiration + p.challengePeriod) * 1000);
+			const decayEnd = new Date(Number(p.expiration + p.challengePeriod * 2n) * 1000);
+
+			const message =
+				`Position is expired — forced-sale window open\n\n` +
+				`Position: \`${p.address}\`\n` +
+				`Owner: \`${p.owner}\`\n` +
+				`Collateral: \`${p.collateral}\`\n` +
+				`Principal: ${principalDeuro} dEURO\n\n` +
+				`Decay schedule (\`expiredPurchasePrice\`):\n` +
+				`• 10× → 1× liq-price: ${begin.toUTCString()}\n` +
+				`• 1× → 0× liq-price:  ${phase2Start.toUTCString()}\n` +
+				`• Reaches zero:        ${decayEnd.toUTCString()}\n\n` +
+				`Phase 2 (1× → 0×) is the actionable arbitrage window. ` +
+				`A defender can call \`MintingHub.buyExpiredCollateral\` to repay the debt at decay price.\n\n` +
+				`[Etherscan](https://etherscan.io/address/${p.address})`;
+
+			try {
+				await telegramService.sendCriticalAlert(message);
+				await this.positionRepo.markExpiredAlerted(p.address, now);
+				this.logger.warn(`Expired alert sent for ${p.address}`);
+			} catch (error) {
+				this.logger.error(`Failed to send expired alert for ${p.address}: ${error?.message}`);
 			}
 		}
 	}

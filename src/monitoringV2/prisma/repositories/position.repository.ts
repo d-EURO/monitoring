@@ -254,6 +254,83 @@ export class PositionRepository {
 			}));
 	}
 
+	async findUnalertedExpiringSoon(thresholdNowPlus: bigint): Promise<
+		Array<{
+			address: string;
+			expiration: bigint;
+			challengePeriod: bigint;
+			principal: string;
+			collateral: string;
+			owner: string;
+		}>
+	> {
+		const now = BigInt(Math.floor(Date.now() / 1000));
+		const rows = await this.prisma.positionState.findMany({
+			where: {
+				expiringSoonAlertedAt: null,
+				isClosed: false,
+				isDenied: false,
+				expiration: { gte: now, lt: thresholdNowPlus },
+			},
+			select: {
+				address: true,
+				expiration: true,
+				challengePeriod: true,
+				principal: true,
+				collateral: true,
+				owner: true,
+			},
+		});
+		return rows.map((r) => ({
+			address: r.address,
+			expiration: r.expiration,
+			challengePeriod: r.challengePeriod,
+			principal: r.principal.toFixed(0),
+			collateral: r.collateral,
+			owner: r.owner,
+		}));
+	}
+
+	async findUnalertedExpired(now: bigint): Promise<
+		Array<{
+			address: string;
+			expiration: bigint;
+			challengePeriod: bigint;
+			principal: string;
+			collateral: string;
+			price: string;
+			owner: string;
+		}>
+	> {
+		const rows = await this.prisma.positionState.findMany({
+			where: {
+				expiredAlertedAt: null,
+				isClosed: false,
+				isDenied: false,
+				expiration: { lt: now },
+				principal: { gt: 0 },
+			},
+			select: {
+				address: true,
+				expiration: true,
+				challengePeriod: true,
+				principal: true,
+				collateral: true,
+				price: true,
+				owner: true,
+			},
+		});
+		return rows.map((r) => ({
+			address: r.address,
+			expiration: r.expiration,
+			challengePeriod: r.challengePeriod,
+			principal: r.principal.toFixed(0),
+			collateral: r.collateral,
+			price: r.price.toFixed(0),
+			owner: r.owner,
+		}));
+	}
+
 	async markPhase2Alerted(address: string, timestamp: bigint): Promise<void> {
 		await this.prisma.positionState.update({
 			where: { address: address.toLowerCase() },
@@ -265,6 +342,20 @@ export class PositionRepository {
 		await this.prisma.positionState.update({
 			where: { address: address.toLowerCase() },
 			data: { miniLifetimeAlertedAt: timestamp },
+		});
+	}
+
+	async markExpiringSoonAlerted(address: string, timestamp: bigint): Promise<void> {
+		await this.prisma.positionState.update({
+			where: { address: address.toLowerCase() },
+			data: { expiringSoonAlertedAt: timestamp },
+		});
+	}
+
+	async markExpiredAlerted(address: string, timestamp: bigint): Promise<void> {
+		await this.prisma.positionState.update({
+			where: { address: address.toLowerCase() },
+			data: { expiredAlertedAt: timestamp },
 		});
 	}
 }
