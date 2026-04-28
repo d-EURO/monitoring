@@ -20,7 +20,7 @@ export function BridgesTable({ data }: BridgesTableProps) {
 
 	const columns: Column<MinterResponse>[] = [
 		{
-			header: { primary: 'BRIDGE', secondary: 'STATUS' },
+			header: { primary: 'BRIDGE', secondary: 'TOKEN' },
 			format: (bridge): MultiLineCell => ({
 				primary: (
 					<AddressLink
@@ -29,9 +29,23 @@ export function BridgesTable({ data }: BridgesTableProps) {
 						bridgeTokenSymbol={bridge.bridgeTokenSymbol}
 					/>
 				),
-				secondary: bridge.status,
-				secondaryClass: getStatusColor(bridge.status),
+				secondary: bridge.bridgeToken ? (
+					<AddressLink address={bridge.bridgeToken} showKnownLabel={false} className="font-mono" />
+				) : '-',
 			}),
+		},
+		{
+			header: { primary: 'START', secondary: 'STATUS' },
+			format: (bridge): MultiLineCell => {
+				const startTimestamp = Number(bridge.applicationTimestamp) + Number(bridge.applicationPeriod) * 1000;
+				const hasStarted = startTimestamp <= Date.now();
+				return {
+					primary: hasStarted ? formatDateTime(startTimestamp) : formatCountdown(startTimestamp),
+					secondary: bridge.status,
+					primaryClass: hasStarted ? undefined : colors.critical,
+					secondaryClass: getStatusColor(bridge.status),
+				};
+			},
 		},
 		{
 			header: { primary: 'MINTED', secondary: 'LIMIT' },
