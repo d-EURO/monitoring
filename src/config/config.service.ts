@@ -2,6 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MonitoringConfig } from './monitoring.config';
 
+const SENSITIVE_KEYS = new Set<keyof MonitoringConfig>(['rpcUrl', 'databaseUrl', 'telegramBotToken', 'coingeckoApiKey']);
+
+function redactConfig(config: MonitoringConfig): Record<string, unknown> {
+	return Object.fromEntries(
+		Object.entries(config).map(([key, value]) => [key, SENSITIVE_KEYS.has(key as keyof MonitoringConfig) && value ? '***' : value])
+	);
+}
+
 @Injectable()
 export class AppConfigService {
 	private readonly logger = new Logger(AppConfigService.name);
@@ -10,7 +18,7 @@ export class AppConfigService {
 	constructor(private readonly configService: ConfigService) {
 		this.monitoringConfig = this.configService.get<MonitoringConfig>('monitoring');
 		if (!this.monitoringConfig) throw new Error('Monitoring configuration not found');
-		this.logger.log(`Configuration service initialized: ${JSON.stringify(this.monitoringConfig)}`);
+		this.logger.log(`Configuration service initialized: ${JSON.stringify(redactConfig(this.monitoringConfig))}`);
 	}
 
 	get rpcUrl(): string {
