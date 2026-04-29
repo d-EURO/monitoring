@@ -2,12 +2,23 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MonitoringConfig } from './monitoring.config';
 
-const SENSITIVE_KEYS = new Set<keyof MonitoringConfig>(['rpcUrl', 'databaseUrl', 'telegramBotToken', 'coingeckoApiKey']);
+const SENSITIVE_KEYS = new Set<string>(['rpcUrl', 'databaseUrl', 'telegramBotToken', 'coingeckoApiKey']);
 
-function redactConfig(config: MonitoringConfig): Record<string, unknown> {
-	return Object.fromEntries(
-		Object.entries(config).map(([key, value]) => [key, SENSITIVE_KEYS.has(key as keyof MonitoringConfig) && value ? '***' : value])
-	);
+function redactConfig<T>(config: T): T {
+	return walkRedact(config, '') as T;
+}
+
+function walkRedact(value: unknown, path: string): unknown {
+	if (value && typeof value === 'object' && !Array.isArray(value)) {
+		return Object.fromEntries(
+			Object.entries(value as Record<string, unknown>).map(([key, val]) => {
+				const childPath = path ? `${path}.${key}` : key;
+				if (SENSITIVE_KEYS.has(childPath) && val) return [key, '***'];
+				return [key, walkRedact(val, childPath)];
+			})
+		);
+	}
+	return value;
 }
 
 @Injectable()
