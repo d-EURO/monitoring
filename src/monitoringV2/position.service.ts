@@ -6,6 +6,14 @@ import { ethers } from 'ethers';
 import { ProviderService } from './provider.service';
 import { PositionRepository } from './prisma/repositories/position.repository';
 import { EventsRepository } from './prisma/repositories/events.repository';
+import { TelegramService } from './telegram.service';
+
+// Anything below is suspicious for a clone — the WFPS attacker used a 36-second clone.
+const MINI_LIFETIME_THRESHOLD_SECONDS = 86_400n; // 1 day
+const EXPIRING_SOON_WINDOW_SECONDS = 86_400n; // 24 h heads-up before expiration
+const TELEGRAM_THROTTLE_MS = 100; // stay under per-chat rate limit (~30 msg/s) when bursting
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 @Injectable()
 export class PositionService {
@@ -59,7 +67,6 @@ export class PositionService {
 			// Fixed fields
 			if (isNew) {
 				calls.push(() => position.limit());
-				calls.push(() => position.owner());
 				calls.push(() => position.original());
 				calls.push(() => position.collateral());
 				calls.push(() => position.minimumCollateral());
@@ -70,7 +77,8 @@ export class PositionService {
 				calls.push(() => position.expiration());
 			}
 
-			// Dynamic fields
+			// Dynamic fields (owner is here because it can change via transferOwnership)
+			calls.push(() => position.owner());
 			calls.push(() => position.price());
 			calls.push(() => position.virtualPrice());
 			calls.push(() => position.getCollateralRequirement());
@@ -104,7 +112,6 @@ export class PositionService {
 			if (isNew) {
 				// Fixed fields
 				state.limit = BigInt(responses[idx++]);
-				state.owner = responses[idx++];
 				state.original = responses[idx++];
 				state.collateral = responses[idx++];
 				state.minimumCollateral = BigInt(responses[idx++]);
@@ -116,7 +123,8 @@ export class PositionService {
 				state.created = event.timestamp;
 			}
 
-			// Dynamic fields
+			// Dynamic fields (owner can change via transferOwnership; sync every cycle)
+			state.owner = responses[idx++];
 			state.price = BigInt(responses[idx++]);
 			state.virtualPrice = BigInt(responses[idx++]);
 			state.collateralRequirement = BigInt(responses[idx++]);
@@ -140,4 +148,170 @@ export class PositionService {
 		this.logger.log(`Fetched position data for ${results.length} positions via multicall`);
 		return results;
 	}
+
+	/**
+	 * Detect newly created positions whose (expiration - created) is below the mini-lifetime threshold.
+	 * The WFPS forced-sale attack on 2026-04-25 used a clone with a 36-second lifetime — this would
+	 * fire a HIGH-severity alert ~5 minutes after such a clone is created.
+	 */
+	async checkMiniLifetimeClones(telegramService: TelegramService): Promise<void> {
+		const candidates = await this.positionRepo.findUnalertedMiniLifetime(MINI_LIFETIME_THRESHOLD_SECONDS);
+		if (candidates.length === 0) return;
+
+		const now = BigInt(Math.floor(Date.now() / 1000));
+		for (const c of candidates) {
+			const lifetime = c.expiration - c.created;
+			const principalDeuro = formatDeuro(c.principal);
+			const message =
+				`Suspicious clone detected\n\n` +
+				`Position: \`${c.address}\`\n` +
+				`Owner: \`${c.owner}\`\n` +
+				`Collateral: \`${c.collateral}\`\n` +
+				`Lifetime: *${lifetime}s*  (threshold: ${MINI_LIFETIME_THRESHOLD_SECONDS}s)\n` +
+				`Principal: ${principalDeuro} dEURO\n\n` +
+				`This pattern matches the WFPS forced-sale attack vector (clone with sub-day lifetime, ` +
+				`waiting for decay to drain the equity reserve).\n\n` +
+				`Mitigation: open a challenge or call \`buyExpiredCollateral\` once the position enters phase 2.\n\n` +
+				`[Etherscan](https://etherscan.io/address/${c.address})`;
+
+			const delivered = await telegramService.sendCriticalAlert(message);
+			if (delivered) {
+				await this.positionRepo.markMiniLifetimeAlerted(c.address, now);
+				this.logger.warn(`Mini-lifetime alert sent for ${c.address} (lifetime=${lifetime}s)`);
+			}
+			// On delivery failure: do not mark — next cycle will retry.
+			await sleep(TELEGRAM_THROTTLE_MS);
+		}
+	}
+
+	/**
+	 * Detect open positions whose expiration is within the next EXPIRING_SOON_WINDOW. One alert
+	 * per position via expiring_soon_alerted_at.
+	 */
+	async checkExpiringSoon(telegramService: TelegramService): Promise<void> {
+		const now = BigInt(Math.floor(Date.now() / 1000));
+		const candidates = await this.positionRepo.findUnalertedExpiringSoon(now + EXPIRING_SOON_WINDOW_SECONDS);
+		if (candidates.length === 0) return;
+
+		for (const c of candidates) {
+			const principalDeuro = formatDeuro(c.principal);
+			const hoursToExpiration = Number(c.expiration - now) / 3600;
+			const message =
+				`Position will expire soon\n\n` +
+				`Position: \`${c.address}\`\n` +
+				`Owner: \`${c.owner}\`\n` +
+				`Collateral: \`${c.collateral}\`\n` +
+				`Principal: ${principalDeuro} dEURO\n` +
+				`Expires in: ${hoursToExpiration.toFixed(1)} hours\n` +
+				`Challenge period: ${Number(c.challengePeriod) / 3600} hours\n\n` +
+				`Forced-sale window opens at expiration. Plan to monitor and intervene during ` +
+				`phase 2 (after one challenge period) if needed.\n\n` +
+				`[Etherscan](https://etherscan.io/address/${c.address})`;
+
+			const delivered = await telegramService.sendCriticalAlert(message);
+			if (delivered) {
+				await this.positionRepo.markExpiringSoonAlerted(c.address, now);
+				this.logger.warn(`Expiring-soon alert sent for ${c.address}`);
+			}
+			await sleep(TELEGRAM_THROTTLE_MS);
+		}
+	}
+
+	/**
+	 * Detect open positions that just transitioned past expiration with positive debt. Fires once
+	 * per position via expired_alerted_at; the phase-2 watcher takes over after one challenge period.
+	 */
+	async checkExpired(telegramService: TelegramService): Promise<void> {
+		const now = BigInt(Math.floor(Date.now() / 1000));
+		const expired = await this.positionRepo.findUnalertedExpired(now);
+		if (expired.length === 0) return;
+
+		for (const p of expired) {
+			// If a position is first seen already in phase 2 (e.g. service was down longer
+			// than one challengePeriod past expiration), skip the expired alert — the phase-2
+			// watcher fires in the same cycle with more actionable info.
+			if (now - p.expiration >= p.challengePeriod) {
+				await this.positionRepo.markExpiredAlerted(p.address, now);
+				continue;
+			}
+			const principalDeuro = formatDeuro(p.principal);
+			const begin = new Date(Number(p.expiration) * 1000);
+			const phase2Start = new Date(Number(p.expiration + p.challengePeriod) * 1000);
+			const decayEnd = new Date(Number(p.expiration + p.challengePeriod * 2n) * 1000);
+
+			const message =
+				`Position is expired — forced-sale window open\n\n` +
+				`Position: \`${p.address}\`\n` +
+				`Owner: \`${p.owner}\`\n` +
+				`Collateral: \`${p.collateral}\`\n` +
+				`Principal: ${principalDeuro} dEURO\n\n` +
+				`Decay schedule (\`expiredPurchasePrice\`):\n` +
+				`• 10× → 1× liq-price: ${begin.toUTCString()}\n` +
+				`• 1× → 0× liq-price:  ${phase2Start.toUTCString()}\n` +
+				`• Reaches zero:        ${decayEnd.toUTCString()}\n\n` +
+				`Phase 2 (1× → 0×) is the actionable arbitrage window. ` +
+				`A defender can call \`MintingHub.buyExpiredCollateral\` to repay the debt at decay price.\n\n` +
+				`[Etherscan](https://etherscan.io/address/${p.address})`;
+
+			const delivered = await telegramService.sendCriticalAlert(message);
+			if (delivered) {
+				await this.positionRepo.markExpiredAlerted(p.address, now);
+				this.logger.warn(`Expired alert sent for ${p.address}`);
+			}
+			await sleep(TELEGRAM_THROTTLE_MS);
+		}
+	}
+
+	/**
+	 * Detect open positions that are past their expiration with positive debt and have entered
+	 * phase 2 of the forced-sale decay (where price drops from 1× to 0× liq-price). Sends one
+	 * HIGH-severity alert per position via the dedup column phase2_alerted_at.
+	 */
+	async checkExpiredInPhase2(telegramService: TelegramService): Promise<void> {
+		const now = BigInt(Math.floor(Date.now() / 1000));
+		const candidates = await this.positionRepo.findUnalertedPhase2(now);
+		if (candidates.length === 0) return;
+
+		for (const p of candidates) {
+			const timePassed = now - p.expiration;
+			if (timePassed < p.challengePeriod) continue; // still in phase 1 (price > liq)
+
+			// In phase 2 — useful arbitrage window. Clamp progress at 100% in case the cycle
+			// runs after both decay phases have fully elapsed (decay price = 0).
+			const principalDeuro = formatDeuro(p.principal);
+			const decayPrice = BigInt(p.expiredPurchasePrice);
+			const liqPrice = BigInt(p.price);
+			const decayPct = liqPrice > 0n ? Number((decayPrice * 10000n) / liqPrice) / 100 : 0;
+			const rawPhase2Pct = Number(((timePassed - p.challengePeriod) * 100n) / p.challengePeriod);
+			const phase2Pct = Math.min(rawPhase2Pct, 100);
+			const phaseLabel = rawPhase2Pct >= 100 ? 'phase 2 complete (decay reached 0)' : `phase 2 progress: ${phase2Pct}%`;
+
+			const message =
+				`Expired position in forced-sale decay\n\n` +
+				`Position: \`${p.address}\`\n` +
+				`Owner: \`${p.owner}\`\n` +
+				`Collateral: \`${p.collateral}\`\n` +
+				`Principal: ${principalDeuro} dEURO\n` +
+				`Time past expiration: ${timePassed}s  (challengePeriod: ${p.challengePeriod}s)\n` +
+				`${phaseLabel} — price decays linearly from liq to 0\n` +
+				`Current decay price: ${decayPct.toFixed(2)}% of liq\n\n` +
+				`Without intervention, the equity reserve covers the gap between forced-sale ` +
+				`proceeds and outstanding principal. A defender can call ` +
+				`\`MintingHub.buyExpiredCollateral\` now to repay the debt at decay price.\n\n` +
+				`[Etherscan](https://etherscan.io/address/${p.address})`;
+
+			const delivered = await telegramService.sendCriticalAlert(message);
+			if (delivered) {
+				await this.positionRepo.markPhase2Alerted(p.address, now);
+				this.logger.warn(`Phase-2 alert sent for ${p.address} (timePassed=${timePassed}s)`);
+			}
+			await sleep(TELEGRAM_THROTTLE_MS);
+		}
+	}
+}
+
+/** Format an 18-decimal dEURO principal string with two decimal places and locale separators. */
+function formatDeuro(principalRaw: string): string {
+	const cents = BigInt(principalRaw) / 10n ** 16n;
+	return (Number(cents) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

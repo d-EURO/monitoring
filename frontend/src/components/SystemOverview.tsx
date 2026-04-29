@@ -1,14 +1,25 @@
-import type { DeuroState } from '../../../shared/types';
+import type { DeuroState, MinterResponse } from '../../../shared/types';
+import { MinterStatus, MinterType } from '../../../shared/types';
 import { colors, spacing } from '../lib/theme';
 import { formatNumber, formatPercent } from '../lib/formatters';
 import type { DataState } from '../lib/api.hook';
 
-export function SystemOverview({ data, error }: DataState<DeuroState>) {
+interface SystemOverviewProps extends DataState<DeuroState> {
+	minters?: DataState<MinterResponse[]>;
+}
+
+export function SystemOverview({ data, error, minters }: SystemOverviewProps) {
 	if (error) return <div className={colors.critical}>{error}</div>;
 	if (!data) return null;
 
 	const deuroProfit = parseFloat(data.deuroProfit);
 	const netProfit = deuroProfit - parseFloat(data.deuroLoss);
+
+	const bridges = minters?.data?.filter((m) => m.type === MinterType.BRIDGE && m.status !== MinterStatus.DENIED) || [];
+	const activeBridges = bridges.filter((b) => b.status === MinterStatus.APPROVED);
+	const bridgeTotalMinted = bridges.reduce((sum, b) => sum + (b.bridgeMinted ? Number(b.bridgeMinted) : 0), 0);
+	const bridgeTotalLimit = bridges.reduce((sum, b) => sum + (b.bridgeLimit ? Number(b.bridgeLimit) : 0), 0);
+	const bridgeUtilization = bridgeTotalLimit > 0 ? (bridgeTotalMinted * 100) / bridgeTotalLimit : 0;
 
 	return (
 		<div className={`${colors.background} ${colors.table.border} border rounded-xl p-4`}>
@@ -65,6 +76,15 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 					</Section>
 				)}
 
+				{bridges.length > 0 && (
+					<Section title="BRIDGES">
+						<Metric label="Active" value={`${activeBridges.length} / ${bridges.length}`} />
+						<Metric label="Minted" value={formatNumber(bridgeTotalMinted, 0, 2)} valueClass={colors.text.primary} />
+						<Metric label="Capacity" value={formatNumber(bridgeTotalLimit, 0, 2)} />
+						<Metric label="Utilization" value={formatPercent(bridgeUtilization)} valueClass={getBridgeUtilizationColor(bridgeUtilization)} />
+					</Section>
+				)}
+
 				{(data.usdToEurRate || data.usdToChfRate) && (
 					<Section title="CURRENCY RATES">
 						{data.usdToEurRate && <Metric label="USD/EUR" value={formatNumber(1 / data.usdToEurRate, 0, 4)} />}
@@ -74,6 +94,12 @@ export function SystemOverview({ data, error }: DataState<DeuroState>) {
 			</div>
 		</div>
 	);
+}
+
+function getBridgeUtilizationColor(utilization: number): string {
+	if (utilization > 90) return colors.critical;
+	if (utilization > 70) return colors.highlight;
+	return colors.success;
 }
 
 function Metric({ label, value, valueClass = colors.text.secondary }: { label: string; value: string | number; valueClass?: string }) {
