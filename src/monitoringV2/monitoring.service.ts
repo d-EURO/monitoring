@@ -135,6 +135,7 @@ export class MonitoringService implements OnModuleInit {
 		await this.minterService.syncMinters(); // sync minter states
 		await this.deuroService.syncState(); // sync dEURO global state
 		await this.positionService.checkMiniLifetimeClones(this.telegramService); // suspicious short-lifetime clones
+		await this.positionService.checkSuspiciousLiqPrice(this.telegramService); // liq-price/spot/value/challengeability sanity
 		await this.positionService.checkExpiringSoon(this.telegramService); // 24h heads-up before expiration
 		await this.positionService.checkExpired(this.telegramService); // transition into expired status
 		await this.positionService.checkExpiredInPhase2(this.telegramService); // phase 2 of forced-sale decay
