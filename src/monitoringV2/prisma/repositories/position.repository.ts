@@ -362,4 +362,49 @@ export class PositionRepository {
 			data: { expiredAlertedAt: timestamp },
 		});
 	}
+
+	async findUnalertedSuspiciousLiqPrice(): Promise<
+		Array<{
+			address: string;
+			owner: string;
+			collateral: string;
+			minimumCollateral: string;
+			riskPremiumPpm: number;
+			reserveContribution: number;
+			virtualPrice: string;
+		}>
+	> {
+		const rows = await this.prisma.positionState.findMany({
+			where: {
+				suspiciousLiqPriceAlertedAt: null,
+				isClosed: false,
+				isDenied: false,
+			},
+			select: {
+				address: true,
+				owner: true,
+				collateral: true,
+				minimumCollateral: true,
+				riskPremiumPpm: true,
+				reserveContribution: true,
+				virtualPrice: true,
+			},
+		});
+		return rows.map((r) => ({
+			address: r.address,
+			owner: r.owner,
+			collateral: r.collateral,
+			minimumCollateral: r.minimumCollateral.toFixed(0),
+			riskPremiumPpm: r.riskPremiumPpm,
+			reserveContribution: r.reserveContribution,
+			virtualPrice: r.virtualPrice.toFixed(0),
+		}));
+	}
+
+	async markSuspiciousLiqPriceAlerted(address: string, timestamp: bigint): Promise<void> {
+		await this.prisma.positionState.update({
+			where: { address: address.toLowerCase() },
+			data: { suspiciousLiqPriceAlertedAt: timestamp },
+		});
+	}
 }

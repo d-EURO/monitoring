@@ -6,12 +6,20 @@ import { ethers } from 'ethers';
 import { ProviderService } from './provider.service';
 import { PositionRepository } from './prisma/repositories/position.repository';
 import { EventsRepository } from './prisma/repositories/events.repository';
+import { TokenRepository } from './prisma/repositories/token.repository';
 import { TelegramService } from './telegram.service';
+import { PriceService } from './price.service';
 
 // Anything below is suspicious for a clone — the WFPS attacker used a 36-second clone.
 const MINI_LIFETIME_THRESHOLD_SECONDS = 86_400n; // 1 day
 const EXPIRING_SOON_WINDOW_SECONDS = 86_400n; // 24 h heads-up before expiration
 const TELEGRAM_THROTTLE_MS = 100; // stay under per-chat rate limit (~30 msg/s) when bursting
+
+// Liq-price sanity-check thresholds. Conservative on purpose — false positives are cheap
+// during the 3-day init period; missed alerts are not.
+const LIQ_PRICE_OVER_SPOT_RATIO = 2.0; // virtualPrice / coingeckoSpot above this is suspicious
+const MIN_POSITION_VALUE_DEURO = 500n * 10n ** 18n; // V3 hardcodes this floor; V2 does not
+const CHALLENGER_REWARD_PPM = 20_000; // 2% — matches MintingHub's hardcoded constant
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -24,7 +32,9 @@ export class PositionService {
 		private readonly config: AppConfigService,
 		private readonly positionRepo: PositionRepository,
 		private readonly eventsRepo: EventsRepository,
-		private readonly providerService: ProviderService
+		private readonly providerService: ProviderService,
+		private readonly tokenRepo: TokenRepository,
+		private readonly priceService: PriceService
 	) {}
 
 	async initialize(): Promise<void> {
@@ -304,6 +314,103 @@ export class PositionService {
 			if (delivered) {
 				await this.positionRepo.markPhase2Alerted(p.address, now);
 				this.logger.warn(`Phase-2 alert sent for ${p.address} (timePassed=${timePassed}s)`);
+			}
+			await sleep(TELEGRAM_THROTTLE_MS);
+		}
+	}
+
+	/**
+	 * Detect open positions whose parameters indicate a likely abuse attempt — set up
+	 * to drain the equity reserve via the forced-sale decay rather than to borrow legitimately.
+	 *
+	 * Three independent triggers (any one fires the alert):
+	 *  1. Liq-price ≥ LIQ_PRICE_OVER_SPOT_RATIO × coingecko spot. Catches the 2026-04-27
+	 *     pattern where liq-price was ~1000× the real ETH price.
+	 *  2. Position value (minimumCollateral × liq-price) below MIN_POSITION_VALUE_DEURO.
+	 *     V3 hardcodes a 500 dEURO floor in MintingHub; V2 does not, so a watcher closes
+	 *     the gap for V2 positions.
+	 *  3. riskPremiumPPM == 0 AND reservePPM ≤ CHALLENGER_REWARD_PPM. Such a position
+	 *     cannot be profitably challenged — the challenger reward exceeds the seizable
+	 *     reserve — so legitimate borrowers don't pick this combination.
+	 *
+	 * Per-position dedup via suspicious_liq_price_alerted_at.
+	 */
+	async checkSuspiciousLiqPrice(telegramService: TelegramService): Promise<void> {
+		const candidates = await this.positionRepo.findUnalertedSuspiciousLiqPrice();
+		if (candidates.length === 0) return;
+
+		const tokens = await this.tokenRepo.findAll();
+		const decimalsByToken = new Map<string, number>();
+		for (const t of tokens) {
+			if (t.decimals !== undefined && t.decimals !== null) {
+				decimalsByToken.set(t.address.toLowerCase(), Number(t.decimals));
+			}
+		}
+
+		const collateralAddrs = [...new Set(candidates.map((c) => c.collateral.toLowerCase()))];
+		const spotPrices = await this.priceService.getTokenPricesInEur(collateralAddrs);
+
+		const now = BigInt(Math.floor(Date.now() / 1000));
+		for (const c of candidates) {
+			const reasons: string[] = [];
+			const collateralAddr = c.collateral.toLowerCase();
+			const decimals = decimalsByToken.get(collateralAddr);
+			const virtualPrice = BigInt(c.virtualPrice);
+			const minimumCollateral = BigInt(c.minimumCollateral);
+
+			// Trigger 1: liq-price vs coingecko spot ratio (only when both decimals and spot known).
+			// virtualPrice is in (36 - collateralDecimals) decimals; format to dEURO per 1 collateral
+			// unit before comparing with the EUR spot.
+			const spotEurStr = spotPrices[collateralAddr];
+			if (decimals !== undefined && spotEurStr !== undefined) {
+				const virtualPriceFormatted = Number(ethers.formatUnits(virtualPrice, 36 - decimals));
+				const spotEur = Number(spotEurStr);
+				if (spotEur > 0 && virtualPriceFormatted / spotEur >= LIQ_PRICE_OVER_SPOT_RATIO) {
+					reasons.push(
+						`liq-price ${virtualPriceFormatted.toLocaleString('en-US', { maximumFractionDigits: 2 })} ` +
+							`dEURO/token is ${(virtualPriceFormatted / spotEur).toFixed(1)}× the coingecko spot ` +
+							`of ${spotEur.toLocaleString('en-US', { maximumFractionDigits: 4 })} EUR/token`
+					);
+				}
+			}
+
+			// Trigger 2: position face value below the 500-dEURO floor.
+			// minimumCollateral × virtualPrice / 1e18 collapses the (collateralDecimals + 36 - collateralDecimals)
+			// product back down to 18-decimal dEURO regardless of token decimals.
+			const positionValue = (minimumCollateral * virtualPrice) / 10n ** 18n;
+			if (positionValue < MIN_POSITION_VALUE_DEURO) {
+				reasons.push(
+					`min-collateral × liq-price = ${formatDeuro(positionValue.toString())} dEURO ` +
+						`(below the V3-enforced floor of 500 dEURO)`
+				);
+			}
+
+			// Trigger 3: zero risk premium plus reserve not even covering the challenger reward —
+			// position is structured so it cannot be profitably challenged.
+			if (c.riskPremiumPpm === 0 && c.reserveContribution <= CHALLENGER_REWARD_PPM) {
+				reasons.push(
+					`riskPremiumPPM=0 and reservePPM=${c.reserveContribution} ≤ challenger reward ` +
+						`(${CHALLENGER_REWARD_PPM}); position cannot be profitably challenged`
+				);
+			}
+
+			if (reasons.length === 0) continue;
+
+			const message =
+				`Suspicious position parameters\n\n` +
+				`Position: \`${c.address}\`\n` +
+				`Owner: \`${c.owner}\`\n` +
+				`Collateral: \`${c.collateral}\`\n\n` +
+				`Triggers:\n${reasons.map((r) => `• ${r}`).join('\n')}\n\n` +
+				`Set-up matches the pattern of equity-drain attempts (liq-price miscalibrated ` +
+				`relative to spot, micro-collateral, or unchallengeable parameters). Review the ` +
+				`position before its 3-day init period elapses.\n\n` +
+				`[Etherscan](https://etherscan.io/address/${c.address})`;
+
+			const delivered = await telegramService.sendCriticalAlert(message);
+			if (delivered) {
+				await this.positionRepo.markSuspiciousLiqPriceAlerted(c.address, now);
+				this.logger.warn(`Suspicious-liq-price alert sent for ${c.address} (${reasons.length} trigger(s))`);
 			}
 			await sleep(TELEGRAM_THROTTLE_MS);
 		}
