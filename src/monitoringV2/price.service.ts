@@ -53,7 +53,6 @@ const QUOTA_ALERT_REPEAT_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class PriceService {
-	private static readonly FX_CACHE_TTL_MS = 3_600_000; // 1 hour — FX rates change slowly
 	private readonly CACHE_TTL_MS: number;
 	private readonly logger = new Logger(PriceService.name);
 	private priceCache = new Map<string, PriceCacheEntry>();
@@ -190,8 +189,8 @@ export class PriceService {
 		if (
 			eurCached &&
 			chfCached &&
-			now - eurCached.timestamp < PriceService.FX_CACHE_TTL_MS &&
-			now - chfCached.timestamp < PriceService.FX_CACHE_TTL_MS
+			now - eurCached.timestamp < this.CACHE_TTL_MS &&
+			now - chfCached.timestamp < this.CACHE_TTL_MS
 		) {
 			return { eur: Number(eurCached.value), chf: Number(chfCached.value) };
 		}
