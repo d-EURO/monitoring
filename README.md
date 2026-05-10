@@ -35,6 +35,7 @@ cp .env.example .env
 # - DATABASE_URL: PostgreSQL connection string
 # - RPC_URL: Ethereum mainnet RPC endpoint
 # - BLOCKCHAIN_ID: Must be 1 (Ethereum mainnet)
+# - COINGECKO_BASE_URL: required, see "CoinGecko" section below
 
 # Generate Prisma client
 npm run prisma:generate
@@ -66,6 +67,38 @@ docker rm -f deuro-test
 ## API Documentation
 
 Swagger documentation available at: `http://localhost:3001/swagger`
+
+## CoinGecko
+
+The monitoring service needs a CoinGecko-compatible endpoint for USD/EUR
+and USD/CHF FX rates (drives EUR-denominated price conversions and the
+staleness watchdog) and the daily Pro quota probe. Configuration is two
+env vars:
+
+| Var | Required | Purpose |
+|---|---|---|
+| `COINGECKO_BASE_URL` | yes | Origin the service calls. |
+| `COINGECKO_API_KEY` | no | Attached as the `x-cg-pro-api-key` header on every request when set. |
+
+The recommended deployment is the
+[**pricing-proxy**](https://github.com/DFXswiss/pricing-proxy) — a small
+caching reverse-proxy in front of CoinGecko Pro. It holds the upstream key,
+serves a 60 s shared cache, validates upstream error envelopes, and
+coalesces concurrent identical requests. When you use the proxy:
+
+```env
+COINGECKO_BASE_URL=http://pricing-proxy:8080/coingecko
+# COINGECKO_API_KEY left unset — the proxy injects its own key
+```
+
+Without the proxy you can talk to CoinGecko directly:
+
+```env
+COINGECKO_BASE_URL=https://pro-api.coingecko.com
+COINGECKO_API_KEY=CG-xxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+The service refuses to start without `COINGECKO_BASE_URL`.
 
 ## Deployment
 
