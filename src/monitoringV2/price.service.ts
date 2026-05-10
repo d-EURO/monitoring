@@ -58,7 +58,11 @@ export class PriceService {
 	private readonly logger = new Logger(PriceService.name);
 	private priceCache = new Map<string, PriceCacheEntry>();
 	private pendingFxRates: Promise<{ eur: number; chf: number }> | null = null;
-	private fxLastSuccessMs: number | null = null;
+	// Initialised to container-start time so the staleness watchdog still
+	// fires when the very first FX fetch never succeeds (CoinGecko down at
+	// boot, restart-loop). Without this, a `null` initial value would
+	// suppress the alert indefinitely.
+	private fxLastSuccessMs: number = Date.now();
 	private fxStalenessAlertedAt: number | null = null;
 	private quotaAlertedAt: number | null = null;
 
@@ -286,7 +290,6 @@ export class PriceService {
 	 */
 	@Cron(CronExpression.EVERY_HOUR)
 	async checkFxStaleness(): Promise<void> {
-		if (this.fxLastSuccessMs === null) return;
 		const staleness = Date.now() - this.fxLastSuccessMs;
 		if (staleness < STALENESS_ALERT_THRESHOLD_MS) return;
 		if (this.fxStalenessAlertedAt && Date.now() - this.fxStalenessAlertedAt < STALENESS_ALERT_REPEAT_MS) return;
@@ -302,16 +305,22 @@ export class PriceService {
 	/**
 	 * Daily probe of /api/v3/key. Emits a critical alert when the monthly
 	 * remaining call credit drops below QUOTA_REMAINING_ALERT_THRESHOLD.
-	 * Skipped when no Pro key is configured here (proxy-mode or anonymous).
+	 *
+	 * Routes through the same endpoint resolution as price calls so a proxy
+	 * deployment (key held only by the proxy) is still covered. Skipped only
+	 * when the service runs fully anonymous (no proxy and no key) — in that
+	 * case there is no Pro account to monitor.
 	 */
 	@Cron(CronExpression.EVERY_DAY_AT_NOON)
 	async checkCoingeckoQuota(): Promise<void> {
+		const explicitBase = this.appConfigService.coingeckoBaseUrl;
 		const apiKey = this.appConfigService.coingeckoApiKey;
-		if (!apiKey) return;
+		if (!explicitBase && !apiKey) return;
 
 		try {
-			const response = await axios.get<CoingeckoKeyInfo>('https://pro-api.coingecko.com/api/v3/key', {
-				headers: { accept: 'application/json', 'x-cg-pro-api-key': apiKey },
+			const { baseUrl, headers } = this.resolveCoingeckoEndpoint();
+			const response = await axios.get<CoingeckoKeyInfo>(`${baseUrl}/api/v3/key`, {
+				headers,
 				timeout: 10000,
 			});
 			const { current_remaining_monthly_calls: remaining, monthly_call_credit: credit } = response.data;
