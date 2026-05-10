@@ -186,12 +186,7 @@ export class PriceService {
 		const chfCached = this.priceCache.get('usd-chf-rate');
 		const now = Date.now();
 
-		if (
-			eurCached &&
-			chfCached &&
-			now - eurCached.timestamp < this.CACHE_TTL_MS &&
-			now - chfCached.timestamp < this.CACHE_TTL_MS
-		) {
+		if (eurCached && chfCached && now - eurCached.timestamp < this.CACHE_TTL_MS && now - chfCached.timestamp < this.CACHE_TTL_MS) {
 			return { eur: Number(eurCached.value), chf: Number(chfCached.value) };
 		}
 
