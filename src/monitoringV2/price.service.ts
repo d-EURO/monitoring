@@ -74,6 +74,9 @@ export class PriceService {
 		if (!this.appConfigService.coingeckoBaseUrl) {
 			throw new Error('COINGECKO_BASE_URL is not set');
 		}
+		if (!this.appConfigService.geckoTerminalBaseUrl) {
+			throw new Error('GECKOTERMINAL_BASE_URL is not set');
+		}
 	}
 
 	async getTokenPricesInEur(addresses: string[]): Promise<{ [key: string]: string }> {
@@ -81,15 +84,15 @@ export class PriceService {
 		const standardAddresses = addresses.filter((addr) => !this.isSpecialToken(addr));
 
 		// Fetch everything in parallel for better performance
-		const [specialPrices, coinGeckoPrices, usdToEur] = await Promise.all([
+		const [specialPrices, geckoTerminalPrices, usdToEur] = await Promise.all([
 			this.getSpecialTokenPrices(requestedSpecialAddresses),
-			this.getCoinGeckoPricesInUSD(standardAddresses),
+			this.getGeckoTerminalPricesInUSD(standardAddresses),
 			this.getUsdToEur(),
 		]);
 
 		// Convert USD prices to EUR
 		const eurPrices: { [key: string]: string } = {};
-		for (const [address, price] of Object.entries(coinGeckoPrices)) {
+		for (const [address, price] of Object.entries(geckoTerminalPrices)) {
 			eurPrices[address] = (Number(price) * usdToEur).toString();
 		}
 
@@ -101,7 +104,7 @@ export class PriceService {
 	 * @param addresses Array of token addresses to fetch prices for
 	 * @returns Object mapping addresses to prices in USD
 	 */
-	private async getCoinGeckoPricesInUSD(addresses: string[]): Promise<{ [key: string]: string }> {
+	private async getGeckoTerminalPricesInUSD(addresses: string[]): Promise<{ [key: string]: string }> {
 		if (addresses.length === 0) return {};
 
 		const cached = this.getFromCache(addresses);
@@ -111,7 +114,7 @@ export class PriceService {
 			return cached;
 		}
 
-		const baseUrl = this.appConfigService.geckoTerminalBaseUrl ?? 'https://api.geckoterminal.com';
+		const baseUrl = this.appConfigService.geckoTerminalBaseUrl;
 
 		try {
 			const response = await axios.get<TokenPrice>(
