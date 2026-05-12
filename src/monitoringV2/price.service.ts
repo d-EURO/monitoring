@@ -111,9 +111,11 @@ export class PriceService {
 			return cached;
 		}
 
+		const baseUrl = this.appConfigService.geckoTerminalBaseUrl ?? 'https://api.geckoterminal.com';
+
 		try {
 			const response = await axios.get<TokenPrice>(
-				`https://api.geckoterminal.com/api/v2/simple/networks/eth/token_price/${remaining.map((a) => a.toLowerCase()).join(',')}`,
+				`${baseUrl}/api/v2/simple/networks/eth/token_price/${remaining.map((a) => a.toLowerCase()).join(',')}`,
 				{
 					headers: { accept: 'application/json' },
 					timeout: 10000, // 10 second timeout
