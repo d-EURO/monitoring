@@ -1,9 +1,11 @@
 import { EquityABI } from '@deuro/eurocoin';
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import axios from 'axios';
 import { ethers } from 'ethers';
 import { ProviderService } from './provider.service';
 import { AppConfigService } from 'src/config/config.service';
+import { TelegramService } from './telegram.service';
 
 const nDEPS = '0xc71104001a3ccda1bef1177d765831bd1bfe8ee6';
 const DEPS = '0x103747924e74708139a9400e4ab4bea79fffa380';
@@ -32,19 +34,46 @@ interface PriceCacheEntry {
 	timestamp: number;
 }
 
+interface CoingeckoEndpoint {
+	baseUrl: string;
+	headers: Record<string, string>;
+}
+
+interface CoingeckoKeyInfo {
+	plan?: string;
+	monthly_call_credit?: number;
+	current_total_monthly_calls?: number;
+	current_remaining_monthly_calls?: number;
+}
+
+const STALENESS_ALERT_THRESHOLD_MS = 60 * 60 * 1000;
+const STALENESS_ALERT_REPEAT_MS = 6 * 60 * 60 * 1000;
+const QUOTA_REMAINING_ALERT_THRESHOLD = 25_000;
+const QUOTA_ALERT_REPEAT_MS = 24 * 60 * 60 * 1000;
+
 @Injectable()
 export class PriceService {
-	private static readonly FX_CACHE_TTL_MS = 3_600_000; // 1 hour — FX rates change slowly
 	private readonly CACHE_TTL_MS: number;
 	private readonly logger = new Logger(PriceService.name);
 	private priceCache = new Map<string, PriceCacheEntry>();
 	private pendingFxRates: Promise<{ eur: number; chf: number }> | null = null;
+	// Initialised to container-start time so the staleness watchdog still
+	// fires when the very first FX fetch never succeeds (CoinGecko down at
+	// boot, restart-loop). Without this, a `null` initial value would
+	// suppress the alert indefinitely.
+	private fxLastSuccessMs: number = Date.now();
+	private fxStalenessAlertedAt: number | null = null;
+	private quotaAlertedAt: number | null = null;
 
 	constructor(
 		private readonly providerService: ProviderService,
-		private readonly appConfigService: AppConfigService
+		private readonly appConfigService: AppConfigService,
+		private readonly telegramService: TelegramService
 	) {
 		this.CACHE_TTL_MS = this.appConfigService.priceCacheTtlMs;
+		if (!this.appConfigService.coingeckoBaseUrl) {
+			throw new Error('COINGECKO_BASE_URL is not set');
+		}
 	}
 
 	async getTokenPricesInEur(addresses: string[]): Promise<{ [key: string]: string }> {
@@ -160,12 +189,7 @@ export class PriceService {
 		const chfCached = this.priceCache.get('usd-chf-rate');
 		const now = Date.now();
 
-		if (
-			eurCached &&
-			chfCached &&
-			now - eurCached.timestamp < PriceService.FX_CACHE_TTL_MS &&
-			now - chfCached.timestamp < PriceService.FX_CACHE_TTL_MS
-		) {
+		if (eurCached && chfCached && now - eurCached.timestamp < this.CACHE_TTL_MS && now - chfCached.timestamp < this.CACHE_TTL_MS) {
 			return { eur: Number(eurCached.value), chf: Number(chfCached.value) };
 		}
 
@@ -180,16 +204,39 @@ export class PriceService {
 		}
 	}
 
+	/**
+	 * Resolve the CoinGecko endpoint.
+	 *
+	 * `COINGECKO_BASE_URL` is required and points at the origin the service
+	 * talks to — typically the in-cluster pricing-proxy
+	 * (https://github.com/DFXswiss/pricing-proxy), but any CoinGecko-compatible
+	 * origin works (e.g. `https://pro-api.coingecko.com` or
+	 * `https://api.coingecko.com`).
+	 *
+	 * `COINGECKO_API_KEY` is optional and is attached as the
+	 * `x-cg-pro-api-key` header on every request when set. Leave it unset when
+	 * talking to the pricing-proxy (the proxy injects its own key) or when
+	 * hitting the public host anonymously.
+	 */
+	private resolveCoingeckoEndpoint(): CoingeckoEndpoint {
+		const baseUrl = this.appConfigService.coingeckoBaseUrl;
+		if (!baseUrl) {
+			throw new Error('COINGECKO_BASE_URL is not set');
+		}
+		const headers: Record<string, string> = { accept: 'application/json' };
+		const apiKey = this.appConfigService.coingeckoApiKey;
+		if (apiKey) {
+			headers['x-cg-pro-api-key'] = apiKey;
+		}
+		return { baseUrl, headers };
+	}
+
 	private async fetchFxRates(
 		eurCached: PriceCacheEntry | undefined,
 		chfCached: PriceCacheEntry | undefined
 	): Promise<{ eur: number; chf: number }> {
 		try {
-			const apiKey = this.appConfigService.coingeckoApiKey;
-			const headers: Record<string, string> = { accept: 'application/json' };
-			const baseUrl = apiKey ? 'https://pro-api.coingecko.com' : 'https://api.coingecko.com';
-			if (apiKey) headers['x-cg-pro-api-key'] = apiKey;
-
+			const { baseUrl, headers } = this.resolveCoingeckoEndpoint();
 			const response = await axios.get(`${baseUrl}/api/v3/simple/price?ids=usd&vs_currencies=eur,chf`, {
 				headers,
 				timeout: 10000,
@@ -209,6 +256,8 @@ export class PriceService {
 			const now = Date.now();
 			this.priceCache.set('usd-eur-rate', { value: String(eur), timestamp: now });
 			this.priceCache.set('usd-chf-rate', { value: String(chf), timestamp: now });
+			this.fxLastSuccessMs = now;
+			this.fxStalenessAlertedAt = null;
 
 			this.logger.debug(`FX rates: USD/EUR=${eur}, USD/CHF=${chf}`);
 			return { eur, chf };
@@ -229,6 +278,63 @@ export class PriceService {
 
 	private isSpecialToken(address: string): boolean {
 		return specialTokens.has(address.toLowerCase());
+	}
+
+	/**
+	 * Hourly probe: when the last successful FX-rate fetch is older than
+	 * STALENESS_ALERT_THRESHOLD_MS, USD/EUR and USD/CHF have decayed and any
+	 * EUR-converted token price is operating on stale reference — escalate via
+	 * Telegram. Self-deduplicates: re-alerts at most every
+	 * STALENESS_ALERT_REPEAT_MS while the condition persists, and clears on the
+	 * next successful fetch.
+	 */
+	@Cron(CronExpression.EVERY_HOUR)
+	async checkFxStaleness(): Promise<void> {
+		const staleness = Date.now() - this.fxLastSuccessMs;
+		if (staleness < STALENESS_ALERT_THRESHOLD_MS) return;
+		if (this.fxStalenessAlertedAt && Date.now() - this.fxStalenessAlertedAt < STALENESS_ALERT_REPEAT_MS) return;
+
+		this.fxStalenessAlertedAt = Date.now();
+		const minutes = Math.round(staleness / 60_000);
+		await this.telegramService.sendCriticalAlert(
+			`USD/EUR + USD/CHF FX rates have not refreshed for ${minutes} min — ` +
+				`EUR-denominated price conversions are running on stale reference.`
+		);
+	}
+
+	/**
+	 * Daily probe of /api/v3/key through the pricing proxy. Emits a critical
+	 * alert when the monthly remaining call credit drops below
+	 * QUOTA_REMAINING_ALERT_THRESHOLD.
+	 */
+	@Cron(CronExpression.EVERY_DAY_AT_NOON)
+	async checkCoingeckoQuota(): Promise<void> {
+		try {
+			const { baseUrl, headers } = this.resolveCoingeckoEndpoint();
+			const response = await axios.get<CoingeckoKeyInfo>(`${baseUrl}/api/v3/key`, {
+				headers,
+				timeout: 10000,
+			});
+			const { current_remaining_monthly_calls: remaining, monthly_call_credit: credit } = response.data;
+			if (typeof remaining !== 'number' || typeof credit !== 'number' || credit <= 0) return;
+
+			const pct = Math.round((remaining / credit) * 100);
+			this.logger.log(`CoinGecko quota: ${remaining} of ${credit} calls remaining (${pct}%)`);
+
+			if (remaining >= QUOTA_REMAINING_ALERT_THRESHOLD) {
+				this.quotaAlertedAt = null;
+				return;
+			}
+			if (this.quotaAlertedAt && Date.now() - this.quotaAlertedAt < QUOTA_ALERT_REPEAT_MS) return;
+
+			this.quotaAlertedAt = Date.now();
+			await this.telegramService.sendCriticalAlert(
+				`CoinGecko monthly quota almost exhausted: ${remaining.toLocaleString()} of ` +
+					`${credit.toLocaleString()} calls remaining (${pct}%).`
+			);
+		} catch (error) {
+			this.logger.warn(`CoinGecko quota probe failed: ${error.message ?? error}`);
+		}
 	}
 
 	// Cache management methods
