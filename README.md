@@ -71,9 +71,8 @@ Swagger documentation available at: `http://localhost:3001/swagger`
 ## CoinGecko
 
 The monitoring service needs a CoinGecko-compatible endpoint for USD/EUR
-and USD/CHF FX rates (drives EUR-denominated price conversions and the
-staleness watchdog) and the daily Pro quota probe. Configuration is two
-env vars:
+and USD/CHF FX rates — they drive EUR-denominated price conversions and
+the staleness watchdog. Configuration is two env vars:
 
 | Var | Required | Purpose |
 |---|---|---|
