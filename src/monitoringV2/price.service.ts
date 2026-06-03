@@ -152,9 +152,9 @@ export class PriceService {
 			const underlying = specialTokens.get(formattedAddress);
 			if (!underlying) continue; // Not a special token
 
-			// Fetch price from underlying equity contract
+			// Fetch price from underlying equity contract (with transient-error retry)
 			const equityContract = new ethers.Contract(underlying, EquityABI, this.providerService.provider);
-			const nativePrice = await equityContract.price();
+			const nativePrice = await this.providerService.call(() => equityContract.price());
 			let formattedPrice = ethers.formatUnits(nativePrice, 18);
 
 			// For WFPS, convert CHF to EUR

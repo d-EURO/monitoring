@@ -141,6 +141,10 @@ export class ProviderService {
 		return results;
 	}
 
+	async call<T>(thunk: () => Promise<T>, retries = 5): Promise<T> {
+		return this.withRetry(thunk, { retries });
+	}
+
 	async getBlock(blockNumber: number): Promise<ethers.Block | null> {
 		if (this.blockCache.has(blockNumber)) {
 			return this.blockCache.get(blockNumber);
