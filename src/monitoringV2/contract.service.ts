@@ -100,7 +100,7 @@ export class ContractService {
 			);
 		}
 
-		await this.contractRepo.createMany(coreContracts);
+		await this.contractRepo.upsertCore(coreContracts);
 		this.logger.log(`Registry initialized with ${coreContracts.length} core contracts`);
 		this.logger.log(`Registered addresses: ${coreContracts.map((c) => c.address).join(', ')}`);
 	}
@@ -193,8 +193,8 @@ export class ContractService {
 
 	private async isStablecoinBridge(address: string): Promise<boolean> {
 		try {
-			const contract = new ethers.Contract(address, StablecoinBridgeABI, this.providerService.provider);
-			await contract.eur(); // Fails if not a StablecoinBridge
+			// Contract built inside the thunk so a mid-call provider recycle is picked up on the retry.
+			await this.providerService.call(() => new ethers.Contract(address, StablecoinBridgeABI, this.providerService.provider).eur()); // Reverts (deterministic) if not a StablecoinBridge
 			return true;
 		} catch {
 			return false;

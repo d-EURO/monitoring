@@ -106,36 +106,26 @@ export class PriceService {
 
 		const baseUrl = this.appConfigService.geckoTerminalBaseUrl;
 
-		try {
-			const response = await axios.get<TokenPrice>(
-				`${baseUrl}/api/v2/simple/networks/eth/token_price/${remaining.map((a) => a.toLowerCase()).join(',')}`,
-				{
-					headers: { accept: 'application/json' },
-					timeout: 10000, // 10 second timeout
-				}
-			);
-
-			const apiPrices = response.data.data.attributes.token_prices;
-			const normalizedPrices: { [key: string]: string } = {};
-			for (const inputAddress of remaining) {
-				const price = apiPrices[inputAddress.toLowerCase()];
-				if (price) {
-					normalizedPrices[inputAddress] = price;
-					this.setCache(inputAddress, price);
-				}
+		const response = await axios.get<TokenPrice>(
+			`${baseUrl}/api/v2/simple/networks/eth/token_price/${remaining.map((a) => a.toLowerCase()).join(',')}`,
+			{
+				headers: { accept: 'application/json' },
+				timeout: 10000, // 10 second timeout
 			}
+		);
 
-			this.logger.log(`Fetched prices for ${Object.keys(normalizedPrices).length} tokens from GeckoTerminal`);
-			return { ...cached, ...normalizedPrices };
-		} catch (error) {
-			this.logger.error('Failed to fetch token prices from GeckoTerminal:', error);
-			if (cached) {
-				this.logger.warn('Returning expired cached prices due to API error');
-				return cached;
+		const apiPrices = response.data.data.attributes.token_prices;
+		const normalizedPrices: { [key: string]: string } = {};
+		for (const inputAddress of remaining) {
+			const price = apiPrices[inputAddress.toLowerCase()];
+			if (price) {
+				normalizedPrices[inputAddress] = price;
+				this.setCache(inputAddress, price);
 			}
-
-			return {};
 		}
+
+		this.logger.log(`Fetched prices for ${Object.keys(normalizedPrices).length} tokens from GeckoTerminal`);
+		return { ...cached, ...normalizedPrices };
 	}
 
 	private async getSpecialTokenPrices(requestedAddresses: string[]): Promise<{ [key: string]: string }> {
@@ -152,9 +142,11 @@ export class PriceService {
 			const underlying = specialTokens.get(formattedAddress);
 			if (!underlying) continue; // Not a special token
 
-			// Fetch price from underlying equity contract
-			const equityContract = new ethers.Contract(underlying, EquityABI, this.providerService.provider);
-			const nativePrice = await equityContract.price();
+			// Fetch price from underlying equity contract (with transient-error retry). The contract is
+			// built inside the thunk so a mid-call provider recycle is picked up on the retry.
+			const nativePrice = await this.providerService.call(() =>
+				new ethers.Contract(underlying, EquityABI, this.providerService.provider).price()
+			);
 			let formattedPrice = ethers.formatUnits(nativePrice, 18);
 
 			// For WFPS, convert CHF to EUR
@@ -191,7 +183,7 @@ export class PriceService {
 		// Deduplicate concurrent requests
 		if (this.pendingFxRates) return this.pendingFxRates;
 
-		this.pendingFxRates = this.fetchFxRates(eurCached, chfCached);
+		this.pendingFxRates = this.fetchFxRates();
 		try {
 			return await this.pendingFxRates;
 		} finally {
@@ -226,49 +218,28 @@ export class PriceService {
 		return { baseUrl, headers };
 	}
 
-	private async fetchFxRates(
-		eurCached: PriceCacheEntry | undefined,
-		chfCached: PriceCacheEntry | undefined
-	): Promise<{ eur: number; chf: number }> {
-		try {
-			const { baseUrl, headers } = this.resolveCoingeckoEndpoint();
-			const response = await axios.get(`${baseUrl}/api/v3/simple/price?ids=usd&vs_currencies=eur,chf`, {
-				headers,
-				timeout: 10000,
-			});
+	private async fetchFxRates(): Promise<{ eur: number; chf: number }> {
+		const { baseUrl, headers } = this.resolveCoingeckoEndpoint();
+		const response = await axios.get(`${baseUrl}/api/v3/simple/price?ids=usd&vs_currencies=eur,chf`, {
+			headers,
+			timeout: 10000,
+		});
 
-			const eur = Number(response.data.usd.eur);
-			const chf = Number(response.data.usd.chf);
+		const eur = Number(response.data?.usd?.eur);
+		const chf = Number(response.data?.usd?.chf);
 
-			if (Number.isNaN(eur) || Number.isNaN(chf)) {
-				this.logger.error('CoinGecko returned non-numeric FX rates', response.data);
-				return {
-					eur: !Number.isNaN(eur) ? eur : eurCached ? Number(eurCached.value) : 1,
-					chf: !Number.isNaN(chf) ? chf : chfCached ? Number(chfCached.value) : 1,
-				};
-			}
-
-			const now = Date.now();
-			this.priceCache.set('usd-eur-rate', { value: String(eur), timestamp: now });
-			this.priceCache.set('usd-chf-rate', { value: String(chf), timestamp: now });
-			this.fxLastSuccessMs = now;
-			this.fxStalenessAlertedAt = null;
-
-			this.logger.debug(`FX rates: USD/EUR=${eur}, USD/CHF=${chf}`);
-			return { eur, chf };
-		} catch (error) {
-			this.logger.error('Failed to fetch FX rates:', error.message || error);
-
-			const eur = eurCached ? Number(eurCached.value) : 1;
-			const chf = chfCached ? Number(chfCached.value) : 1;
-
-			// Refresh cache timestamps so we don't retry on every call while rate-limited
-			const now = Date.now();
-			this.priceCache.set('usd-eur-rate', { value: String(eur), timestamp: now });
-			this.priceCache.set('usd-chf-rate', { value: String(chf), timestamp: now });
-
-			return { eur, chf };
+		if (!Number.isFinite(eur) || !Number.isFinite(chf) || eur <= 0 || chf <= 0) {
+			throw new Error(`CoinGecko returned invalid FX rates: usd.eur=${response.data?.usd?.eur}, usd.chf=${response.data?.usd?.chf}`);
 		}
+
+		const now = Date.now();
+		this.priceCache.set('usd-eur-rate', { value: String(eur), timestamp: now });
+		this.priceCache.set('usd-chf-rate', { value: String(chf), timestamp: now });
+		this.fxLastSuccessMs = now;
+		this.fxStalenessAlertedAt = null;
+
+		this.logger.debug(`FX rates: USD/EUR=${eur}, USD/CHF=${chf}`);
+		return { eur, chf };
 	}
 
 	private isSpecialToken(address: string): boolean {
