@@ -187,7 +187,7 @@ export class ProviderService {
 		return await this.withRetry(() => this.ethersProvider.getBlockNumber());
 	}
 
-	async getLogs(filter: ethers.Filter): Promise<ethers.Log[]> {
+	async getLogs(filter: ethers.Filter | ethers.FilterByBlockHash): Promise<ethers.Log[]> {
 		return await this.withRetry(() => this.ethersProvider.getLogs(filter));
 	}
 
@@ -197,12 +197,13 @@ export class ProviderService {
 
 	// Helper functions for retry logic
 
-	// Single source of truth for the error fields both classifiers read — ethers v6 exposes the
-	// HTTP status under different keys depending on the path (`status`, `info.responseStatus`,
-	// `response.status`), so probe all three to avoid divergence between the two checks.
+	// Single source of truth for the error fields both classifiers read. ethers v6 attaches the
+	// failing HTTP response to `err.response` (a FetchResponse whose status is `.statusCode`, see
+	// fetch.js assertOk); other error shapes use `err.status`/`err.statusCode`/`err.response.status`.
+	// Probe them all so the status-based checks are not silently dead for ethers' own errors.
 	private parseError(err: any): { status: number; code: string; msg: string } {
 		return {
-			status: Number(err?.status ?? err?.info?.responseStatus ?? err?.response?.status ?? NaN),
+			status: Number(err?.status ?? err?.statusCode ?? err?.response?.statusCode ?? err?.response?.status ?? NaN),
 			code: String(err?.code ?? err?.cause?.code ?? ''),
 			msg: String(err?.shortMessage ?? err?.message ?? '').toLowerCase(),
 		};

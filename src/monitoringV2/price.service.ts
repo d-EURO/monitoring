@@ -142,9 +142,11 @@ export class PriceService {
 			const underlying = specialTokens.get(formattedAddress);
 			if (!underlying) continue; // Not a special token
 
-			// Fetch price from underlying equity contract (with transient-error retry)
-			const equityContract = new ethers.Contract(underlying, EquityABI, this.providerService.provider);
-			const nativePrice = await this.providerService.call(() => equityContract.price());
+			// Fetch price from underlying equity contract (with transient-error retry). The contract is
+			// built inside the thunk so a mid-call provider recycle is picked up on the retry.
+			const nativePrice = await this.providerService.call(() =>
+				new ethers.Contract(underlying, EquityABI, this.providerService.provider).price()
+			);
 			let formattedPrice = ethers.formatUnits(nativePrice, 18);
 
 			// For WFPS, convert CHF to EUR
